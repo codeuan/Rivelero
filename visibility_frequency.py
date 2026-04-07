@@ -22,7 +22,7 @@ from rasterio.windows import from_bounds, transform as window_transform, bounds 
 from rasterio.warp import reproject
 
 
-CSV_PATH = "Libro1.csv" #CSV where metadata is obtained from (will need upgrading to API call when possible).
+CSV_PATH = "Libro2.csv" #CSV where metadata is obtained from (will need upgrading to API call when possible).
 DEM_PATH = "SZ49se_FZ_DSM_1m.tif" #GeoTIFF raster file.
 
 OUT_TIF = "visibility_frequency_cropped.tif" #result as stored in a raster file.
