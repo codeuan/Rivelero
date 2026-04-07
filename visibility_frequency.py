@@ -1,4 +1,11 @@
 # visibility_frequency.py
+
+# Run with:
+#           & "C:\Users\zool2620\AppData\Local\miniconda3\Scripts\conda.exe" run -n vista python visibility_frequency.py
+# This script reads observer locations and metadata from a CSV, computes viewsheds using GDAL's command-line tool, and aggregates the results into a visibility frequency raster. It then saves the aggregated raster as a GeoTIFF and creates a PNG preview with a colorbar and scale bar.
+
+from __future__ import annotations
+
 import math
 import shutil
 import subprocess
