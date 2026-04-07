@@ -1,12 +1,4 @@
 # visibility_frequency.py
-
-# Run with:
-#           & "C:\Users\zool2620\AppData\Local\miniconda3\Scripts\conda.exe" run -n vista python visibility_frequency.py
-
-# Fantastic. Now I need help with a very difficult mission. This is my version of the code, but my student produced another version of it that was not fully working. In order to respect his work, could you help me understand his approach
-
-from __future__ import annotations
-
 import math
 import shutil
 import subprocess
@@ -23,29 +15,25 @@ from rasterio.windows import from_bounds, transform as window_transform, bounds 
 from rasterio.warp import reproject
 
 
-CSV_PATH = "Libro1.csv"
-DEM_PATH = "SZ49se_FZ_DSM_1m.tif"
+CSV_PATH = "Libro1.csv" #CSV where metadata is obtained from (will need upgrading to API call when possible).
+DEM_PATH = "SZ49se_FZ_DSM_1m.tif" #GeoTIFF raster file.
 
-OUT_TIF = "visibility_frequency_cropped.tif"
-OUT_PNG = "visibility_frequency_cropped.png"
+OUT_TIF = "visibility_frequency_cropped.tif" #result as stored in a raster file.
+OUT_PNG = "visibility_frequency_cropped.png" #result as stored in a png file.
 
-# Your CSV lon/lat are assumed to be WGS84.
-CSV_CRS = "EPSG:4326"
+CSV_CRS = "EPSG:4326" #coordinate system (lon/lat).
 
-# Crop and analysis distance in DEM units (meters if your DEM CRS is meters).
-MAX_DISTANCE_M = 500.0
+MAX_DISTANCE_M = 500.0 #maximum visibility distance.
 
-# Field of view around heading_deg.
-# Use 360 for no directional masking.
-FIELD_OF_VIEW_DEG = 120.0
+FIELD_OF_VIEW_DEG = 120.0 #field of view in degrees.
 
 
-def find_gdal_viewshed_command() -> list[str]:
-    if shutil.which("gdal"):
-        return ["gdal", "raster", "viewshed"]
-    if shutil.which("gdal_raster_viewshed"):
-        return ["gdal_raster_viewshed"]
-    raise RuntimeError("Could not find GDAL viewshed command in PATH.")
+def find_gdal_viewshed_command() -> list[str]: #function to find the correct GDAL viewshed command to use for the built in viewshed functions.
+    if shutil.which("gdal"): #looks for a gdal command in the system PATH.
+        return ["gdal", "raster", "viewshed"] #if so, return command pieces to call viewshed tool.
+    if shutil.which("gdal_raster_viewshed"): #alternative PATH name.
+        return ["gdal_raster_viewshed"] #alternative command pieces.
+    raise RuntimeError("Could not find GDAL viewshed command in PATH.") #if none found, raise an error.
 
 
 def run_viewshed(
@@ -56,7 +44,7 @@ def run_viewshed(
     out_tif: str,
     max_distance: float,
 ) -> None:
-    cmd = find_gdal_viewshed_command()
+    cmd = find_gdal_viewshed_command() #line of sight function.
 
     full_cmd = [
         *cmd,
@@ -77,16 +65,16 @@ def run_viewshed(
         f"{x},{y},{observer_h}",
         dem_path,
         out_tif,
-    ]
+    ] #terminal command acting as instruction packet for GDAL.
 
-    result = subprocess.run(full_cmd, capture_output=True, text=True)
-    if result.returncode != 0:
+    result = subprocess.run(full_cmd, capture_output=True, text=True) #execute command in terminal and capture what is printed as text.
+    if result.returncode != 0: #if an error occurred.
         raise RuntimeError(
             f"GDAL viewshed failed\n"
             f"Command: {' '.join(full_cmd)}\n"
             f"STDOUT:\n{result.stdout}\n"
             f"STDERR:\n{result.stderr}"
-        )
+        ) #print error message.
 
 
 def nice_scale_length(width_m: float) -> float:
