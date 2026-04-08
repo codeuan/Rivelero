@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+from time import time
 
 import numpy as np
 import rasterio
@@ -356,16 +357,18 @@ def run_program(sample_metadata, tif_path, max_distance, ax=None, show_reference
 
         save_preview_png(frequency, crop_window, src.transform, observer_points_xy, OUT_PNG)
 
-        out_tif = "visibility_frequency_output.tif"
+        out_tif = f"visibility_{int(time.time())}.tif"
 
         profile = src.profile.copy()
         profile.update(
             driver="GTiff",
             height=frequency.shape[0],
             width=frequency.shape[1],
+            transform=crop_transform,
             count=1,
             dtype="uint32",
             nodata=0,
+            compress="lzw",
         )
 
         with rasterio.open(out_tif, "w", **profile) as dst:
