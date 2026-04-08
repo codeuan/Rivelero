@@ -355,10 +355,27 @@ def run_program(sample_metadata, tif_path, max_distance, ax=None, show_reference
         print("max count =", int(frequency.max()))
 
         save_preview_png(frequency, crop_window, src.transform, observer_points_xy, OUT_PNG)
-        
+
+        out_tif = "visibility_frequency_output.tif"
+
+        profile = src.profile.copy()
+        profile.update(
+            driver="GTiff",
+            height=frequency.shape[0],
+            width=frequency.shape[1],
+            count=1,
+            dtype="uint32",
+            nodata=0,
+        )
+
+        with rasterio.open(out_tif, "w", **profile) as dst:
+            dst.write(frequency, 1)
+  
+
         return {
             "count_overlay": frequency,
             "observer_points_xy": observer_points_xy,
             "view_extent": view_extent,
             "preview_png_path": str(OUT_PNG),
+            "output_tif_path": out_tif,
         }

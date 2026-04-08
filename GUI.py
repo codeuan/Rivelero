@@ -321,8 +321,8 @@ def start_gui(run_program):
                     }
                 )
 
-        if len(samples) != 10:
-            raise ValueError(f"CSV must contain exactly 10 samples for this proof of concept. Found {len(samples)}.")
+        #if len(samples) != 10:
+        #    raise ValueError(f"CSV must contain exactly 10 samples for this proof of concept. Found {len(samples)}.")
 
         return samples
 
@@ -555,7 +555,8 @@ def start_gui(run_program):
                     "visibility_frequency_cropped.png",
                 )
             open_visibility_window(preview_png_path)
-
+            print("Saved raster:", result["output_tif_path"])
+            
         except ValueError as e:
             show_error(str(e))
         except Exception as e:
