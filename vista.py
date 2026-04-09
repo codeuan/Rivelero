@@ -5,7 +5,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from time import time
+import time as time_module
 
 import numpy as np
 import rasterio
@@ -44,12 +44,7 @@ def find_gdal_viewshed_command() -> list[str]:
 )
 
 
-if not shutil.which("gdal") and not shutil.which("gdal_raster_viewshed"):
-    raise RuntimeError(
-        "GDAL CLI not found.\n"
-        "Make sure you created the conda environment:\n"
-        "conda env create -f environment.yml"
-    )
+
 
 
 def run_viewshed(
@@ -129,11 +124,11 @@ def add_scale_bar(ax, length_m: float) -> None:
     )
 
 
-from matplotlib.colors import ListedColormap, BoundaryNorm
-import matplotlib.patches as mpatches
 
-from matplotlib import cm
-import matplotlib.patches as mpatches
+
+
+
+
 
 def save_preview_png(
     frequency: np.ndarray,
@@ -309,7 +304,7 @@ def run_program(sample_metadata, tif_path, max_distance, ax=None, show_reference
                     y=sample["y_coord"],
                     observer_h=sample["observer_height"],
                     out_tif=str(vs_path),
-                    max_distance=MAX_DISTANCE_M,
+                    max_distance=max_distance,
                 )
 
                 with rasterio.open(vs_path) as src_vs:
@@ -357,7 +352,7 @@ def run_program(sample_metadata, tif_path, max_distance, ax=None, show_reference
 
         save_preview_png(frequency, crop_window, src.transform, observer_points_xy, OUT_PNG)
 
-        out_tif = f"visibility_{int(time.time())}.tif"
+        out_tif = f"visibility_{int(time_module.time())}.tif"
 
         profile = src.profile.copy()
         profile.update(
