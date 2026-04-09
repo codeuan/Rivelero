@@ -18,11 +18,6 @@ tif_path = None
 metadata_csv_path = None
 loaded_sample_metadata = []
 
-
-dtif_path = None #file to be loaded from.
-metadata_csv_path = None #file containing sample metadata.
-loaded_sample_metadata = [] #store metadata loaded from CSV.
-
 def start_gui(run_program): #entry point for the program.
 
     def set_coordinate_entries(lon, lat):
@@ -128,6 +123,8 @@ def start_gui(run_program): #entry point for the program.
             ) #create a button to toggle overlay.
 
             self.canvas.mpl_connect("button_press_event", self.on_click) #create a click handler to detect what coordinates a user may click on when drawing a polygon.
+
+
   
         def on_scroll(self, event): #when the user scrolls mouse wheel over the plot.
             if event.inaxes != self.ax_count:
@@ -531,7 +528,16 @@ def start_gui(run_program): #entry point for the program.
         if value <= 0:
             raise ValueError("Maximum distance must be greater than 0 metres.")
         return value
-        
+
+
+    def get_dem_path(sample_metadata, max_distance):
+        if dem_source_var.get() == "local":
+            if not tif_path:
+                raise ValueError("Please select a GeoTIFF file first.")
+            return tif_path
+
+        return download_dem_for_samples(sample_metadata, max_distance)
+
     def show_error(message):
             error_label.config(text=message) #update the error label with the error text.
 
@@ -589,40 +595,56 @@ def start_gui(run_program): #entry point for the program.
             max_distance_entry = ttk.Entry(top_bar, width=10, textvariable=max_distance_var)
             max_distance_entry.pack(side="left")
 
+            dem_mode_label = ttk.Label(top_bar, text="DEM source:")
+            dem_mode_label.pack(side="left", padx=(20, 4))
+
+            local_radio = ttk.Radiobutton(
+                top_bar,
+                text="Use local DEM",
+                variable=dem_source_var,
+                value="local",
+            )
+            local_radio.pack(side="left")
+
+            download_radio = ttk.Radiobutton(
+                top_bar,
+                text="Download DEM from OpenTopography",
+                variable=dem_source_var,
+                value="download",
+            )
+            download_radio.pack(side="left", padx=(10, 0))
+
             
     def submit():
-            global tif_path
-            error_label.config(text="") # clear any previous error message.
-            try:
-                if not tif_path:
-                    raise ValueError("Please select a GeoTIFF file first.")
+        global tif_path
+        error_label.config(text="")
+        try:
+            sample_metadata = validate_inputs()
+            max_distance = validate_max_distance()
+            dem_path = get_dem_path(sample_metadata, max_distance)
 
-                sample_metadata = validate_inputs() #validate the user's inputs.
-                max_distance = validate_max_distance()
+            right_sidebar.load_dem(dem_path)
 
-                right_sidebar.load_dem(tif_path) #load DEM into preview.
+            result = run_program(
+                sample_metadata,
+                dem_path,
+                max_distance,
+            )
 
-                result = run_program(
-                    sample_metadata,
-                    tif_path,
-                    max_distance,
-                ) #run the main program with the three values on the embedded axes.
+            right_sidebar.set_results(
+                result["count_overlay"],
+                observer_points=result["observer_points_xy"],
+                view_extent=result["view_extent"],
+                scale_bar_length_m=result["scale_bar_length_m"],
+            )
 
-                right_sidebar.set_results(
-                    result["count_overlay"],
-                    observer_points=result["observer_points_xy"],
-                    view_extent=result["view_extent"],
-                    scale_bar_length_m=result["scale_bar_length_m"]
-                )
+            right_sidebar.canvas.draw_idle()
 
+        except ValueError as e:
+            show_error(str(e))
+        except Exception as e:
+            show_error(str(e))
 
-                right_sidebar.canvas.draw_idle() #refresh the embedded preview.
-
-            except ValueError as e:
-                show_error(str(e)) #handle invalid number input.
-            except Exception as e:
-                show_error(str(e)) #handle generic bad user input.
-   
     global tif_path 
     root = tk.Tk() #create the GUI window.
     root.title("VISTA") #title the window.
@@ -681,6 +703,7 @@ def start_gui(run_program): #entry point for the program.
     left_canvas.bind("<Leave>", unbind_mousewheel)
 
     max_distance_var = tk.StringVar(value="500.0")
+    dem_source_var = tk.StringVar(value="local")
 
     selected_metadata_var, load_metadata_file = metadata_handler() #create button to load in a CSV by defining variable and function with does so.
     right_sidebar = RightSideBar(root) #create right hand pannel.

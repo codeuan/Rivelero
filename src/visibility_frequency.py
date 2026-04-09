@@ -17,10 +17,7 @@ from rasterio.windows import from_bounds, transform as window_transform, bounds 
 from rasterio.warp import reproject
 import os 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
-
-OUT_TIF = "visibility_frequency_cropped.tif" #result as stored in a raster file.
-OUT_PNG = "visibility_frequency_cropped.png" #result as stored in a png file.
+import time as time_module
 
 CSV_CRS = "EPSG:4326" #coordinate system (lon/lat).
 
@@ -153,7 +150,42 @@ def process_one_point(
         aligned = np.where(angular_diff <= FIELD_OF_VIEW_DEG / 2.0, aligned, 0) 
     return (aligned > 0).astype(np.uint32) 
 
-def run_program(sample_metadata, dem_path, MAX_DISTANCE_M):
+def save_preview_png(frequency, crop_window, src_transform, observer_points_xy, out_png):
+    left, bottom, right, top = window_bounds(crop_window, src_transform)
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+
+    masked = np.ma.masked_where(frequency == 0, frequency)
+    im = ax.imshow(
+        masked,
+        extent=(left, right, bottom, top),
+        origin="upper",
+        cmap="viridis",
+        vmin=1,
+        vmax=max(1, int(frequency.max())),
+    )
+
+    cbar = fig.colorbar(im, ax=ax)
+    cbar.set_label("Number of observers seeing each cell")
+
+    ax.set_title("Visibility frequency")
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_aspect("equal")
+
+    if observer_points_xy:
+        xs = [x for x, _ in observer_points_xy]
+        ys = [y for _, y in observer_points_xy]
+        ax.scatter(xs, ys, marker="x", s=80, linewidths=2, color="white", zorder=30)
+
+    bar_length = nice_scale_length(right - left)
+    add_scale_bar(ax, bar_length)
+
+    fig.tight_layout()
+    fig.savefig(out_png, dpi=200)
+    plt.close(fig)
+
+def run_program(sample_metadata, dem_path, max_distance_m):
 
     dem_path = Path(dem_path)
     required = {"lon", "lat", "observer_height", "heading_deg"}
@@ -188,10 +220,10 @@ def run_program(sample_metadata, dem_path, MAX_DISTANCE_M):
         xs = [p[0] for p in pts]
         ys = [p[1] for p in pts]
 
-        left = min(xs) - MAX_DISTANCE_M
-        right = max(xs) + MAX_DISTANCE_M
-        bottom = min(ys) - MAX_DISTANCE_M
-        top = max(ys) + MAX_DISTANCE_M
+        left = min(xs) - max_distance_m
+        right = max(xs) + max_distance_m
+        bottom = min(ys) - max_distance_m
+        top = max(ys) + max_distance_m
 
         # Crop window on the DEM grid.
         crop_window = from_bounds(left, bottom, right, top, dem.transform)
@@ -233,7 +265,7 @@ def run_program(sample_metadata, dem_path, MAX_DISTANCE_M):
                         dem.crs,
                         xx,
                         yy,
-                        MAX_DISTANCE_M
+                        max_distance_m
                     ) #submit job to worker pool and have future returned.
                     future_to_index[future] = i #store coordinates pertaining to future.
 
@@ -248,6 +280,12 @@ def run_program(sample_metadata, dem_path, MAX_DISTANCE_M):
 
         print(f"Frequency raster min/max: {frequency.min()} / {frequency.max()}")
 
+        timestamp = time_module.strftime("%Y%m%d_%H%M%S")
+        out_tif = f"visibility_frequency_{timestamp}.tif"
+        out_png = f"visibility_frequency_{timestamp}.png"
+
+        save_preview_png(frequency, crop_window, dem.transform, [(x, y) for x, y, _, _ in pts], out_png)
+
         out_profile = dem.profile.copy()
         out_profile.update(
             driver="GTiff",
@@ -260,18 +298,19 @@ def run_program(sample_metadata, dem_path, MAX_DISTANCE_M):
             compress="lzw",
         )
 
-        with rasterio.open(OUT_TIF, "w", **out_profile) as dst:
+        with rasterio.open(out_tif, "w", **out_profile) as dst:
             dst.write(frequency, 1)
 
-        # PNG preview with colorbar + scale bar
-        left2, bottom2, right2, top2 = window_bounds(crop_window, dem.transform) #compute plot extent for the GUI so it can render the result itself.
+        left2, bottom2, right2, top2 = window_bounds(crop_window, dem.transform)
 
-    print(f"Saved GeoTIFF: {OUT_TIF}")
+    print(f"Saved GeoTIFF: {out_tif}")
+    print(f"Saved PNG: {out_png}")
 
     return {
         "count_overlay": frequency,
         "observer_points_xy": [(x, y) for x, y, _, _ in pts],
         "view_extent": (left2, right2, bottom2, top2),
         "scale_bar_length_m": nice_scale_length(right2 - left2),
-        "output_tif_path": str(OUT_TIF),
+        "output_tif_path": out_tif,
+        "preview_png_path": out_png,
     }
