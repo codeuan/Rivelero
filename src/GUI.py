@@ -237,19 +237,9 @@ def start_gui(run_program): #entry point for the program.
             self.view_ylim = None #reset manual zoom so a fresh submit uses the program's automatic zoom.
             self._redraw() #render.
 
-
-        def toggle_overlay(self): #toggle overlay on/off.
-            self._redraw() #rerender.
-
-
-            if self.count_overlay_im is not None: #if overlay exists.
-                self.count_overlay_im.set_visible(show) #toggle on/off.
-
-            if self.count_overlay_cbar is not None: #if colourbar exists.
-                self.count_overlay_cbar.ax.set_visible(show) #toggle on/off.
-
-            self.canvas.draw_idle() #update display.
-
+        def toggle_overlay(self):
+            self._redraw()
+       
         def clear_overlay(self):
             self.count_overlay = None #remove any previous overlay.
             self.observer_points_xy = [] #remove any previous observer point.
@@ -362,15 +352,19 @@ def start_gui(run_program): #entry point for the program.
 
 
     def populate_sample_entries(samples):
-        rebuild_sample_rows(len(samples))  # create enough visible rows for the CSV
+        MAX_DISPLAY_ROWS = 5
+
+        # rebuild_sample_rows(len(samples))  # create enough visible rows for the CSV
+        rebuild_sample_rows(min(len(samples), MAX_DISPLAY_ROWS))
 
         for lon_entry, lat_entry, height_entry, heading_entry in sample_entries:
             lon_entry.delete(0, tk.END)
             lat_entry.delete(0, tk.END)
             height_entry.delete(0, tk.END)
             heading_entry.delete(0, tk.END)  # clear old values first
-
-        for i, sample in enumerate(samples):
+        
+       
+        for i, sample in enumerate(samples[:MAX_DISPLAY_ROWS]):
             lon_entry, lat_entry, height_entry, heading_entry = sample_entries[i]
 
             lon_entry.insert(0, str(sample["lon"]))
@@ -446,6 +440,7 @@ def start_gui(run_program): #entry point for the program.
 
             try:
                 samples = load_metadata_csv(file_path) #read the CSV file and turn it into a validated list of sample dictionaries.
+                print("Rows loaded from CSV:", len(samples))
                 metadata_csv_path = file_path #store the chosen CSV path.
                 loaded_sample_metadata = samples #store the loaded sample list.
                 selected_metadata_var.set(file_path) #update the Tkinter text variable to display the chosen CSV file path.
@@ -459,6 +454,9 @@ def start_gui(run_program): #entry point for the program.
    
    
     def validate_inputs():
+        if loaded_sample_metadata:
+            print("validate_inputs sample count:", len(loaded_sample_metadata))
+            return loaded_sample_metadata
         max_observer_height = 10000
         samples = []
 
@@ -567,6 +565,7 @@ def start_gui(run_program): #entry point for the program.
 
                 try:
                     validate_file(file_path) #validate file function.
+                    print("validate_inputs sample count:", len(loaded_sample_metadata) if loaded_sample_metadata else "manual entry")
                     tif_path = file_path #store chosen file path to be passed into run_program later.
                     selected_file_var.set(file_path)
                     right_sidebar.load_dem(tif_path) #load initial DEM preview.
@@ -625,11 +624,15 @@ def start_gui(run_program): #entry point for the program.
 
             right_sidebar.load_dem(dem_path)
 
+            print("Number of samples:", len(sample_metadata))
+            
             result = run_program(
                 sample_metadata,
                 dem_path,
                 max_distance,
+                
             )
+            print("Total points received:", len(sample_metadata))
 
             right_sidebar.set_results(
                 result["count_overlay"],

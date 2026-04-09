@@ -11,13 +11,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import rasterio
-from pyproj import Transformer
 from rasterio.enums import Resampling
 from rasterio.windows import from_bounds, transform as window_transform, bounds as window_bounds
-from rasterio.warp import reproject
 import os 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time as time_module
+
+from pyproj import CRS, Transformer
+from rasterio.warp import calculate_default_transform, reproject
 
 CSV_CRS = "EPSG:4326" #coordinate system (lon/lat).
 
@@ -73,6 +74,8 @@ def run_viewshed(
         ) #print error message.
 
 
+
+
 def nice_scale_length(width_m: float) -> float:
     raw = width_m / 5.0 #attempt to split display into 5 chunbks.
     if raw <= 0:
@@ -103,6 +106,53 @@ def add_scale_bar(ax, length_m: float) -> None:
         color="black",
         bbox=dict(facecolor="white", edgecolor="none", alpha=0.7, pad=2),
     ) #styling for label.
+
+def choose_projected_crs(sample_metadata):
+    center_lon = float(np.mean([float(s["lon"]) for s in sample_metadata]))
+    center_lat = float(np.mean([float(s["lat"]) for s in sample_metadata]))
+
+    zone = int((center_lon + 180.0) // 6.0) + 1
+    epsg = 32600 + zone if center_lat >= 0 else 32700 + zone
+    return CRS.from_epsg(epsg)
+
+
+def reproject_dem_to_crs(src, dst_crs):
+    dst_transform, dst_width, dst_height = calculate_default_transform(
+        src.crs, dst_crs, src.width, src.height, *src.bounds
+    )
+
+    profile = src.profile.copy()
+    profile.update(
+        driver="GTiff",
+        height=dst_height,
+        width=dst_width,
+        transform=dst_transform,
+        crs=dst_crs,
+        count=1,
+        dtype="float32",
+        nodata=np.nan,
+        compress="lzw",
+    )
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".tif")
+    tmp_path = Path(tmp.name)
+    tmp.close()
+
+    with rasterio.open(tmp_path, "w", **profile) as dst:
+        reproject(
+            source=rasterio.band(src, 1),
+            destination=rasterio.band(dst, 1),
+            src_transform=src.transform,
+            src_crs=src.crs,
+            dst_transform=dst_transform,
+            dst_crs=dst_crs,
+            src_nodata=src.nodata,
+            dst_nodata=np.nan,
+            resampling=Resampling.bilinear,
+        )
+
+    return tmp_path, dst_transform, dst_crs
+
 
 def process_one_point(  
     i: int, 
@@ -186,131 +236,128 @@ def save_preview_png(frequency, crop_window, src_transform, observer_points_xy, 
     plt.close(fig)
 
 def run_program(sample_metadata, dem_path, max_distance_m):
-
     dem_path = Path(dem_path)
-    required = {"lon", "lat", "observer_height", "heading_deg"}
-    for i, row in enumerate(sample_metadata, start=1):
-        missing = required - set(row.keys())
-        if missing:
-            raise ValueError(f"Sample {i} is missing keys: {sorted(missing)}")
+    projected_dem_path = None
 
-    with rasterio.open(dem_path) as dem:
-        if dem.crs is None:
-            raise ValueError("DEM has no CRS.")
-        if not dem.crs.is_projected:
-            print("Warning: DEM CRS is not projected. A scale bar in meters may be inaccurate.")
+    try:
+        with rasterio.open(dem_path) as dem_src:
+            if dem_src.crs is None:
+                raise ValueError("DEM has no CRS.")
+            if abs(dem_src.transform.b) > 1e-12 or abs(dem_src.transform.d) > 1e-12:
+                raise ValueError("This script assumes a north-up DEM without rotation.")
 
-        if abs(dem.transform.b) > 1e-12 or abs(dem.transform.d) > 1e-12:
-            raise ValueError("This script assumes a north-up DEM without rotation.")
+            target_crs = choose_projected_crs(sample_metadata)
+            projected_dem_path, dem_transform, dem_crs = reproject_dem_to_crs(dem_src, target_crs)
+            dem_profile = dem_src.profile.copy()
 
-        transformer = Transformer.from_crs(CSV_CRS, dem.crs, always_xy=True)
+            transformer = Transformer.from_crs(CSV_CRS, dem_crs, always_xy=True)
 
-        pts = []
-        for row in sample_metadata:
-            x, y = transformer.transform(float(row["lon"]), float(row["lat"]))
-            pts.append(
-                (
-                    x,
-                    y,
-                    float(row["observer_height"]),
-                    float(row["heading_deg"]),
-                )
+            pts = []
+            for row in sample_metadata:
+                x, y = transformer.transform(float(row["lon"]), float(row["lat"]))
+                pts.append((x, y, float(row["observer_height"]), float(row["heading_deg"])))
+
+            xs = [p[0] for p in pts]
+            ys = [p[1] for p in pts]
+
+            left = min(xs) - max_distance_m
+            right = max(xs) + max_distance_m
+            bottom = min(ys) - max_distance_m
+            top = max(ys) + max_distance_m
+
+            crop_window = from_bounds(left, bottom, right, top, dem_transform)
+            crop_window = crop_window.round_offsets().round_lengths()
+            crop_transform = window_transform(crop_window, dem_transform)
+            crop_width = max(1, int(crop_window.width))
+            crop_height = max(1, int(crop_window.height))
+
+            x_coords = crop_transform.c + (np.arange(crop_width) + 0.5) * crop_transform.a
+            y_coords = crop_transform.f + (np.arange(crop_height) + 0.5) * crop_transform.e
+            xx, yy = np.meshgrid(x_coords, y_coords)
+
+            frequency = np.zeros((crop_height, crop_width), dtype=np.uint32)
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                tmpdir = Path(tmpdir)
+                total_points = len(pts)
+
+                max_workers = min(4, os.cpu_count() or 1)
+                print(f"Using {max_workers} workers", flush=True)
+
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    future_to_index = {}
+                    for i, (x, y, observer_h, heading_deg) in enumerate(pts, start=1):
+                        future = executor.submit(
+                            process_one_point,
+                            i,
+                            str(projected_dem_path),
+                            x,
+                            y,
+                            observer_h,
+                            heading_deg,
+                            str(tmpdir),
+                            crop_height,
+                            crop_width,
+                            crop_transform,
+                            dem_crs,
+                            xx,
+                            yy,
+                            max_distance_m,
+                        )
+                        future_to_index[future] = i
+
+                    for done_count, future in enumerate(as_completed(future_to_index), start=1):
+                        point_index = future_to_index[future]
+                        print(
+                            f"Finished actual point {point_index} ({done_count} out of {total_points} completed)",
+                            flush=True,
+                        )
+                        frequency += future.result()
+
+            print(f"Frequency raster min/max: {frequency.min()} / {frequency.max()}")
+
+            timestamp = time_module.strftime("%Y%m%d_%H%M%S")
+            out_tif = f"visibility_frequency_{timestamp}.tif"
+            out_png = f"visibility_frequency_{timestamp}.png"
+
+            save_preview_png(
+                frequency,
+                crop_window,
+                dem_transform,
+                [(x, y) for x, y, _, _ in pts],
+                out_png,
             )
 
-        xs = [p[0] for p in pts]
-        ys = [p[1] for p in pts]
+            out_profile = dem_profile.copy()
+            out_profile.update(
+                driver="GTiff",
+                height=crop_height,
+                width=crop_width,
+                transform=crop_transform,
+                crs=dem_crs,
+                count=1,
+                dtype="uint32",
+                nodata=0,
+                compress="lzw",
+            )
 
-        left = min(xs) - max_distance_m
-        right = max(xs) + max_distance_m
-        bottom = min(ys) - max_distance_m
-        top = max(ys) + max_distance_m
+            with rasterio.open(out_tif, "w", **out_profile) as dst:
+                dst.write(frequency, 1)
 
-        # Crop window on the DEM grid.
-        crop_window = from_bounds(left, bottom, right, top, dem.transform)
-        crop_window = crop_window.round_offsets().round_lengths()
+            left2, bottom2, right2, top2 = window_bounds(crop_window, dem_transform)
 
-        crop_transform = window_transform(crop_window, dem.transform)
-        crop_width = max(1, int(crop_window.width))
-        crop_height = max(1, int(crop_window.height))
+            print(f"Saved GeoTIFF: {out_tif}")
+            print(f"Saved PNG: {out_png}")
 
-        # Pixel-center coordinates for the cropped raster grid.
-        x_coords = crop_transform.c + (np.arange(crop_width) + 0.5) * crop_transform.a
-        y_coords = crop_transform.f + (np.arange(crop_height) + 0.5) * crop_transform.e
-        xx, yy = np.meshgrid(x_coords, y_coords)
+            return {
+                "count_overlay": frequency,
+                "observer_points_xy": [(x, y) for x, y, _, _ in pts],
+                "view_extent": (left2, right2, bottom2, top2),
+                "scale_bar_length_m": nice_scale_length(right2 - left2),
+                "output_tif_path": out_tif,
+                "preview_png_path": out_png,
+            }
 
-        frequency = np.zeros((crop_height, crop_width), dtype=np.uint32)
-
-        with tempfile.TemporaryDirectory() as tmpdir:  #make a temporary folder to hold all every per-point TIFF file.
-            tmpdir = Path(tmpdir)  #create Path object so folder is easier to reference.
-            total_points = len(pts)  #total number of observer points.
-
-            max_workers = min(4, os.cpu_count() or 1)  #run 4 CPU workers.
-            print(f"Using {max_workers} workers", flush=True)  #print number of workers (for admin purposes).
-
-            with ThreadPoolExecutor(max_workers=max_workers) as executor: #create threadpool.
-                future_to_index = {}  #dictionary to store which future belongs to which coordinates.
-                for i, (x, y, observer_h, heading_deg) in enumerate(pts, start=1):
-                    future = executor.submit(
-                        process_one_point,
-                        i,
-                        str(dem_path),
-                        x,
-                        y,
-                        observer_h,
-                        heading_deg,
-                        str(tmpdir),
-                        crop_height,
-                        crop_width,
-                        crop_transform,
-                        dem.crs,
-                        xx,
-                        yy,
-                        max_distance_m
-                    ) #submit job to worker pool and have future returned.
-                    future_to_index[future] = i #store coordinates pertaining to future.
-
-                for done_count, future in enumerate(as_completed(future_to_index), start=1):  #as each job is finished,
-                    point_index = future_to_index[future] #retrieve coordinates of future.
-                    print(
-                        f"Finished actual point {point_index} ({done_count} out of {total_points} completed)",
-                        flush=True,
-                    )  #print progress.
-
-                    frequency += future.result()  #add result to map.
-
-        print(f"Frequency raster min/max: {frequency.min()} / {frequency.max()}")
-
-        timestamp = time_module.strftime("%Y%m%d_%H%M%S")
-        out_tif = f"visibility_frequency_{timestamp}.tif"
-        out_png = f"visibility_frequency_{timestamp}.png"
-
-        save_preview_png(frequency, crop_window, dem.transform, [(x, y) for x, y, _, _ in pts], out_png)
-
-        out_profile = dem.profile.copy()
-        out_profile.update(
-            driver="GTiff",
-            height=crop_height,
-            width=crop_width,
-            transform=crop_transform,
-            count=1,
-            dtype="uint32",
-            nodata=0,
-            compress="lzw",
-        )
-
-        with rasterio.open(out_tif, "w", **out_profile) as dst:
-            dst.write(frequency, 1)
-
-        left2, bottom2, right2, top2 = window_bounds(crop_window, dem.transform)
-
-    print(f"Saved GeoTIFF: {out_tif}")
-    print(f"Saved PNG: {out_png}")
-
-    return {
-        "count_overlay": frequency,
-        "observer_points_xy": [(x, y) for x, y, _, _ in pts],
-        "view_extent": (left2, right2, bottom2, top2),
-        "scale_bar_length_m": nice_scale_length(right2 - left2),
-        "output_tif_path": out_tif,
-        "preview_png_path": out_png,
-    }
+    finally:
+        if projected_dem_path is not None:
+            projected_dem_path.unlink(missing_ok=True)
