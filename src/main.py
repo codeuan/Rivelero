@@ -1,6 +1,9 @@
 #main.py
-from GUI import start_gui
-from visibility_frequency import run_program
+
+print("Launching GUI...")
+
+from src.GUI import start_gui
+from src.visibility_frequency import run_program
 
 import shutil
 if not shutil.which("gdal") and not shutil.which("gdal_raster_viewshed"):
@@ -8,4 +11,4 @@ if not shutil.which("gdal") and not shutil.which("gdal_raster_viewshed"):
 
 if __name__ == "__main__":
     start_gui(run_program)
-    
+
