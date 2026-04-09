@@ -100,6 +100,9 @@ def start_gui(run_program): #entry point for the program.
             self.toolbar.update() #standard practice: refresh toolbar before displaying.
             self.toolbar.pack(side="left") #move toolbar to the left.
             
+            self.canvas.mpl_connect("button_press_event", self.on_click)
+            self.canvas.mpl_connect("scroll_event", self.on_scroll)
+
             self.show_overlay = tk.BooleanVar(value=True) #create a Boolean state for whether overlay should be visible, default to show.
             self.count_overlay_im = None #default to no overlay image.
             self.count_overlay_cbar = None #default to no colour bar.
@@ -360,20 +363,26 @@ def start_gui(run_program): #entry point for the program.
                         self.tip.destroy() #remove window.
                         self.tip = None #...and the reference to it.
 
+
     def populate_sample_entries(samples):
-        for lon_entry, lat_entry, height_entry, heading_entry in sample_entries: #for each entry row in the GUI.
+        rebuild_sample_rows(len(samples))  # create enough visible rows for the CSV
+
+        for lon_entry, lat_entry, height_entry, heading_entry in sample_entries:
             lon_entry.delete(0, tk.END)
             lat_entry.delete(0, tk.END)
             height_entry.delete(0, tk.END)
-            heading_entry.delete(0, tk.END) #remove any old data from the boxes.
+            heading_entry.delete(0, tk.END)  # clear old values first
 
-        for i, sample in enumerate(samples[:10]): #for each sample from the metadata CSV.
-            lon_entry, lat_entry, height_entry, heading_entry = sample_entries[i] #retrieve longitude, latitude, observer height and heading.
+        for i, sample in enumerate(samples):
+            lon_entry, lat_entry, height_entry, heading_entry = sample_entries[i]
 
-            lon_entry.insert(0, str(sample["lon"])) #insert longitude loaded from CSV.
-            lat_entry.insert(0, str(sample["lat"])) #insert latitude loaded from CSV.
-            height_entry.insert(0, str(sample["observer_height"])) #insert observer height loaded from CSV.
-            heading_entry.insert(0, str(sample["heading_deg"])) #insert heading loaded from CSV.
+            lon_entry.insert(0, str(sample["lon"]))
+            lat_entry.insert(0, str(sample["lat"]))
+            height_entry.insert(0, str(sample["observer_height"]))
+            heading_entry.insert(0, str(sample["heading_deg"]))
+
+        reposition_bottom_widgets()  # move Submit/Error underneath the new row count
+        update_left_scrollregion()
 
     def load_metadata_csv(file_path):
         samples = [] #will store sample data.
@@ -417,9 +426,6 @@ def start_gui(run_program): #entry point for the program.
                     "heading_deg": heading_deg
                 }) #add data to samples.
 
-        if len(samples) != 10:
-            raise ValueError(f"CSV must contain exactly 10 samples for this proof of concept. Found {len(samples)}.") #if there were not exactly 10 samples, raise an error.
-
         return samples
     
     def metadata_handler(): 
@@ -456,44 +462,51 @@ def start_gui(run_program): #entry point for the program.
    
    
     def validate_inputs():
-        if loaded_sample_metadata:
-            return loaded_sample_metadata #if metadata has been loaded from CSV, use it directly.
-
         max_observer_height = 10000
         samples = []
 
         for idx, (lon_entry, lat_entry, height_entry, heading_entry) in enumerate(sample_entries, start=1):
-            lon_text = lon_entry.get().strip() #retrieve user input for longitude.
-            lat_text = lat_entry.get().strip() #retrieve user input for latitude.
-            observer_height_text = height_entry.get().strip() #retrieve user input for observer height.
-            heading_text = heading_entry.get().strip() #retrieve user input for heading.
+            lon_text = lon_entry.get().strip()
+            lat_text = lat_entry.get().strip()
+            observer_height_text = height_entry.get().strip()
+            heading_text = heading_entry.get().strip()
 
-            if not lon_text or not lat_text or not observer_height_text or not heading_text:
-                raise ValueError(f"Please fill in longitude, latitude, observer height, and heading for sample {idx}.") #if any field is left blank, raise an error.
+            # if the whole row is blank, just ignore it
+            if not any([lon_text, lat_text, observer_height_text, heading_text]):
+                continue
+
+            # but if the row is only partly filled, that is an error
+            if not all([lon_text, lat_text, observer_height_text, heading_text]):
+                raise ValueError(
+                    f"Please fill in longitude, latitude, observer height, and heading for sample {idx}."
+                )
 
             try:
-                lon = float(lon_text) 
+                lon = float(lon_text)
                 lat = float(lat_text)
                 observer_height = float(observer_height_text)
                 heading_deg = float(heading_text)
             except ValueError:
-                raise ValueError(f"Longitude, latitude, observer height, and heading must all be numbers for sample {idx}.")
-            #attempt to convert inputs to floats, if they cannot be converted, raise an error.
+                raise ValueError(
+                    f"Longitude, latitude, observer height, and heading must all be numbers for sample {idx}."
+                )
 
             if not (-180 <= lon <= 180):
-                raise ValueError(f"Longitude must be between -180 and 180 for sample {idx}.") #valid range for ESPG:4326 latitude is -180 to 180.
+                raise ValueError(f"Longitude must be between -180 and 180 for sample {idx}.")
 
             if not (-90 <= lat <= 90):
-                raise ValueError(f"Latitude must be between -90 and 90 for sample {idx}.") #valid range for ESPG:4326 latitude is -90 to 90.
+                raise ValueError(f"Latitude must be between -90 and 90 for sample {idx}.")
 
             if observer_height <= 0:
-                raise ValueError(f"Observer height must be greater than 0 metres for sample {idx}.") #if user inputs negative observer height, raise an error.
+                raise ValueError(f"Observer height must be greater than 0 metres for sample {idx}.")
 
             if observer_height > max_observer_height:
-                raise ValueError(f"Observer height must not exceed {max_observer_height} metres for sample {idx}.") #if user inputs an observer height above the maximum, raise an error.
+                raise ValueError(
+                    f"Observer height must not exceed {max_observer_height} metres for sample {idx}."
+                )
 
             if not (0 <= heading_deg < 360):
-                raise ValueError(f"Heading must be between 0 and 360 degrees for sample {idx}.") #if heading is out of range, raise an error.
+                raise ValueError(f"Heading must be between 0 and 360 degrees for sample {idx}.")
 
             samples.append({
                 "lon": lon,
@@ -502,8 +515,11 @@ def start_gui(run_program): #entry point for the program.
                 "heading_deg": heading_deg
             })
 
-        return samples #return inputs once validated so run_program can be run.
+        if not samples:
+            raise ValueError("Please enter at least one sample or load a metadata CSV.")
 
+        return samples
+    
     def validate_max_distance():
         value_text = max_distance_var.get().strip()
         if not value_text:
@@ -616,8 +632,53 @@ def start_gui(run_program): #entry point for the program.
     root.rowconfigure(1, weight=1)
     root.columnconfigure(1, weight=1) #define region for file bar.
 
-    left_panel = ttk.Frame(root, padding=12)
-    left_panel.grid(row=1, column=0, sticky="ns") #define region for left panel.
+    left_container = ttk.Frame(root) #outer container for scrollable left panel.
+    left_container.grid(row=1, column=0, sticky="nsew") #place container in left side of main window.
+
+    left_container.rowconfigure(0, weight=1)
+    left_container.columnconfigure(0, weight=1)
+
+    left_canvas = tk.Canvas(left_container, highlightthickness=0, width=620) #canvas that will scroll.
+    left_canvas.grid(row=0, column=0, sticky="nsew")
+
+    left_scrollbar = ttk.Scrollbar(left_container, orient="vertical", command=left_canvas.yview) #vertical scrollbar.
+    left_scrollbar.grid(row=0, column=1, sticky="ns")
+
+    left_canvas.configure(yscrollcommand=left_scrollbar.set)
+
+    left_panel = ttk.Frame(left_canvas, padding=12) #actual content frame that holds all widgets.
+    left_panel_window = left_canvas.create_window((0, 0), window=left_panel, anchor="nw") #place frame inside canvas.
+
+    def update_left_scrollregion(event=None):
+        left_canvas.configure(scrollregion=left_canvas.bbox("all")) #tell canvas how tall the scrollable area is.
+
+    def resize_left_panel_width(event):
+        left_canvas.itemconfigure(left_panel_window, width=event.width) #keep inner frame same width as canvas.
+
+    left_panel.bind("<Configure>", update_left_scrollregion)
+    left_canvas.bind("<Configure>", resize_left_panel_width)
+
+    def on_mousewheel_windows(event):
+        left_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units") #mouse wheel scroll on Windows.
+
+    def on_mousewheel_linux_up(event):
+        left_canvas.yview_scroll(-1, "units") #Linux scroll up.
+
+    def on_mousewheel_linux_down(event):
+        left_canvas.yview_scroll(1, "units") #Linux scroll down.
+
+    def bind_mousewheel(event=None):
+        left_canvas.bind_all("<MouseWheel>", on_mousewheel_windows)
+        left_canvas.bind_all("<Button-4>", on_mousewheel_linux_up)
+        left_canvas.bind_all("<Button-5>", on_mousewheel_linux_down)
+
+    def unbind_mousewheel(event=None):
+        left_canvas.unbind_all("<MouseWheel>")
+        left_canvas.unbind_all("<Button-4>")
+        left_canvas.unbind_all("<Button-5>")
+
+    left_canvas.bind("<Enter>", bind_mousewheel)
+    left_canvas.bind("<Leave>", unbind_mousewheel)
 
     max_distance_var = tk.StringVar(value="500.0")
 
@@ -645,31 +706,91 @@ def start_gui(run_program): #entry point for the program.
     heading_help = tk.Label(left_panel, text="?", fg="blue", cursor="question_arrow") #create the helper widget and make the foreground blue.
     heading_help.grid(row=1, column=8, padx=6, pady=8, sticky="w") #place helper widget into grid.
 
-    for i in range(10):
-        tk.Label(left_panel, text=f"{i + 1}.").grid(row=i + 2, column=0, padx=(12, 4), pady=4, sticky="w") #add row label.
+    sample_entries = []
+    sample_row_widgets = []
 
-        lon_entry = tk.Entry(left_panel, width=16) #create the input box.
-        lon_entry.grid(row=i + 2, column=1, pady=4, sticky="w") #place input box into grid.
+    def create_sample_row(i):
+        grid_row = i + 2  # row 1 is the heading row
 
-        lat_entry = tk.Entry(left_panel, width=16) #create the input box.
-        lat_entry.grid(row=i + 2, column=3, pady=4, sticky="w") #place input box into grid.
+        row_label = tk.Label(left_panel, text=f"{i + 1}.")
+        row_label.grid(row=grid_row, column=0, padx=(12, 4), pady=4, sticky="w")
 
-        height_entry = tk.Entry(left_panel, width=12) #create the input box.
-        height_entry.grid(row=i + 2, column=5, pady=4, sticky="w") #place helper widget into grid.
+        lon_entry = tk.Entry(left_panel, width=16)
+        lon_entry.grid(row=grid_row, column=1, pady=4, sticky="w")
 
-        heading_entry = tk.Entry(left_panel, width=12) #create the input box.
-        heading_entry.grid(row=i + 2, column=7, pady=4, sticky="w") #place helper widget into grid.
+        lat_entry = tk.Entry(left_panel, width=16)
+        lat_entry.grid(row=grid_row, column=3, pady=4, sticky="w")
+
+        height_entry = tk.Entry(left_panel, width=12)
+        height_entry.grid(row=grid_row, column=5, pady=4, sticky="w")
+
+        heading_entry = tk.Entry(left_panel, width=12)
+        heading_entry.grid(row=grid_row, column=7, pady=4, sticky="w")
 
         sample_entries.append((lon_entry, lat_entry, height_entry, heading_entry))
+        sample_row_widgets.append((row_label, lon_entry, lat_entry, height_entry, heading_entry))
+
+    def rebuild_sample_rows(count):
+        count = max(1, count)  # keep at least 1 visible row for manual entry.
+
+        for widgets in sample_row_widgets:
+            for widget in widgets:
+                widget.destroy()
+
+        sample_entries.clear()
+        sample_row_widgets.clear()
+
+        for i in range(count):
+            create_sample_row(i)
+
+    def add_blank_row():
+        create_sample_row(len(sample_entries))
+        reposition_bottom_widgets()
+        update_left_scrollregion()
+
+    def delete_last_row():
+        if len(sample_row_widgets) <= 1:
+            error_label.config(text="At least one sample row must remain.")
+            return
+        widgets = sample_row_widgets.pop() #take the final row.
+        for widget in widgets:
+            widget.destroy() #remove its widgets from the GUI.
+
+        sample_entries.pop() #remove matching entries tuple.
+        error_label.config(text="") #clear any old error message.
+        reposition_bottom_widgets()
+        update_left_scrollregion()
+
+    def reposition_bottom_widgets():
+        submit_row = len(sample_entries) + 2
+        actions_row = len(sample_entries) + 3
+        error_row = len(sample_entries) + 4
+
+        submit_button.grid_configure(row=submit_row)
+        add_row_button.grid_configure(row=actions_row)
+        delete_row_button.grid_configure(row=actions_row)
+        error_label.grid_configure(row=error_row)
+
 
     right_sidebar.point_selected_callback = set_coordinate_entries # assign function to update coordinates.
 
-    submit_button = tk.Button(left_panel, text="Submit", command=submit) #create a button that when clicked runs the submit function.
-    submit_button.grid(row=12, column=0, columnspan=9, pady=(18, 10)) #place button into grid.
+    rebuild_sample_rows(1)  # start with 1 blank row
+
+    submit_button = tk.Button(left_panel, text="Submit", command=submit) #run the program.
+    submit_button.grid(row=999, column=0, columnspan=9, pady=(18, 10)) #temporary row, corrected below.
+
+    add_row_button = tk.Button(left_panel, text="Add sample", command=add_blank_row) #append one blank row.
+    add_row_button.grid(row=999, column=0, columnspan=2, pady=(0, 10), sticky="w")
+
+    delete_row_button = tk.Button(left_panel, text="Delete last row", command=delete_last_row) #remove final row.
+    delete_row_button.grid(row=999, column=2, columnspan=2, pady=(0, 10), sticky="e")
 
     error_label = tk.Label(left_panel, text="", fg="red")
-    error_label.grid(row=13, column=0, columnspan=9, pady=(0, 10))
-    #attach a widget to display information regarding errors.
+    error_label.grid(row=999, column=0, columnspan=9, pady=(0, 10))
+
+    reposition_bottom_widgets()
+    update_left_scrollregion()
+    reposition_bottom_widgets()
 
     file_handler()
 
