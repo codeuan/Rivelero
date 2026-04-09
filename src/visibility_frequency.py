@@ -18,17 +18,11 @@ from rasterio.warp import reproject
 import os 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent #resolve project folder.
-
-CSV_PATH = PROJECT_ROOT / "GSV" / "Libro3.csv" #CSV where metadata is obtained from (will need upgrading to API call when possible).
-DEM_PATH = PROJECT_ROOT / "GeoTIFF" / "sicily_cop30_utm33.tif" #GeoTIFF raster file.
 
 OUT_TIF = "visibility_frequency_cropped.tif" #result as stored in a raster file.
 OUT_PNG = "visibility_frequency_cropped.png" #result as stored in a png file.
 
 CSV_CRS = "EPSG:4326" #coordinate system (lon/lat).
-
-MAX_DISTANCE_M = 5000.0 #maximum visibility distance.
 
 FIELD_OF_VIEW_DEG = 120.0 #field of view in degrees.
 
@@ -126,7 +120,8 @@ def process_one_point(
     crop_transform,  
     dem_crs,  
     xx: np.ndarray,  
-    yy: np.ndarray, 
+    yy: np.ndarray,
+    max_distance_m: float,
 ) -> np.ndarray: 
     vs_path = Path(tmpdir) / f"viewshed_{i:04d}.tif"  #create a temporary file for the output TIFF.
 
@@ -136,7 +131,7 @@ def process_one_point(
         y,
         observer_h,
         str(vs_path),
-        MAX_DISTANCE_M,
+        max_distance_m,
     ) #GDAL binary viewshed computation.
 
     with rasterio.open(vs_path) as src:  # open the TIFF GDAL just made
@@ -158,15 +153,14 @@ def process_one_point(
         aligned = np.where(angular_diff <= FIELD_OF_VIEW_DEG / 2.0, aligned, 0) 
     return (aligned > 0).astype(np.uint32) 
 
-def main() -> None:
-    csv_path = Path(CSV_PATH)
-    dem_path = Path(DEM_PATH)
+def run_program(sample_metadata, dem_path, MAX_DISTANCE_M):
 
-    df = pd.read_csv(csv_path)
+    dem_path = Path(dem_path)
     required = {"lon", "lat", "observer_height", "heading_deg"}
-    missing = required - set(df.columns)
-    if missing:
-        raise ValueError(f"CSV is missing columns: {sorted(missing)}")
+    for i, row in enumerate(sample_metadata, start=1):
+        missing = required - set(row.keys())
+        if missing:
+            raise ValueError(f"Sample {i} is missing keys: {sorted(missing)}")
 
     with rasterio.open(dem_path) as dem:
         if dem.crs is None:
@@ -180,7 +174,7 @@ def main() -> None:
         transformer = Transformer.from_crs(CSV_CRS, dem.crs, always_xy=True)
 
         pts = []
-        for _, row in df.iterrows():
+        for row in sample_metadata:
             x, y = transformer.transform(float(row["lon"]), float(row["lat"]))
             pts.append(
                 (
@@ -224,25 +218,26 @@ def main() -> None:
             with ThreadPoolExecutor(max_workers=max_workers) as executor: #create threadpool.
                 future_to_index = {}  #dictionary to store which future belongs to which coordinates.
                 for i, (x, y, observer_h, heading_deg) in enumerate(pts, start=1):
-                    future = executor.submit(  
-                        process_one_point, 
-                        i,  
-                        str(dem_path),  
-                        x, 
-                        y,  
-                        observer_h,  
-                        heading_deg,  
-                        str(tmpdir), 
-                        crop_height, 
-                        crop_width,  
-                        crop_transform, 
-                        dem.crs, 
-                        xx, 
-                        yy, 
+                    future = executor.submit(
+                        process_one_point,
+                        i,
+                        str(dem_path),
+                        x,
+                        y,
+                        observer_h,
+                        heading_deg,
+                        str(tmpdir),
+                        crop_height,
+                        crop_width,
+                        crop_transform,
+                        dem.crs,
+                        xx,
+                        yy,
+                        MAX_DISTANCE_M
                     ) #submit job to worker pool and have future returned.
                     future_to_index[future] = i #store coordinates pertaining to future.
 
-                for done_count, future in enumerate(as_completed(future_to_index), start=1):  #as each job is finished, 
+                for done_count, future in enumerate(as_completed(future_to_index), start=1):  #as each job is finished,
                     point_index = future_to_index[future] #retrieve coordinates of future.
                     print(
                         f"Finished actual point {point_index} ({done_count} out of {total_points} completed)",
@@ -269,35 +264,14 @@ def main() -> None:
             dst.write(frequency, 1)
 
         # PNG preview with colorbar + scale bar
-        fig, ax = plt.subplots(figsize=(10, 8))
-        left2, bottom2, right2, top2 = window_bounds(crop_window, dem.transform)
-
-        im = ax.imshow(
-            frequency,
-            extent=(left2, right2, bottom2, top2),
-            origin="upper",
-            cmap="viridis",
-            vmin=0,
-            vmax=max(1, int(frequency.max())),
-        )
-        cbar = plt.colorbar(im, ax=ax)
-        cbar.set_label("Number of observers seeing each cell")
-
-        ax.set_title("Visibility frequency")
-        ax.set_xlabel("X")
-        ax.set_ylabel("Y")
-        ax.set_aspect("equal")
-
-        bar_length = nice_scale_length(right2 - left2)
-        add_scale_bar(ax, bar_length)
-
-        plt.tight_layout()
-        plt.savefig(OUT_PNG, dpi=200)
-        plt.close(fig)
+        left2, bottom2, right2, top2 = window_bounds(crop_window, dem.transform) #compute plot extent for the GUI so it can render the result itself.
 
     print(f"Saved GeoTIFF: {OUT_TIF}")
-    print(f"Saved preview PNG: {OUT_PNG}")
 
-
-if __name__ == "__main__":
-    main()
+    return {
+        "count_overlay": frequency,
+        "observer_points_xy": [(x, y) for x, y, _, _ in pts],
+        "view_extent": (left2, right2, bottom2, top2),
+        "scale_bar_length_m": nice_scale_length(right2 - left2),
+        "output_tif_path": str(OUT_TIF),
+    }

@@ -1,12 +1,10 @@
 from __future__ import annotations
-
 import math
 import shutil
 import subprocess
 import tempfile
 from pathlib import Path
 from time import time
-
 import numpy as np
 import rasterio
 from pyproj import Transformer
@@ -17,7 +15,11 @@ from rasterio.warp import reproject
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import matplotlib.patches as mpatches
-
+from matplotlib.colors import ListedColormap, BoundaryNorm
+import matplotlib.patches as mpatches
+from matplotlib import cm
+import matplotlib.patches as mpatches
+from matplotlib.ticker import MaxNLocator, ScalarFormatter
 
 # Keep these as simple module-level defaults for now.
 CSV_CRS = "EPSG:4326"
@@ -129,11 +131,29 @@ def add_scale_bar(ax, length_m: float) -> None:
     )
 
 
-from matplotlib.colors import ListedColormap, BoundaryNorm
-import matplotlib.patches as mpatches
 
-from matplotlib import cm
-import matplotlib.patches as mpatches
+
+
+def format_axes_nicely(ax) -> None:
+    ax.xaxis.set_major_locator(MaxNLocator(nbins=6))
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=6))
+
+    x_formatter = ScalarFormatter(useMathText=True)
+    y_formatter = ScalarFormatter(useMathText=True)
+
+    x_formatter.set_scientific(True)
+    y_formatter.set_scientific(True)
+
+    x_formatter.set_powerlimits((0, 0))
+    y_formatter.set_powerlimits((0, 0))
+
+    ax.xaxis.set_major_formatter(x_formatter)
+    ax.yaxis.set_major_formatter(y_formatter)
+
+    ax.ticklabel_format(axis="both", style="sci", scilimits=(0, 0))
+
+
+
 
 def save_preview_png(
     frequency: np.ndarray,
@@ -166,9 +186,10 @@ def save_preview_png(
     cbar.set_label("Number of observers seeing each cell")
 
     ax.set_title("Visibility frequency")
-    ax.set_xlabel("X")
-    ax.set_ylabel("Y")
+    ax.set_xlabel("Northing (m)")
+    ax.set_ylabel("Easting (m)")
     ax.set_aspect("equal")
+    format_axes_nicely(ax) 
 
     # Plot observer locations
     if observer_points_xy:
