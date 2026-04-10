@@ -11,7 +11,7 @@ from matplotlib import cm
 from matplotlib.colors import Normalize
 from pyproj import Transformer
 import matplotlib.image as mpimg
-from src.API_caller import download_dem_for_samples
+from API_caller import download_dem_for_samples
 from matplotlib.ticker import MaxNLocator, ScalarFormatter
 
 tif_path = None
@@ -352,7 +352,11 @@ def start_gui(run_program): #entry point for the program.
 
 
     def populate_sample_entries(samples):
-        MAX_DISPLAY_ROWS = 5
+        MAX_DISPLAY_ROWS = 200
+
+        if len(samples) > MAX_DISPLAY_ROWS:
+            print("Warning: maximum sample limit is 200, only the first 200 rows have been added.")
+            
 
         # rebuild_sample_rows(len(samples))  # create enough visible rows for the CSV
         rebuild_sample_rows(min(len(samples), MAX_DISPLAY_ROWS))
@@ -733,28 +737,32 @@ def start_gui(run_program): #entry point for the program.
     heading_help.grid(row=1, column=8, padx=6, pady=8, sticky="w") #place helper widget into grid.
 
     sample_entries = []
-    sample_row_widgets = []
+    sample_row_widgets = [] #tuples for sample entires.
 
     def create_sample_row(i):
-        grid_row = i + 2  # row 1 is the heading row
+        if len(sample_row_widgets) >= 200:
+            error_label.config(text="Maximum sample limit is 200.")
+            return
+        
+        grid_row = i + 2  # rows 0 and 1 are already in use, so they must be skipped.
 
-        row_label = tk.Label(left_panel, text=f"{i + 1}.")
+        row_label = tk.Label(left_panel, text=f"{i + 1}.") #create label for the sample number.
         row_label.grid(row=grid_row, column=0, padx=(12, 4), pady=4, sticky="w")
 
-        lon_entry = tk.Entry(left_panel, width=16)
+        lon_entry = tk.Entry(left_panel, width=16) #'create longitude input box.
         lon_entry.grid(row=grid_row, column=1, pady=4, sticky="w")
 
-        lat_entry = tk.Entry(left_panel, width=16)
+        lat_entry = tk.Entry(left_panel, width=16) #create latitude input box.
         lat_entry.grid(row=grid_row, column=3, pady=4, sticky="w")
 
-        height_entry = tk.Entry(left_panel, width=12)
+        height_entry = tk.Entry(left_panel, width=12) #create observer height input box.
         height_entry.grid(row=grid_row, column=5, pady=4, sticky="w")
 
-        heading_entry = tk.Entry(left_panel, width=12)
+        heading_entry = tk.Entry(left_panel, width=12) #create heading direction input box.
         heading_entry.grid(row=grid_row, column=7, pady=4, sticky="w")
 
-        sample_entries.append((lon_entry, lat_entry, height_entry, heading_entry))
-        sample_row_widgets.append((row_label, lon_entry, lat_entry, height_entry, heading_entry))
+        sample_entries.append((lon_entry, lat_entry, height_entry, heading_entry)) #store entire row.
+        sample_row_widgets.append((row_label, lon_entry, lat_entry, height_entry, heading_entry)) #store entire row to be displayed.
 
     def rebuild_sample_rows(count):
         count = max(1, count)  # keep at least 1 visible row for manual entry.
@@ -793,7 +801,7 @@ def start_gui(run_program): #entry point for the program.
         error_row = len(sample_entries) + 4
 
         submit_button.grid_configure(row=submit_row)
-        add_row_button.grid_configure(row=actions_row)
+        button_frame.grid_configure(row=actions_row)
         delete_row_button.grid_configure(row=actions_row)
         error_label.grid_configure(row=error_row)
 
@@ -805,8 +813,14 @@ def start_gui(run_program): #entry point for the program.
     submit_button = tk.Button(left_panel, text="Submit", command=submit) #run the program.
     submit_button.grid(row=999, column=0, columnspan=9, pady=(18, 10)) #temporary row, corrected below.
 
-    add_row_button = tk.Button(left_panel, text="Add sample", command=add_blank_row) #append one blank row.
-    add_row_button.grid(row=999, column=0, columnspan=2, pady=(0, 10), sticky="w")
+    button_frame = tk.Frame(left_panel)
+    button_frame.grid(row=999, column=0, columnspan=2, pady=(0, 10), sticky="w") #frame to link the submit button and text together.
+
+    add_row_button = tk.Button(button_frame, text="Add sample", command=add_blank_row) #submit button.
+    add_row_button.pack(side="left")
+
+    max_label = tk.Label(button_frame, text="(max 200)", fg="black") #warning text for sample limit.
+    max_label.pack(side="left", padx=(6, 0))
 
     delete_row_button = tk.Button(left_panel, text="Delete last row", command=delete_last_row) #remove final row.
     delete_row_button.grid(row=999, column=2, columnspan=2, pady=(0, 10), sticky="e")

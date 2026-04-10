@@ -16,9 +16,12 @@ from rasterio.windows import from_bounds, transform as window_transform, bounds 
 import os 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time as time_module
-
+from rasterio.transform import rowcol
 from pyproj import CRS, Transformer
 from rasterio.warp import calculate_default_transform, reproject
+from rasterio.transform import rowcol
+from rasterio.windows import Window
+from rasterio.windows import transform as window_transform
 
 CSV_CRS = "EPSG:4326" #coordinate system (lon/lat).
 
@@ -154,51 +157,126 @@ def reproject_dem_to_crs(src, dst_crs):
     return tmp_path, dst_transform, dst_crs
 
 
-def process_one_point(  
-    i: int, 
-    dem_path: str,  
-    x: float, 
-    y: float,
-    observer_h: float, 
-    heading_deg: float,  
-    tmpdir: str,
-    crop_height: int, 
-    crop_width: int, 
-    crop_transform,  
-    dem_crs,  
-    xx: np.ndarray,  
-    yy: np.ndarray,
-    max_distance_m: float,
-) -> np.ndarray: 
-    vs_path = Path(tmpdir) / f"viewshed_{i:04d}.tif"  #create a temporary file for the output TIFF.
 
-    run_viewshed( 
-        dem_path,
+def process_one_point(
+    i,
+    dem_path,
+    x,
+    y,
+    observer_h,
+    heading_deg,
+    tmpdir,
+    crop_height,
+    crop_width,
+    crop_transform,
+    dem_crs,
+    max_distance_m,
+):
+    # make a square boundary around this observer
+    local_left = x - max_distance_m
+    local_right = x + max_distance_m
+    local_bottom = y - max_distance_m
+    local_top = y + max_distance_m
+
+    local_dem_path = Path(tmpdir) / f"local_dem_{i:04d}.tif"
+    vs_path = Path(tmpdir) / f"viewshed_{i:04d}.tif"
+
+    # crop the DEM BEFORE running viewshed
+    with rasterio.open(dem_path) as dem_src:
+        dem_left, dem_bottom, dem_right, dem_top = dem_src.bounds
+
+        # clip local bounds so they stay inside the DEM
+        local_left = max(local_left, dem_left)
+        local_right = min(local_right, dem_right)
+        local_bottom = max(local_bottom, dem_bottom)
+        local_top = min(local_top, dem_top)
+
+        local_window = from_bounds(
+            local_left,
+            local_bottom,
+            local_right,
+            local_top,
+            dem_src.transform,
+        )
+        local_window = local_window.round_offsets().round_lengths()
+
+        local_h = int(local_window.height)
+        local_w = int(local_window.width)
+
+        if local_h <= 0 or local_w <= 0:
+            return 0, 0, 0, 0, np.zeros((0, 0), dtype=np.uint32)
+
+        local_transform = window_transform(local_window, dem_src.transform)
+
+        local_data = dem_src.read(1, window=local_window)
+
+        local_profile = dem_src.profile.copy()
+        local_profile.update(
+            driver="GTiff",
+            height=local_h,
+            width=local_w,
+            transform=local_transform,
+            count=1,
+            compress="lzw",
+        )
+
+        with rasterio.open(local_dem_path, "w", **local_profile) as dst:
+            dst.write(local_data, 1)
+
+    # NOW run viewshed on the cropped local DEM
+    run_viewshed(
+        str(local_dem_path),
         x,
         y,
         observer_h,
         str(vs_path),
         max_distance_m,
-    ) #GDAL binary viewshed computation.
+    )
 
-    with rasterio.open(vs_path) as src:  # open the TIFF GDAL just made
-        aligned = np.zeros((crop_height, crop_width), dtype=np.uint8)  # make an empty array the size of the final cropped grid
-        reproject(  
-            source=rasterio.band(src, 1),  
-            destination=aligned, 
-            src_transform=src.transform, 
-            src_crs=src.crs,  
-            dst_transform=crop_transform,  
-            dst_crs=dem_crs,
-            resampling=Resampling.nearest, 
-            dst_nodata=0, 
-        ) #reproject array so it fits master grid exactly.
+    # read the small viewshed directly
+    with rasterio.open(vs_path) as src:
+        aligned = src.read(1)
 
-    if FIELD_OF_VIEW_DEG < 360.0: 
-        bearing = (np.degrees(np.arctan2(xx - x, yy - y)) + 360.0) % 360.0 
-        angular_diff = np.abs((bearing - heading_deg + 180.0) % 360.0 - 180.0) 
-        aligned = np.where(angular_diff <= FIELD_OF_VIEW_DEG / 2.0, aligned, 0) 
-    return (aligned > 0).astype(np.uint32) 
+    # work out where this small local result belongs in the master crop
+    first_cell_x = local_transform.c + 0.5 * local_transform.a
+    first_cell_y = local_transform.f + 0.5 * local_transform.e
+    row0, col0 = rowcol(crop_transform, first_cell_x, first_cell_y)
+
+    row1 = row0 + local_h
+    col1 = col0 + local_w
+
+    # safety clipping in case an edge observer lands slightly outside
+    if row0 < 0 or col0 < 0 or row1 > crop_height or col1 > crop_width:
+        trim_top = max(0, -row0)
+        trim_left = max(0, -col0)
+        trim_bottom = max(0, row1 - crop_height)
+        trim_right = max(0, col1 - crop_width)
+
+        aligned = aligned[
+            trim_top: local_h - trim_bottom,
+            trim_left: local_w - trim_right,
+        ]
+
+        row0 = max(0, row0)
+        col0 = max(0, col0)
+        row1 = min(crop_height, row1)
+        col1 = min(crop_width, col1)
+
+    # local FOV mask only on the small local array
+    if FIELD_OF_VIEW_DEG < 360.0 and aligned.size > 0:
+        local_h2, local_w2 = aligned.shape
+
+        x_coords = local_transform.c + (np.arange(local_w2) + 0.5) * local_transform.a
+        y_coords = local_transform.f + (np.arange(local_h2) + 0.5) * local_transform.e
+        xx, yy = np.meshgrid(x_coords, y_coords)
+
+        bearing = (np.degrees(np.arctan2(xx - x, yy - y)) + 360.0) % 360.0
+        angular_diff = np.abs((bearing - heading_deg + 180.0) % 360.0 - 180.0)
+
+        aligned = np.where(angular_diff <= FIELD_OF_VIEW_DEG / 2.0, aligned, 0)
+
+    return row0, row1, col0, col1, (aligned > 0).astype(np.uint32)
+
 
 def save_preview_png(frequency, crop_window, src_transform, observer_points_xy, out_png):
     left, bottom, right, top = window_bounds(crop_window, src_transform)
@@ -300,8 +378,6 @@ def run_program(sample_metadata, dem_path, max_distance_m):
                             crop_width,
                             crop_transform,
                             dem_crs,
-                            xx,
-                            yy,
                             max_distance_m,
                         )
                         future_to_index[future] = i
@@ -312,7 +388,8 @@ def run_program(sample_metadata, dem_path, max_distance_m):
                             f"Finished actual point {point_index} ({done_count} out of {total_points} completed)",
                             flush=True,
                         )
-                        frequency += future.result()
+                        row0, row1, col0, col1, local_result = future.result()
+                        frequency[row0:row1, col0:col1] += local_result
 
             print(f"Frequency raster min/max: {frequency.min()} / {frequency.max()}")
 
