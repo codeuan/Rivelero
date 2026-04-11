@@ -2,8 +2,8 @@
 
 print("Launching GUI...")
 
-from GUI import start_gui
-from visibility_frequency import run_program
+from src.GUI import start_gui
+from src.visibility_frequency import run_program
 
 import shutil
 if not shutil.which("gdal") and not shutil.which("gdal_raster_viewshed"):

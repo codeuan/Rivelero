@@ -11,7 +11,7 @@ from matplotlib import cm
 from matplotlib.colors import Normalize
 from pyproj import Transformer
 import matplotlib.image as mpimg
-from API_caller import download_dem_for_samples
+from src.API_caller import download_dem_for_samples
 from matplotlib.ticker import MaxNLocator, ScalarFormatter
 
 tif_path = None
