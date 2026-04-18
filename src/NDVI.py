@@ -19,6 +19,8 @@ CDSE_TOKEN_URL = (
 )
 CDSE_PROCESS_URL = "https://sh.dataspace.copernicus.eu/process/v1"
 
+__all__ = ["NDVI"]
+
 
 def _utm_epsg_for_lonlat(lon: float, lat: float) -> int:
     """
@@ -82,7 +84,7 @@ def _get_cdse_access_token(
     return access_token
 
 
-def fetch_s2_ndvi_for_bbox(
+def _fetch_s2_ndvi_for_bbox(
     bbox_lonlat: Tuple[float, float, float, float],
     time_from: str,
     time_to: str,
@@ -92,7 +94,7 @@ def fetch_s2_ndvi_for_bbox(
     max_cloud_coverage: int = 20,
     mosaicking_order: str = "leastCC",
     timeout: int = 120,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Fetch NDVI for a lon/lat bounding box from Sentinel-2 L2A via CDSE Process API.
 
@@ -272,3 +274,30 @@ def fetch_s2_ndvi_for_bbox(
         "profile": profile,
         **stats,
     }
+
+
+def NDVI(
+    bbox_lonlat: Tuple[float, float, float, float],
+    time_from: str,
+    time_to: str,
+    client_id: str | None = None,
+    client_secret: str | None = None,
+    pixel_size_m: int = 10,
+    max_cloud_coverage: int = 20,
+    mosaicking_order: str = "leastCC",
+    timeout: int = 120,
+) -> dict[str, Any]:
+    """
+    Public entry point for NDVI retrieval.
+    """
+    return _fetch_s2_ndvi_for_bbox(
+        bbox_lonlat=bbox_lonlat,
+        time_from=time_from,
+        time_to=time_to,
+        client_id=client_id,
+        client_secret=client_secret,
+        pixel_size_m=pixel_size_m,
+        max_cloud_coverage=max_cloud_coverage,
+        mosaicking_order=mosaicking_order,
+        timeout=timeout,
+    )
