@@ -313,7 +313,7 @@ def save_preview_png(frequency, crop_window, src_transform, observer_points_xy, 
     fig.savefig(out_png, dpi=200)
     plt.close(fig)
 
-def run_program(sample_metadata, dem_path, max_distance_m):
+def visibility_frequency(sample_metadata, dem_path, max_distance_m):
     dem_path = Path(dem_path)
     projected_dem_path = None
 
