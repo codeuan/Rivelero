@@ -29,9 +29,13 @@ ndvi_result = NDVI(
     time_to=time_to,
 )
 
+mean_visibility_strength = 
+
+
+occlusion_fraction =
 
 final_score = (
     a * mean_ndvi
     + b * mean_visibility_strength
-    - c * blocked_fraction
+    - c * occlusion_fraction
 )
