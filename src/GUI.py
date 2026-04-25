@@ -21,18 +21,23 @@ loaded_sample_metadata = []
 def start_gui(run_program): #entry point for the program.
 
     def set_coordinate_entries(lon, lat):
-        row_index = selected_row_var.get() - 1 #work out which sample row should be auto-filled.
+            lon_text = f"{lon:.6f}"
+            lat_text = f"{lat:.6f}"
 
-        if not (0 <= row_index < len(sample_entries)):
-            return
+            lon_var.set(lon_text)
+            lat_var.set(lat_text)
 
-        lon_entry, lat_entry, _, _ = sample_entries[row_index]
+            selected = sample_tree.selection()
+            if not selected:
+                return  # if no row is selected, just fill the editor boxes
 
-        lon_entry.delete(0, tk.END) #delete text from longitude box.
-        lon_entry.insert(0, f"{lon:.6f}") #insert given longitude with 6 decimal digits of precision.
-        
-        lat_entry.delete(0, tk.END) #delete text from latitude box.
-        lat_entry.insert(0, f"{lat:.6f}") #insert given latitude with 6 decimal digits of precision.
+            item_id = selected[0]
+            values = list(sample_tree.item(item_id, "values"))
+
+            values[1] = lon_text   # longitude column
+            values[2] = lat_text   # latitude column
+
+            sample_tree.item(item_id, values=values)
 
     def add_scale_bar(ax, length_m: float) -> None:
         x0, x1 = ax.get_xlim() #retrieve x limits of axes.
@@ -352,31 +357,27 @@ def start_gui(run_program): #entry point for the program.
 
 
     def populate_sample_entries(samples):
-        MAX_DISPLAY_ROWS = 200
+        sample_tree.delete(*sample_tree.get_children())  # clear old rows
 
-        if len(samples) > MAX_DISPLAY_ROWS:
-            print("Warning: maximum sample limit is 200, only the first 200 rows have been added.")
-            
+        for i, sample in enumerate(samples, start=1):
+            sample_tree.insert(
+                "",
+                "end",
+                values=(
+                    i,
+                    sample["lon"],
+                    sample["lat"],
+                    sample["observer_height"],
+                    sample["heading_deg"],
+                ),
+            )
 
-        # rebuild_sample_rows(len(samples))  # create enough visible rows for the CSV
-        rebuild_sample_rows(min(len(samples), MAX_DISPLAY_ROWS))
+        children = sample_tree.get_children()
+        if children:
+            sample_tree.selection_set(children[0])
+            sample_tree.focus(children[0])
+            on_tree_select()
 
-        for lon_entry, lat_entry, height_entry, heading_entry in sample_entries:
-            lon_entry.delete(0, tk.END)
-            lat_entry.delete(0, tk.END)
-            height_entry.delete(0, tk.END)
-            heading_entry.delete(0, tk.END)  # clear old values first
-        
-       
-        for i, sample in enumerate(samples[:MAX_DISPLAY_ROWS]):
-            lon_entry, lat_entry, height_entry, heading_entry = sample_entries[i]
-
-            lon_entry.insert(0, str(sample["lon"]))
-            lat_entry.insert(0, str(sample["lat"]))
-            height_entry.insert(0, str(sample["observer_height"]))
-            heading_entry.insert(0, str(sample["heading_deg"]))
-
-        reposition_bottom_widgets()  # move Submit/Error underneath the new row count
         update_left_scrollregion()
 
     def load_metadata_csv(file_path):
@@ -458,27 +459,20 @@ def start_gui(run_program): #entry point for the program.
    
    
     def validate_inputs():
-        if loaded_sample_metadata:
-            print("validate_inputs sample count:", len(loaded_sample_metadata))
-            return loaded_sample_metadata
         max_observer_height = 10000
         samples = []
 
-        for idx, (lon_entry, lat_entry, height_entry, heading_entry) in enumerate(sample_entries, start=1):
-            lon_text = lon_entry.get().strip()
-            lat_text = lat_entry.get().strip()
-            observer_height_text = height_entry.get().strip()
-            heading_text = heading_entry.get().strip()
+        items = sample_tree.get_children()
+        if not items:
+            raise ValueError("Please enter at least one sample or load a metadata CSV.")
 
-            # if the whole row is blank, just ignore it
-            if not any([lon_text, lat_text, observer_height_text, heading_text]):
-                continue
+        for idx, item_id in enumerate(items, start=1):
+            values = sample_tree.item(item_id, "values")
 
-            # but if the row is only partly filled, that is an error
-            if not all([lon_text, lat_text, observer_height_text, heading_text]):
-                raise ValueError(
-                    f"Please fill in longitude, latitude, observer height, and heading for sample {idx}."
-                )
+            lon_text = str(values[1]).strip()
+            lat_text = str(values[2]).strip()
+            observer_height_text = str(values[3]).strip()
+            heading_text = str(values[4]).strip()
 
             try:
                 lon = float(lon_text)
@@ -513,9 +507,6 @@ def start_gui(run_program): #entry point for the program.
                 "observer_height": observer_height,
                 "heading_deg": heading_deg
             })
-
-        if not samples:
-            raise ValueError("Please enter at least one sample or load a metadata CSV.")
 
         return samples
     
@@ -716,147 +707,232 @@ def start_gui(run_program): #entry point for the program.
     right_sidebar = RightSideBar(root) #create right hand pannel.
     right_sidebar.grid(row=1, column=1, sticky="nsew") #define region for right panel.
 
-    selected_row_var = tk.IntVar(value=1)
-    sample_entries = []
+    lon_var = tk.StringVar()
+    lat_var = tk.StringVar()
+    height_var = tk.StringVar()
+    heading_var = tk.StringVar()
 
-    tk.Label(left_panel, text="Sample").grid(row=1, column=0, padx=(12, 4), pady=8, sticky="w") #add table heading.
-    tk.Label(left_panel, text="Longitude (EPSG:4326):").grid(row=1, column=1, padx=(12, 4), pady=8, sticky="w") #add text for longitude input box, push it to the left and add padding.
-    lon_help = tk.Label(left_panel, text="?", fg="blue", cursor="question_arrow") #create the helper widget and make the foreground blue.
-    lon_help.grid(row=1, column=2, padx=6, pady=8, sticky="w") #place helper widget into grid.
+    tk.Label(left_panel, text="Samples").grid(row=1, column=0, padx=(12, 4), pady=(8, 4), sticky="w")
 
-    tk.Label(left_panel, text="Latitude (EPSG:4326):").grid(row=1, column=3, padx=(12, 4), pady=8, sticky="w") #add text for latitude input box, push it to the left and add padding.
-    lat_help = tk.Label(left_panel, text="?", fg="blue", cursor="question_arrow") #create the helper widget and make the foreground blue.
-    lat_help.grid(row=1, column=4, padx=6, pady=8, sticky="w") #place helper widget into grid.
+    tree_frame = ttk.Frame(left_panel)
+    tree_frame.grid(row=2, column=0, columnspan=9, sticky="nsew", padx=12, pady=(0, 12))
 
-    tk.Label(left_panel, text="Observer height (m):").grid(row=1, column=5, padx=(12, 4), pady=8, sticky="w") #add text for observer height input box, push it to the left and add padding.
-    height_help = tk.Label(left_panel, text="?", fg="blue", cursor="question_arrow") #create the helper widget and make the foreground blue.
-    height_help.grid(row=1, column=6, padx=6, pady=8, sticky="w") #place helper widget into grid.
+    tree_scrollbar = ttk.Scrollbar(tree_frame, orient="vertical")
+    tree_scrollbar.pack(side="right", fill="y")
 
-    tk.Label(left_panel, text="Heading (deg):").grid(row=1, column=7, padx=(12, 4), pady=8, sticky="w") #add text for heading input box, push it to the left and add padding.
-    heading_help = tk.Label(left_panel, text="?", fg="blue", cursor="question_arrow") #create the helper widget and make the foreground blue.
-    heading_help.grid(row=1, column=8, padx=6, pady=8, sticky="w") #place helper widget into grid.
+    sample_tree = ttk.Treeview(
+        tree_frame,
+        columns=("sample", "lon", "lat", "observer_height", "heading_deg"),
+        show="headings",
+        height=16,
+        yscrollcommand=tree_scrollbar.set,
+        selectmode="browse",
+    )
+    sample_tree.pack(side="left", fill="both", expand=True)
 
-    sample_entries = []
-    sample_row_widgets = [] #tuples for sample entires.
+    tree_scrollbar.config(command=sample_tree.yview)
 
-    def create_sample_row(i):
-        if len(sample_row_widgets) >= 200:
-            error_label.config(text="Maximum sample limit is 200.")
+    sample_tree.heading("sample", text="Sample")
+    sample_tree.heading("lon", text="Longitude")
+    sample_tree.heading("lat", text="Latitude")
+    sample_tree.heading("observer_height", text="Observer height (m)")
+    sample_tree.heading("heading_deg", text="Heading (deg)")
+
+    sample_tree.column("sample", width=70, anchor="center")
+    sample_tree.column("lon", width=140, anchor="center")
+    sample_tree.column("lat", width=140, anchor="center")
+    sample_tree.column("observer_height", width=140, anchor="center")
+    sample_tree.column("heading_deg", width=120, anchor="center")
+
+    def on_tree_select(event=None):
+        selected = sample_tree.selection()
+        if not selected:
             return
-        
-        grid_row = i + 2  # rows 0 and 1 are already in use, so they must be skipped.
 
-        row_label = tk.Label(left_panel, text=f"{i + 1}.") #create label for the sample number.
-        row_label.grid(row=grid_row, column=0, padx=(12, 4), pady=4, sticky="w")
+        item_id = selected[0]
+        values = sample_tree.item(item_id, "values")
 
-        lon_entry = tk.Entry(left_panel, width=16) #'create longitude input box.
-        lon_entry.grid(row=grid_row, column=1, pady=4, sticky="w")
+        lon_var.set(values[1])
+        lat_var.set(values[2])
+        height_var.set(values[3])
+        heading_var.set(values[4])
 
-        lat_entry = tk.Entry(left_panel, width=16) #create latitude input box.
-        lat_entry.grid(row=grid_row, column=3, pady=4, sticky="w")
+    sample_tree.bind("<<TreeviewSelect>>", on_tree_select)
 
-        height_entry = tk.Entry(left_panel, width=12) #create observer height input box.
-        height_entry.grid(row=grid_row, column=5, pady=4, sticky="w")
+    def build_sample_from_editor():
+        max_observer_height = 10000
 
-        heading_entry = tk.Entry(left_panel, width=12) #create heading direction input box.
-        heading_entry.grid(row=grid_row, column=7, pady=4, sticky="w")
+        lon_text = lon_var.get().strip()
+        lat_text = lat_var.get().strip()
+        observer_height_text = height_var.get().strip()
+        heading_text = heading_var.get().strip()
 
-        sample_entries.append((lon_entry, lat_entry, height_entry, heading_entry)) #store entire row.
-        sample_row_widgets.append((row_label, lon_entry, lat_entry, height_entry, heading_entry)) #store entire row to be displayed.
+        if not all([lon_text, lat_text, observer_height_text, heading_text]):
+            error_label.config(text="Please fill in longitude, latitude, observer height, and heading.")
 
-    def rebuild_sample_rows(count):
-        count = max(1, count)  # keep at least 1 visible row for manual entry.
+        try:
+            lon = float(lon_text)
+            lat = float(lat_text)
+            observer_height = float(observer_height_text)
+            heading_deg = float(heading_text)
+        except ValueError:
+            error_label.config(text="Longitude, latitude, observer height, and heading must all be numbers.")
 
-        for widgets in sample_row_widgets:
-            for widget in widgets:
-                widget.destroy()
+        if not (-180 <= lon <= 180):
+            error_label.config(text="Longitude must be between -180 and 180.")
 
-        sample_entries.clear()
-        sample_row_widgets.clear()
+        if not (-90 <= lat <= 90):
+            error_label.config(text="Latitude must be between -90 and 90.")
 
-        for i in range(count):
-            create_sample_row(i)
+        if observer_height <= 0:
+            error_label.config(text="Observer height must be greater than 0 metres.")
 
-    def add_blank_row():
-        create_sample_row(len(sample_entries))
-        reposition_bottom_widgets()
+        if observer_height > max_observer_height:
+            error_label.config(text=f"Observer height must not exceed {max_observer_height} metres.")
+
+        if not (0 <= heading_deg < 360):
+            error_label.config(text="Heading must be between 0 and 360 degrees.")
+
+        return {
+            "lon": lon,
+            "lat": lat,
+            "observer_height": observer_height,
+            "heading_deg": heading_deg,
+        }
+
+    def renumber_tree_rows():
+        for i, item_id in enumerate(sample_tree.get_children(), start=1):
+            values = list(sample_tree.item(item_id, "values"))
+            values[0] = i
+            sample_tree.item(item_id, values=values)
+
+    def add_sample_row():
+        sample = build_sample_from_editor()
+
+        next_number = len(sample_tree.get_children()) + 1
+        item_id = sample_tree.insert(
+            "",
+            "end",
+            values=(
+                next_number,
+                sample["lon"],
+                sample["lat"],
+                sample["observer_height"],
+                sample["heading_deg"],
+            ),
+        )
+
+        sample_tree.selection_set(item_id)
+        sample_tree.focus(item_id)
+        on_tree_select()
+        error_label.config(text="")
         update_left_scrollregion()
 
-    def delete_last_row():
-        if len(sample_row_widgets) <= 1:
-            error_label.config(text="At least one sample row must remain.")
+    def update_selected_row():
+        selected = sample_tree.selection()
+        if not selected:
+            error_label.config(text="Please select a sample row to update.")
             return
-        widgets = sample_row_widgets.pop() #take the final row.
-        for widget in widgets:
-            widget.destroy() #remove its widgets from the GUI.
 
-        sample_entries.pop() #remove matching entries tuple.
-        error_label.config(text="") #clear any old error message.
-        reposition_bottom_widgets()
+        sample = build_sample_from_editor()
+        item_id = selected[0]
+        old_values = list(sample_tree.item(item_id, "values"))
+
+        sample_tree.item(
+            item_id,
+            values=(
+                old_values[0],
+                sample["lon"],
+                sample["lat"],
+                sample["observer_height"],
+                sample["heading_deg"],
+            ),
+        )
+
+        error_label.config(text="")
+
+    def delete_selected_row():
+        selected = sample_tree.selection()
+        if not selected:
+            error_label.config(text="Please select a sample row to delete.")
+            return
+
+        sample_tree.delete(selected[0])
+        renumber_tree_rows()
+        error_label.config(text="")
+
+        children = sample_tree.get_children()
+        if children:
+            sample_tree.selection_set(children[0])
+            sample_tree.focus(children[0])
+            on_tree_select()
+        else:
+            lon_var.set("")
+            lat_var.set("")
+            height_var.set("")
+            heading_var.set("")
+
         update_left_scrollregion()
 
-    def reposition_bottom_widgets():
-        submit_row = len(sample_entries) + 2
-        actions_row = len(sample_entries) + 3
-        error_row = len(sample_entries) + 4
+    editor_frame = ttk.LabelFrame(left_panel, text="Selected sample")
+    editor_frame.grid(row=3, column=0, columnspan=9, sticky="ew", padx=12, pady=(0, 12))
 
-        submit_button.grid_configure(row=submit_row)
-        button_frame.grid_configure(row=actions_row)
-        delete_row_button.grid_configure(row=actions_row)
-        error_label.grid_configure(row=error_row)
+    ttk.Label(editor_frame, text="Longitude:").grid(row=0, column=0, padx=(10, 4), pady=8, sticky="w")
+    ttk.Entry(editor_frame, textvariable=lon_var, width=16).grid(row=0, column=1, padx=(0, 4), pady=8, sticky="w")
 
+    lon_help = tk.Label(editor_frame, text="?", fg="blue", cursor="question_arrow")
+    lon_help.grid(row=0, column=2, padx=(0, 12), pady=8, sticky="w")
 
-    right_sidebar.point_selected_callback = set_coordinate_entries # assign function to update coordinates.
+    ttk.Label(editor_frame, text="Latitude:").grid(row=0, column=3, padx=(10, 4), pady=8, sticky="w")
+    ttk.Entry(editor_frame, textvariable=lat_var, width=16).grid(row=0, column=4, padx=(0, 4), pady=8, sticky="w")
 
-    rebuild_sample_rows(1)  # start with 1 blank row
+    lat_help = tk.Label(editor_frame, text="?", fg="blue", cursor="question_arrow")
+    lat_help.grid(row=0, column=5, padx=(0, 12), pady=8, sticky="w")
 
-    submit_button = tk.Button(left_panel, text="Submit", command=submit) #run the program.
-    submit_button.grid(row=999, column=0, columnspan=9, pady=(18, 10)) #temporary row, corrected below.
+    ttk.Label(editor_frame, text="Observer height (m):").grid(row=1, column=0, padx=(10, 4), pady=8, sticky="w")
+    ttk.Entry(editor_frame, textvariable=height_var, width=16).grid(row=1, column=1, padx=(0, 12), pady=8, sticky="w")
 
-    button_frame = tk.Frame(left_panel)
-    button_frame.grid(row=999, column=0, columnspan=2, pady=(0, 10), sticky="w") #frame to link the submit button and text together.
+    ttk.Label(editor_frame, text="Heading (deg):").grid(row=1, column=3, padx=(10, 4), pady=8, sticky="w")
+    ttk.Entry(editor_frame, textvariable=heading_var, width=16).grid(row=1, column=4, padx=(0, 12), pady=8, sticky="w")
 
-    add_row_button = tk.Button(button_frame, text="Add sample", command=add_blank_row) #submit button.
-    add_row_button.pack(side="left")
-
-    max_label = tk.Label(button_frame, text="(max 200)", fg="black") #warning text for sample limit.
-    max_label.pack(side="left", padx=(6, 0))
-
-    delete_row_button = tk.Button(left_panel, text="Delete last row", command=delete_last_row) #remove final row.
-    delete_row_button.grid(row=999, column=2, columnspan=2, pady=(0, 10), sticky="e")
-
-    error_label = tk.Label(left_panel, text="", fg="red")
-    error_label.grid(row=999, column=0, columnspan=9, pady=(0, 10))
-
-    reposition_bottom_widgets()
-    update_left_scrollregion()
-    reposition_bottom_widgets()
-
-    file_handler()
-
-    #attach a tooltip to the latitude help widget.
     LeftSideBar(
         lon_help,
-        "Enter the coordinate's longitude in EPSG:4326.\nExample: -1.3276"
+        "Enter longitude in EPSG:4326 (WGS84).\nExample: -1.327600"
     )
 
-    #attach a tooltip to the latitude help widget.
     LeftSideBar(
         lat_help,
-        "Enter the coordinate's latitude in EPSG:4326.\nExample: 50.730251"
+        "Enter latitude in EPSG:4326 (WGS84).\nExample: 50.730251"
     )
 
-    #attach a tooltip to the observer height help widget.
-    LeftSideBar(
-        height_help,
-        "Enter observer height above the ground in metres.\nExample: 1.5"
-    )
+    button_frame = tk.Frame(left_panel)
+    button_frame.grid(row=4, column=0, columnspan=9, pady=(0, 10), sticky="w", padx=12)
 
-    #attach a tooltip to the heading help widget.
-    LeftSideBar(
-        heading_help,
-        "Enter the viewing direction as a compass bearing in degrees.\n0 = north, 90 = east, 180 = south, 270 = west"
-    )
+    add_row_button = tk.Button(button_frame, text="Add sample", command=add_sample_row)
+    add_row_button.pack(side="left")
+
+    update_row_button = tk.Button(button_frame, text="Update selected", command=update_selected_row)
+    update_row_button.pack(side="left", padx=(8, 0))
+
+    delete_row_button = tk.Button(button_frame, text="Delete selected", command=delete_selected_row)
+    delete_row_button.pack(side="left", padx=(8, 0))
+
+    submit_button = tk.Button(left_panel, text="Submit", command=submit)
+    submit_button.grid(row=5, column=0, columnspan=9, pady=(10, 10))
+
+    error_label = tk.Label(left_panel, text="", fg="red")
+    error_label.grid(row=6, column=0, columnspan=9, pady=(0, 10))
+
+    # start with one blank row in the editor, but no tree rows yet
+    lon_var.set("")
+    lat_var.set("")
+    height_var.set("")
+    heading_var.set("")
+
+
+    update_left_scrollregion()
+
+    file_handler()
 
     if tif_path:
         right_sidebar.load_dem(tif_path) #load initial DEM preview.

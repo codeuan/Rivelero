@@ -283,12 +283,16 @@ def save_preview_png(frequency, crop_window, src_transform, observer_points_xy, 
 
     fig, ax = plt.subplots(figsize=(10, 8))
 
-    masked = np.ma.masked_where(frequency == 0, frequency)
+    masked = np.ma.masked_where(frequency == 0, frequency)  # hide all 0 cells from the normal colour scale
+
+    cmap = plt.cm.viridis.copy()      # make a copy so we do not alter the global viridis map
+    cmap.set_bad(color="lightgrey")   # masked values (your 0 cells) will appear grey
+
     im = ax.imshow(
         masked,
         extent=(left, right, bottom, top),
         origin="upper",
-        cmap="viridis",
+        cmap=cmap,
         vmin=1,
         vmax=max(1, int(frequency.max())),
     )
