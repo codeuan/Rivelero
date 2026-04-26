@@ -27,14 +27,15 @@ from pyproj import Transformer
 from rasterio.transform import rowcol
 from shapely.geometry import box
 
-from ndvi import NDVI
-from visibility_frequency import visibility_frequency
-from obstacle_detection import fetch_obstacles_for_extent
+from src.NDVI import NDVI
+from src.visibility_frequency import visibility_frequency
+from src.obstacle_detection import fetch_obstacles_for_extent
 
 # Optional: only needed if you want the optimiser to download Street View images.
 try:
-    from API_caller import download_street_view_for_samples
-except ImportError:
+    from src.API_caller import download_street_view_for_samples
+except ImportError as e:
+    print(f"Could not import download_street_view_for_samples from API_caller.py: {e}")
     download_street_view_for_samples = None
 
 
@@ -214,20 +215,20 @@ def _occlusion_fraction_around_point(
         1.0 = fully covered by obstacles
     """
     if obstacle_union is None or obstacle_union.is_empty:
-        return 0.0
+        return 0.0 #if there are no obstacles, the fraction is 0.
 
     candidate_area = box(
         x - radius_m,
         y - radius_m,
         x + radius_m,
         y + radius_m,
-    )
+    ) #build candidate box around a single point.
 
     if candidate_area.area <= 0:
         return 0.0
 
-    intersection_area = candidate_area.intersection(obstacle_union).area
-    return float(np.clip(intersection_area / candidate_area.area, 0.0, 1.0))
+    intersection_area = candidate_area.intersection(obstacle_union).area #union of candidate area and obstacle area.
+    return float(np.clip(intersection_area / candidate_area.area, 0.0, 1.0)) #return fraction of candidate area covered by obstacles.
 
 
 def optimise_candidates(

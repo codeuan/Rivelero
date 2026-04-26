@@ -5,3 +5,7 @@ pyproj
 affine
 requests
 pandas
+shapely
+scikit-learn
+geopandas
+osmnx

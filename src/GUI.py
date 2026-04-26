@@ -632,7 +632,9 @@ def start_gui(run_program): #entry point for the program.
                     unseenness=0.00,
                     obstacle_penalty=0.20,
                 ),
-                download_images=False,
+                download_images=True,
+                street_view_radius_m=50,
+                street_view_source="outdoor",
             )
 
             results_df = scores_to_dataframe(ranked_scores)

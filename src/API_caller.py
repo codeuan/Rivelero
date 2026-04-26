@@ -175,43 +175,25 @@ def download_street_view_image(
     size: tuple[int, int] = (640, 640),
     heading: float | None = None,
     pitch: float = 0.0,
-    fov: float = 90.0,
+    fov: float = 120.0,
     radius: int = 50,
-    source: str = "default",
+    source: str = "outdoor",
     check_metadata_first: bool = True,
+    output_dir: str | Path = "Results/StreetView",
+    index: int | None = None,
 ) -> str | None:
     """
-    Download a Google Street View image near (lat, lon) and return the local JPG path.
-
-    Args:
-        lat:
-            Latitude in WGS84.
-        lon:
-            Longitude in WGS84.
-        size:
-            (width, height) in pixels.
-        heading:
-            Camera heading in degrees. If None, Google chooses automatically.
-        pitch:
-            Camera pitch in degrees.
-        fov:
-            Horizontal field of view in degrees.
-        radius:
-            Search radius in metres.
-        source:
-            "default" or "outdoor".
-        check_metadata_first:
-            If True, first query metadata and return None when no panorama exists.
+    Download a Google Street View static image and save it into Results/StreetView.
 
     Returns:
         Path to downloaded JPG, or None if no Street View panorama was found.
-
-    Raises:
-        RuntimeError:
-            If API key is missing or Google returns a real error.
     """
+
     if not GOOGLE_MAPS_API_KEY:
-        raise RuntimeError("GOOGLE_MAPS_API_KEY is not set.")
+        raise RuntimeError("GOOGLE_MAPS_API_KEY is not set.") #if no API key is found, raise an error.
+
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True) #output path.
 
     if check_metadata_first:
         metadata = get_street_view_metadata(
@@ -220,11 +202,14 @@ def download_street_view_image(
             radius=radius,
             source=source,
         )
+
         if metadata.get("status") != "OK":
-            return None
+            return None #check if there is metadata at our locations, if not, return an error.
 
     width, height = size
-    url = "https://maps.googleapis.com/maps/api/streetview"
+
+    url = "https://maps.googleapis.com/maps/api/streetview" #endpoint for Google Street View Static API.
+
     params = {
         "size": f"{width}x{height}",
         "location": f"{lat},{lon}",
@@ -234,37 +219,80 @@ def download_street_view_image(
         "source": source,
         "return_error_code": "true",
         "key": GOOGLE_MAPS_API_KEY,
-    }
+    } #settings sent to API.
 
     if heading is not None:
         params["heading"] = heading
 
-    response = requests.get(url, params=params, timeout=60)
+    response = requests.get(url, params=params, timeout=60) #send request.
 
-    # With return_error_code=true, Google can return 404 when no image exists.
     if response.status_code == 404:
         return None
 
-    response.raise_for_status()
+    response.raise_for_status() #catch bad responses.
 
-    content_type = response.headers.get("Content-Type", "").lower()
+    content_type = response.headers.get("Content-Type", "").lower() #inspect data type returned.
+
     if "image" not in content_type:
         raise RuntimeError(
             f"Street View did not return an image. "
             f"Content-Type was: {content_type!r}"
-        )
+        ) #if the data type isn't an image, return an error.
 
-    return _download_binary_to_tempfile(response.content, suffix=".jpg")
+    safe_heading = "auto" if heading is None else f"{heading:.0f}"
+
+    if index is None:
+        filename = f"streetview_lat_{lat:.6f}_lon_{lon:.6f}_heading_{safe_heading}.jpg"
+    else:
+        filename = f"candidate_{index:03d}_lat_{lat:.6f}_lon_{lon:.6f}_heading_{safe_heading}.jpg"
+
+    output_path = output_dir / filename
+    output_path.write_bytes(response.content) #save image bytes to file.
+
+    print(f"Saved Street View image: {output_path}")
+
+    return str(output_path)
+
+
+def calculate_bearing_deg(
+    from_lat: float,
+    from_lon: float,
+    to_lat: float,
+    to_lon: float,
+) -> float:
+    """
+    Calculate compass bearing from one lon/lat point to another.
+
+    Returns:
+        Degrees clockwise from north.
+        0 = north, 90 = east, 180 = south, 270 = west.
+    """
+
+    lat1 = math.radians(from_lat)
+    lat2 = math.radians(to_lat)
+    dlon = math.radians(to_lon - from_lon)
+
+    x = math.sin(dlon) * math.cos(lat2)
+
+    y = (
+        math.cos(lat1) * math.sin(lat2)
+        - math.sin(lat1) * math.cos(lat2) * math.cos(dlon)
+    )
+
+    bearing = math.degrees(math.atan2(x, y))
+
+    return (bearing + 360.0) % 360.0
 
 
 def download_street_view_for_samples(
     sample_metadata: Sequence[Mapping[str, Any]],
     size: tuple[int, int] = (640, 640),
     pitch: float = 0.0,
-    fov: float = 90.0,
+    fov: float = 120.0,
     radius: int = 50,
-    source: str = "default",
+    source: str = "outdoor",
     use_sample_heading: bool = True,
+    output_dir: str | Path = "Results/StreetView",
 ) -> list[dict]:
     """
     Download one Street View image per sample.
@@ -290,6 +318,11 @@ def download_street_view_for_samples(
 
         If no panorama exists near a sample, image_path will be None.
     """
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True) #output path.
+
+    print(f"Street View output folder: {output_dir.resolve()}")
+
     results = []
 
     for i, sample in enumerate(sample_metadata):
@@ -300,6 +333,9 @@ def download_street_view_for_samples(
         if use_sample_heading and "heading_deg" in sample and sample["heading_deg"] not in (None, ""):
             heading = float(sample["heading_deg"])
 
+        print(f"\n--- Street View sample {i} ---")
+        print(f"lat={lat}, lon={lon}, heading={heading}, radius={radius}, source={source}")
+
         try:
             metadata = get_street_view_metadata(
                 lat=lat,
@@ -308,7 +344,11 @@ def download_street_view_for_samples(
                 source=source,
             )
 
-            if metadata.get("status") == "OK":
+            status = metadata.get("status")
+            print(f"Metadata status: {status}")
+            print(f"Metadata response: {metadata}")
+
+            if status == "OK":
                 image_path = download_street_view_image(
                     lat=lat,
                     lon=lon,
@@ -319,9 +359,22 @@ def download_street_view_for_samples(
                     radius=radius,
                     source=source,
                     check_metadata_first=False,
+                    output_dir=output_dir,
+                    index=i,
                 )
+
+                print(f"Returned image_path: {image_path}")
+
+                if image_path is not None:
+                    image_file = Path(image_path)
+                    print(f"Image exists: {image_file.exists()}")
+                    print(f"Image size in bytes: {image_file.stat().st_size if image_file.exists() else 'N/A'}")
+                else:
+                    print("No image was saved because image_path is None.")
+
             else:
                 image_path = None
+                print(f"Skipping image download because metadata status was {status!r}.")
 
             error = None
 
@@ -333,6 +386,8 @@ def download_street_view_for_samples(
             image_path = None
             error = str(e)
 
+            print(f"Street View error for sample {i}: {e}")
+
         results.append({
             "index": i,
             "lat": lat,
@@ -343,5 +398,14 @@ def download_street_view_for_samples(
             "street_view_status": metadata.get("status"),
             "error": error,
         })
+
+    print("\n--- Street View download summary ---")
+    for result in results:
+        print(
+            f"index={result['index']}, "
+            f"status={result['street_view_status']}, "
+            f"image_path={result['image_path']}, "
+            f"error={result['error']}"
+        )
 
     return results

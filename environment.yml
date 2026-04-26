@@ -9,3 +9,7 @@ dependencies:
   - numpy
   - matplotlib
   - requests
+  - shapely
+  - scikit-learn
+  - geopandas
+  - osmnx

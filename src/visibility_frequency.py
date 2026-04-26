@@ -398,8 +398,12 @@ def visibility_frequency(sample_metadata, dem_path, max_distance_m):
             print(f"Frequency raster min/max: {frequency.min()} / {frequency.max()}")
 
             timestamp = time_module.strftime("%Y%m%d_%H%M%S")
-            out_tif = f"visibility_frequency_{timestamp}.tif"
-            out_png = f"visibility_frequency_{timestamp}.png"
+            
+            results_dir = Path("Results")
+            results_dir.mkdir(exist_ok=True)
+
+            out_tif = results_dir / f"visibility_frequency_{timestamp}.tif"
+            out_png = results_dir / f"visibility_frequency_{timestamp}.png"
 
             save_preview_png(
                 frequency,
