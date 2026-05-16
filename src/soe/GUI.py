@@ -11,9 +11,9 @@ from matplotlib import cm
 from matplotlib.colors import Normalize
 from pyproj import Transformer
 import matplotlib.image as mpimg
-from src.API_caller import download_dem_for_samples
+from src.SOE.API_caller import download_dem_for_samples
 from matplotlib.ticker import MaxNLocator, ScalarFormatter
-from src.optimiser import optimise_candidates, scores_to_dataframe, OptimiserWeights
+from src.SOE.optimiser import optimise_candidates, scores_to_dataframe, OptimiserWeights
 
 tif_path = None
 metadata_csv_path = None

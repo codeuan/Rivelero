@@ -27,13 +27,13 @@ from pyproj import Transformer
 from rasterio.transform import rowcol
 from shapely.geometry import box
 
-from src.NDVI import NDVI
-from src.visibility_frequency import visibility_frequency
-from src.obstacle_detection import fetch_obstacles_for_extent
+from src.SOE.NDVI import NDVI
+from src.SOE.visibility_frequency import visibility_frequency
+from src.SOE.obstacle_detection import fetch_obstacles_for_extent
 
 # Optional: only needed if you want the optimiser to download Street View images.
 try:
-    from src.API_caller import download_street_view_for_samples
+    from src.SOE.API_caller import download_street_view_for_samples
 except ImportError as e:
     print(f"Could not import download_street_view_for_samples from API_caller.py: {e}")
     download_street_view_for_samples = None
