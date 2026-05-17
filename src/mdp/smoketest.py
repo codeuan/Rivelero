@@ -24,6 +24,8 @@ def fake_viewshed(viewpoint: CandidateViewpoint) -> np.ndarray:
         False = not visible
 
     Each viewpoint reveals a different row and column.
+
+    Produces a cross like shape.
     """
 
     map_shape = (10, 10)
@@ -73,7 +75,7 @@ def main() -> None:
         action_number = valid_actions[0] #look at the list of legal actions and pick the first one.
 
         state, reward, done, info = env.step(action_number) #commit to the action.
-        total_reward += reward
+        total_reward += reward 
 
         print(f"Step: {state.steps_taken}")
         print(f"Chosen action number: {action_number}")

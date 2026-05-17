@@ -14,3 +14,4 @@ if not shutil.which("gdal") and not shutil.which("gdal_raster_viewshed"):
 
 if __name__ == "__main__":
     start_gui(run_program)
+    

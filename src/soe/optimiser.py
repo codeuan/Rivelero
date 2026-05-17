@@ -27,13 +27,14 @@ from pyproj import Transformer
 from rasterio.transform import rowcol
 from shapely.geometry import box
 
-from src.SOE.NDVI import NDVI
-from src.SOE.visibility_frequency import visibility_frequency
-from src.SOE.obstacle_detection import fetch_obstacles_for_extent
+from .NDVI import NDVI
+from .visibility_frequency import visibility_frequency
+from .obstacle_detection import fetch_obstacles_for_extent
+from .VISTA_DBSCAN import VISTA_DBSCAN
 
 # Optional: only needed if you want the optimiser to download Street View images.
 try:
-    from src.SOE.API_caller import download_street_view_for_samples
+    from .API_caller import download_street_view_for_samples
 except ImportError as e:
     print(f"Could not import download_street_view_for_samples from API_caller.py: {e}")
     download_street_view_for_samples = None
@@ -314,8 +315,6 @@ def optimise_candidates(
         max_distance_m=max_distance_m,
     )
 
-    # IMPORTANT:
-    # Your visibility_frequency.py returns "count_overlay", not "frequency".
     visibility_array = visibility_result["count_overlay"]
     visibility_transform = visibility_result["raster_transform"]
     visibility_crs = visibility_result["raster_crs"]
@@ -465,17 +464,27 @@ def scores_to_dataframe(scores: Sequence[CandidateScore]) -> pd.DataFrame:
     return pd.DataFrame([asdict(score) for score in scores])
   #note to self: a dataframe is a fancy term for a spreadsheet like structure.
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+RESULTS_DIR = PROJECT_ROOT / "Results"
+
+
 def save_scores_csv(
     scores: Sequence[CandidateScore],
-    output_path: str | Path = "optimiser_results.csv",
+    output_path: str | Path | None = None,
 ) -> str:
     """
     Save ranked optimiser results as a CSV.
     """
+    if output_path is None:
+        output_path = RESULTS_DIR / "optimiser_results.csv"
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
     df = scores_to_dataframe(scores)
-    output_path = str(output_path)
-    df.to_csv(output_path, index=False) #save dataframe as a CSV file.
-    return output_path
+    df.to_csv(output_path, index=False)
+
+    return str(output_path)
 
 
 def load_sample_metadata_csv(csv_path: str | Path) -> list[dict[str, Any]]:
@@ -498,30 +507,99 @@ def load_sample_metadata_csv(csv_path: str | Path) -> list[dict[str, Any]]:
 
     return df.to_dict(orient="records") #convert data to list of dictionaries.
 
+def optimise_candidates_by_chunk(
+    sample_metadata: Sequence[Mapping[str, Any]],
+    dem_path: str | Path,
+    max_distance_m: float,
+    *,
+    weights: OptimiserWeights | None = None,
+    download_images: bool = False,
+) -> list[pd.DataFrame]:
+    """
+    Split candidates into DBSCAN chunks, run the optimiser separately
+    for each chunk, and print chunk-separated results to the console.
 
-if __name__ == "__main__":
-    # Example usage.
-    #
-    # Replace these with your real paths.
-    sample_csv = "samples.csv"
-    dem_path = "dem.tif"
+    Returns:
+        A list of DataFrames, one per chunk.
+    """
 
-    sample_metadata = load_sample_metadata_csv(sample_csv)
+    # Give every original CSV row a permanent ID before chunking.
+    # This matters because each chunk will have its own local index.
+    sample_metadata_with_original_ids = [
+        {**row, "original_index": index}
+        for index, row in enumerate(sample_metadata)
+    ]
 
-    ranked_scores = optimise_candidates(
-        sample_metadata=sample_metadata,
-        dem_path=dem_path,
-        max_distance_m=500.0,
-        weights=OptimiserWeights(
-            ndvi=0.40,
-            visibility_strength=0.40,
-            unseenness=0.00,
-            obstacle_penalty=0.20,
-        ),
-        download_images=False,
+    # Retrieve chunks from your VISTA_DBSCAN function.
+    chunks = VISTA_DBSCAN(
+        sample_metadata=sample_metadata_with_original_ids,
+        max_distance_m=max_distance_m,
     )
 
-    output_csv = save_scores_csv(ranked_scores)
-    print(f"Saved optimiser results to: {output_csv}")
+    print()
+    print("=" * 80)
+    print(f"DBSCAN found {len(chunks)} chunk(s).")
+    print("=" * 80)
 
-    print(scores_to_dataframe(ranked_scores).head(10))
+    chunk_dataframes: list[pd.DataFrame] = []
+
+    for chunk_id, chunk_metadata in enumerate(chunks, start=1):
+        print()
+        print("=" * 80)
+        print(f"CHUNK {chunk_id}")
+        print(f"Number of candidates in this chunk: {len(chunk_metadata)}")
+        print("=" * 80)
+
+        ranked_scores = optimise_candidates(
+            sample_metadata=chunk_metadata,
+            dem_path=dem_path,
+            max_distance_m=max_distance_m,
+            weights=weights,
+            download_images=download_images,
+        )
+
+        chunk_df = scores_to_dataframe(ranked_scores)
+
+        # Add chunk information to the table.
+        chunk_df.insert(0, "chunk_id", chunk_id)
+
+        # The optimiser's CandidateScore.index is local to the chunk,
+        # so this maps it back to the original CSV row number.
+        chunk_df.insert(
+            1,
+            "original_index",
+            chunk_df["index"].apply(
+                lambda local_index: chunk_metadata[int(local_index)]["original_index"]
+            ),
+        )
+
+        # Print a neat console table.
+        # DataFrame.to_string() is useful here because it renders the whole
+        # DataFrame as console-friendly text rather than the shortened preview.
+        print(
+            chunk_df[
+                [
+                    "chunk_id",
+                    "original_index",
+                    "index",
+                    "lat",
+                    "lon",
+                    "heading_deg",
+                    "mean_ndvi",
+                    "mean_visibility_count",
+                    "visibility_score",
+                    "occlusion_fraction",
+                    "final_score",
+                ]
+            ].head(10).to_string(index=False)
+        )
+
+        # Save each chunk separately.
+        chunk_output_path = RESULTS_DIR / f"chunk_{chunk_id:03d}_optimiser_results.csv"
+        chunk_df.to_csv(chunk_output_path, index=False)
+        print()
+        print(f"Saved chunk {chunk_id} results to: {chunk_output_path}")
+
+        chunk_dataframes.append(chunk_df)
+
+    return chunk_dataframes

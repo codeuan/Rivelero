@@ -11,13 +11,16 @@ from matplotlib import cm
 from matplotlib.colors import Normalize
 from pyproj import Transformer
 import matplotlib.image as mpimg
-from src.SOE.API_caller import download_dem_for_samples
+from .API_caller import download_dem_for_samples
 from matplotlib.ticker import MaxNLocator, ScalarFormatter
-from src.SOE.optimiser import optimise_candidates, scores_to_dataframe, OptimiserWeights
+from .optimiser import optimise_candidates_by_chunk, OptimiserWeights
+import pandas as pd
 
 tif_path = None
 metadata_csv_path = None
 loaded_sample_metadata = []
+
+VISTA_ROOT = Path(__file__).resolve().parents[2]
 
 def start_gui(run_program): #entry point for the program.
 
@@ -435,7 +438,7 @@ def start_gui(run_program): #entry point for the program.
             file_path = filedialog.askopenfilename( #open a file picker window and store the chosen file path in file_path.
                 parent=root, #pop up must be shown in the app.
                 title="Open metadata CSV for VISTA", #text at the top of window.
-                initialdir=".", #begin browsing in the directory of the program.
+                initialdir=str(VISTA_ROOT), #begin browsing in the directory of the program.
                 filetypes=[
                     ("CSV files", "*.csv"), #only show files ending in .csv as the type we want the user to pick.
                 ] #files that are shown as acceptable, in this case CSV.
@@ -550,7 +553,7 @@ def start_gui(run_program): #entry point for the program.
                 file_path = filedialog.askopenfilename(
                     parent=root, #pop up must be shown in the app.
                     title="Open file for VISTA", #text at the top of window.
-                    initialdir=".", #begin browsing in the directory of the program.
+                    initialdir=str(VISTA_ROOT), #begin browsing in the directory of the program.
                     filetypes=[
                         ("GeoTIFF files", "*.tif *.tiff"),
                     ] #files that are shown as acceptable, in this case TIFF.
@@ -622,28 +625,26 @@ def start_gui(run_program): #entry point for the program.
 
             print("Number of samples:", len(sample_metadata))
 
-            ranked_scores = optimise_candidates(
-                sample_metadata=sample_metadata,
-                dem_path=dem_path,
-                max_distance_m=max_distance,
-                weights=OptimiserWeights(
-                    ndvi=0.40,
-                    visibility_strength=0.40,
-                    unseenness=0.00,
-                    obstacle_penalty=0.20,
-                ),
-                download_images=True,
-                street_view_radius_m=50,
-                street_view_source="outdoor",
-            )
+            chunk_dataframes = optimise_candidates_by_chunk(
+            sample_metadata=sample_metadata,
+            dem_path=dem_path,
+            max_distance_m=max_distance,
+            weights=OptimiserWeights(
+                ndvi=0.40,
+                visibility_strength=0.40,
+                unseenness=0.00,
+                obstacle_penalty=0.20,
+            ),
+            download_images=False,
+        )
 
-            results_df = scores_to_dataframe(ranked_scores)
-
-            print("\n=== OPTIMISER RESULTS ===")
+            print("\n=== CHUNKED OPTIMISER RESULTS ===")
             print("Total points received:", len(sample_metadata))
-            print("Total ranked points:", len(ranked_scores))
+            print("Total chunks:", len(chunk_dataframes))
 
             columns_to_print = [
+                "chunk_id",
+                "original_index",
                 "index",
                 "lon",
                 "lat",
@@ -657,23 +658,34 @@ def start_gui(run_program): #entry point for the program.
                 "final_score",
             ]
 
-            existing_columns = [
-                column for column in columns_to_print
-                if column in results_df.columns
-            ]
+            for chunk_number, chunk_df in enumerate(chunk_dataframes, start=1):
+                print()
+                print("=" * 80)
+                print(f"CHUNK {chunk_number}")
+                print(f"Candidates in chunk: {len(chunk_df)}")
+                print("=" * 80)
 
-            print(results_df[existing_columns].to_string(index=False))
+                existing_columns = [
+                    column for column in columns_to_print
+                    if column in chunk_df.columns
+                ]
 
-            best_candidate = ranked_scores[0]
+            print(chunk_df[existing_columns].to_string(index=False))
 
-            print("\n=== BEST CANDIDATE ===")
-            print(f"Index: {best_candidate.index}")
-            print(f"Longitude: {best_candidate.lon}")
-            print(f"Latitude: {best_candidate.lat}")
-            print(f"Final score: {best_candidate.final_score}")
-            print(f"Mean NDVI: {best_candidate.mean_ndvi}")
-            print(f"Mean visibility count: {best_candidate.mean_visibility_count}")
-            print(f"Obstacle fraction: {best_candidate.occlusion_fraction}")
+            if chunk_dataframes:
+                combined_df = pd.concat(chunk_dataframes, ignore_index=True)
+                best_row = combined_df.sort_values("final_score", ascending=False).iloc[0]
+
+                print("\n=== BEST CANDIDATE OVERALL ===")
+                print(f"Chunk: {best_row['chunk_id']}")
+                print(f"Original CSV index: {best_row['original_index']}")
+                print(f"Local chunk index: {best_row['index']}")
+                print(f"Longitude: {best_row['lon']}")
+                print(f"Latitude: {best_row['lat']}")
+                print(f"Final score: {best_row['final_score']}")
+                print(f"Mean NDVI: {best_row['mean_ndvi']}")
+                print(f"Mean visibility count: {best_row['mean_visibility_count']}")
+                print(f"Obstacle fraction: {best_row['occlusion_fraction']}")
 
             right_sidebar.canvas.draw_idle()
 
