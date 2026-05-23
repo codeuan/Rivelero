@@ -1,0 +1,6 @@
+start: DISPHANTOM -> disphantom
+
+DISPHANTOM: /disphantom/i
+
+%import common.WS
+%ignore WS

@@ -15,6 +15,7 @@ from .API_caller import download_dem_for_samples
 from matplotlib.ticker import MaxNLocator, ScalarFormatter
 from .optimiser import optimise_candidates_by_chunk, OptimiserWeights
 import pandas as pd
+from dsl.rivelero_parser import parse_rivelero_command
 
 tif_path = None
 metadata_csv_path = None
@@ -970,11 +971,71 @@ def start_gui(run_program): #entry point for the program.
     delete_row_button = tk.Button(button_frame, text="Delete selected", command=delete_selected_row)
     delete_row_button.pack(side="left", padx=(8, 0))
 
-    submit_button = tk.Button(left_panel, text="Submit", command=submit)
-    submit_button.grid(row=5, column=0, columnspan=9, pady=(10, 10))
+    #####Rivelero command section #######
+    command_word_var = tk.StringVar() #create a string container.
+
+    command_frame = ttk.LabelFrame(left_panel, text="Rivelero command")
+    command_frame.grid(
+        row=6,
+        column=0,
+        columnspan=9,
+        sticky="ew",
+        padx=12,
+        pady=(0, 10),
+    ) #space for CLI.
+
+    ttk.Label(command_frame, text="Command word:").grid(
+        row=0,
+        column=0,
+        padx=(10, 4),
+        pady=8,
+        sticky="w",
+    )
+
+    command_entry = ttk.Entry(command_frame, textvariable=command_word_var, width=30)
+    command_entry.grid(
+        row=0,
+        column=1,
+        padx=(0, 8),
+        pady=8,
+        sticky="w",
+    ) #text entry box.
 
     error_label = tk.Label(left_panel, text="", fg="red")
-    error_label.grid(row=6, column=0, columnspan=9, pady=(0, 10))
+    error_label.grid(row=7, column=0, columnspan=9, pady=(0, 10))
+
+
+    def run_command_word():
+        try:
+            command = parse_rivelero_command(command_word_var.get())
+
+            if command.name == "DISPHANTOM":
+                error_label.config(text="")
+                submit()
+
+        except ValueError as error:
+            error_label.config(text=str(error))
+
+
+    command_submit_button = tk.Button(
+        command_frame,
+        text="Submit command",
+        command=run_command_word,
+    )
+    command_submit_button.grid(
+        row=0,
+        column=2,
+        padx=(0, 10),
+        pady=8,
+        sticky="w",
+    )
+
+    command_entry.bind("<Return>", lambda event: run_command_word()) #if enter is pressed, it acts the same as the submit button.
+
+    error_label = tk.Label(left_panel, text="", fg="red")
+    error_label.grid(row=7, column=0, columnspan=9, pady=(0, 10))
+
+    ##########################
 
     # start with one blank row in the editor, but no tree rows yet
     lon_var.set("")
