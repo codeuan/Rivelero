@@ -1,4 +1,4 @@
-# VISTA (VISTA Integrates Sightlines for Terrain Visibility)
+# Rivelero
 Quantifies individual coordinates' view count across several viewpoints and produces a frequency map. Each observer is projected into the DEM coordinate system, a viewshed is computed (GDAL backend), results are aligned and optionally filtered by viewing direction and all viewsheds are aggregated into a frequency map
 
 ***
