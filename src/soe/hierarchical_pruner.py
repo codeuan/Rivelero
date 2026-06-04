@@ -1,9 +1,28 @@
+"""
+Pure hierarchical subdivision demo.
+
+This script:
+1. Reads a DEM GeoTIFF.
+2. Reads candidate viewpoint coordinates from a CSV.
+3. Reprojects candidate points into the DEM CRS if needed.
+4. Builds increasingly smaller square subdivision levels.
+5. Saves one PNG map per subdivision level.
+
+No scoring.
+No ranking.
+No clusters.
+No MDP.
+Only non-empty square subdivision.
+"""
+
+from __future__ import annotations
+
 import csv
 from dataclasses import dataclass
 from pathlib import Path
 
 import matplotlib
-matplotlib.use("Agg")
+matplotlib.use("Agg")  # Allows saving PNGs from terminal without opening a window.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,62 +40,63 @@ class Square:
     n_points: int
 
     @property
-    def bounds(self):
+    def bounds(self) -> tuple[float, float, float, float]:
         return self.xmin, self.ymin, self.xmax, self.ymax
 
     @property
-    def cx(self):
+    def cx(self) -> float:
         return (self.xmin + self.xmax) / 2
 
     @property
-    def cy(self):
+    def cy(self) -> float:
         return (self.ymin + self.ymax) / 2
 
     @property
-    def size(self):
+    def size(self) -> float:
         return self.xmax - self.xmin
-
-def draw_square(ax, square: Square, linewidth: float = 1.5):
-    xmin, ymin, xmax, ymax = square.bounds
-
-    rect = plt.Rectangle(
-        (xmin, ymin),
-        xmax - xmin,
-        ymax - ymin,
-        fill=False,
-        linewidth=linewidth,
-    )
-
-    ax.add_patch(rect)
-
-    ax.text(
-        square.cx,
-        square.cy,
-        str(square.n_points),
-        ha="center",
-        va="center",
-        fontsize=7,
-    )
 
 
 def load_candidate_points_csv(
-    csv_path: str,
+    csv_path: str | Path,
     x_col: str,
     y_col: str,
 ) -> np.ndarray:
-    points = []
+    """
+    Load candidate viewpoint coordinates from a CSV.
 
-    with open(csv_path, newline="", encoding="utf-8") as f:
+    Returns:
+        An Nx2 NumPy array:
+
+        [
+            [x1, y1],
+            [x2, y2],
+            ...
+        ]
+    """
+
+    points = []
+    csv_path = Path(csv_path)
+
+    if not csv_path.exists():
+        raise FileNotFoundError(f"Candidate CSV not found: {csv_path}")
+
+    with csv_path.open(newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
 
         if reader.fieldnames is None:
             raise ValueError("Candidate CSV has no header row.")
 
         if x_col not in reader.fieldnames:
-            raise ValueError(f"Column {x_col!r} not found in CSV.")
+            raise ValueError(
+                f"Column {x_col!r} not found in CSV. "
+                f"Available columns: {reader.fieldnames}"
+            )
 
         if y_col not in reader.fieldnames:
-            raise ValueError(f"Column {y_col!r} not found in CSV.")
+            raise ValueError(
+                f"Column {y_col!r} not found in CSV. "
+                f"Available columns: {reader.fieldnames}"
+            )
 
         for row in reader:
             x = float(row[x_col])
@@ -84,7 +104,7 @@ def load_candidate_points_csv(
             points.append((x, y))
 
     if not points:
-        raise ValueError("No candidate points found in CSV.")
+        raise ValueError(f"No candidate points found in CSV: {csv_path}")
 
     return np.asarray(points, dtype=float)
 
@@ -94,6 +114,13 @@ def reproject_points_if_needed(
     candidate_crs: str | None,
     dem_crs,
 ) -> np.ndarray:
+    """
+    Reproject candidate points into the DEM CRS.
+
+    If candidate_crs is None, this assumes the candidate points are already
+    in the same CRS as the DEM.
+    """
+
     if candidate_crs is None:
         return points
 
@@ -114,9 +141,20 @@ def reproject_points_if_needed(
 
 
 def read_dem_for_plotting(
-    dem_path: str,
+    dem_path: str | Path,
     max_pixels_per_side: int = 1600,
 ):
+    """
+    Read a DEM band for background plotting.
+
+    Large DEMs are downsampled for display so PNG generation stays fast.
+    """
+
+    dem_path = Path(dem_path)
+
+    if not dem_path.exists():
+        raise FileNotFoundError(f"DEM not found: {dem_path}")
+
     with rasterio.open(dem_path) as src:
         if src.count < 1:
             raise ValueError("DEM has no raster bands.")
@@ -136,11 +174,12 @@ def read_dem_for_plotting(
             masked=True,
         )
 
-        # Gives matplotlib the real-world map coordinates for the DEM image.
+        # Real-world map coordinates for plotting the DEM with imshow().
         extent = plotting_extent(src)
         crs = src.crs
 
     return dem, extent, crs
+
 
 def count_points_in_square(
     points: np.ndarray,
@@ -182,6 +221,8 @@ def make_initial_squares(
 ) -> list[Square]:
     """
     Make the largest starting squares around the candidate viewpoint area.
+
+    Empty squares are ignored.
     """
 
     xs = points[:, 0]
@@ -209,7 +250,6 @@ def make_initial_squares(
                 size=square_size,
             )
 
-            # No scoring. We only keep squares that actually contain viewpoints.
             if square.n_points > 0:
                 squares.append(square)
 
@@ -226,13 +266,15 @@ def subdivide_square(
     subdivisions_per_side: int,
 ) -> list[Square]:
     """
-    Split one square into smaller squares.
+    Split one square into smaller child squares.
 
     Example:
         subdivisions_per_side = 3
 
     means:
-        1 parent square -> 3 x 3 = 9 child squares
+        1 parent square becomes 3 x 3 = 9 child squares.
+
+    Empty child squares are ignored.
     """
 
     if subdivisions_per_side <= 1:
@@ -254,7 +296,6 @@ def subdivide_square(
                 size=child_size,
             )
 
-            # No scoring. Only keep child squares that contain viewpoints.
             if child.n_points > 0:
                 children.append(child)
 
@@ -268,7 +309,7 @@ def build_square_levels(
     subdivisions_per_side: int,
 ) -> list[list[Square]]:
     """
-    Build all subdivision levels.
+    Build every subdivision level.
 
     Level 0:
         largest non-empty squares
@@ -296,15 +337,16 @@ def build_square_levels(
 
     levels = []
 
-    # Level 0: make the biggest squares.
     current_level = make_initial_squares(
         points=points,
         square_size=initial_size,
     )
 
+    if not current_level:
+        raise ValueError("No non-empty initial squares were created.")
+
     levels.append(current_level)
 
-    # Keep subdividing every non-empty square.
     while current_level:
         current_size = current_level[0].size
         next_size = current_size / subdivisions_per_side
@@ -332,6 +374,37 @@ def build_square_levels(
     return levels
 
 
+def draw_square(
+    ax,
+    square: Square,
+    linewidth: float = 1.5,
+) -> None:
+    """
+    Draw one square and write the candidate viewpoint count inside it.
+    """
+
+    xmin, ymin, xmax, ymax = square.bounds
+
+    rect = plt.Rectangle(
+        (xmin, ymin),
+        xmax - xmin,
+        ymax - ymin,
+        fill=False,
+        linewidth=linewidth,
+    )
+
+    ax.add_patch(rect)
+
+    ax.text(
+        square.cx,
+        square.cy,
+        str(square.n_points),
+        ha="center",
+        va="center",
+        fontsize=7,
+    )
+
+
 def plot_level(
     *,
     dem,
@@ -340,7 +413,7 @@ def plot_level(
     squares: list[Square],
     level_index: int,
     output_path: Path,
-):
+) -> None:
     """
     Save one PNG showing one subdivision level.
     """
@@ -380,16 +453,16 @@ def plot_level(
 
 def run_demo(
     *,
-    dem_path: str,
-    candidates_path: str,
+    dem_path: str | Path,
+    candidates_path: str | Path,
     x_col: str,
     y_col: str,
     candidate_crs: str | None,
-    output_dir: str,
+    output_dir: str | Path,
     initial_size: float,
     min_size: float,
     subdivisions_per_side: int,
-):
+) -> None:
     """
     Run the simple hierarchical subdivision demo.
     """
@@ -449,18 +522,20 @@ def run_demo(
     print("Done.")
 
 
-def main():
-    dem_path = "data/dem.tif"
-    candidates_path = "data/candidates.csv"
+def main() -> None:
+    base_dir = Path(__file__).resolve().parent.parent.parent
+
+    dem_path = base_dir / "GeoTIFF" / "sicily_cop30_utm33.tif"
+    candidates_path = base_dir / "GSV" / "Libro1.csv"
 
     x_col = "lon"
     y_col = "lat"
 
-    # Use "EPSG:4326" if your CSV points are longitude/latitude.
-    # Use None if your CSV points are already in the same CRS as the DEM.
+    # Use "EPSG:4326" if the CSV points are longitude/latitude.
+    # Use None if the CSV points are already in the same CRS as the DEM.
     candidate_crs = "EPSG:4326"
 
-    output_dir = "Results/hierarchical_subdivision_demo"
+    output_dir = base_dir / "Results" / "hierarchical_subdivision_demo"
 
     initial_size = 1000.0
     min_size = 50.0
