@@ -1,0 +1,8 @@
+Changed SOE files to use relative imports.
+
+Integrated DBSCAN into viewshed algorithm.
+
+Renamed DBSCAN to VISTA_DBSCAN to avoid name conflict with
+scikit-learn's DBSCAN class.
+
+Changed CSV and DEM buttons to open on the VISTA folder instead of the src folder.

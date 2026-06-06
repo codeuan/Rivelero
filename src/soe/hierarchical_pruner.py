@@ -140,45 +140,93 @@ def reproject_points_if_needed(
     return np.column_stack([new_xs, new_ys])
 
 
-def read_dem_for_plotting(
+def read_square_dem_crop_for_plotting(
     dem_path: str | Path,
+    points: np.ndarray,
+    padding: float = 0.0,
     max_pixels_per_side: int = 1600,
 ):
     """
-    Read a DEM band for background plotting.
+    Read only a square DEM crop around all candidate points.
 
-    Large DEMs are downsampled for display so PNG generation stays fast.
+    Assumes points are already in the DEM CRS.
+    Returns:
+        dem, extent, crs, crop_bounds
     """
 
-    dem_path = Path(dem_path)
+    dem_path = Path(dem_path) 
 
     if not dem_path.exists():
         raise FileNotFoundError(f"DEM not found: {dem_path}")
+
+    if points.size == 0:
+        raise ValueError("No points provided for DEM crop.")
+
+    xs = points[:, 0]
+    ys = points[:, 1]
+
+    min_x = float(xs.min())
+    max_x = float(xs.max())
+    min_y = float(ys.min())
+    max_y = float(ys.max())
+
+    cx = (min_x + max_x) / 2
+    cy = (min_y + max_y) / 2
+
+    width = max_x - min_x
+    height = max_y - min_y
+
+    square_size = max(width, height) + (2 * padding)
+
+    left = cx - square_size / 2
+    right = cx + square_size / 2
+    bottom = cy - square_size / 2
+    top = cy + square_size / 2
 
     with rasterio.open(dem_path) as src:
         if src.count < 1:
             raise ValueError("DEM has no raster bands.")
 
+        dem_left, dem_bottom, dem_right, dem_top = src.bounds
+
+        left = max(left, dem_left)
+        right = min(right, dem_right)
+        bottom = max(bottom, dem_bottom)
+        top = min(top, dem_top)
+
+        window = rasterio.windows.from_bounds(
+            left=left,
+            bottom=bottom,
+            right=right,
+            top=top,
+            transform=src.transform,
+        ).round_offsets().round_lengths() #convert crop into raster pixel window and round so offsets and sizees are whole pixel.
+
         scale = max(
-            src.width / max_pixels_per_side,
-            src.height / max_pixels_per_side,
+            window.width / max_pixels_per_side,
+            window.height / max_pixels_per_side,
             1,
         )
 
-        out_width = int(src.width / scale)
-        out_height = int(src.height / scale)
+        out_width = int(window.width / scale)
+        out_height = int(window.height / scale)
 
         dem = src.read(
             1,
+            window=window,
             out_shape=(out_height, out_width),
             masked=True,
-        )
+        ) #read only the window of the crop, and scale to a suitable plotting size.
 
-        # Real-world map coordinates for plotting the DEM with imshow().
-        extent = plotting_extent(src)
-        crs = src.crs
+        crop_transform = src.window_transform(window) #create new transform for the DEM.
 
-    return dem, extent, crs
+        extent = rasterio.plot.plotting_extent(
+            dem,
+            transform=crop_transform,
+        ) #work out plotting bounds for new DEM.
+
+
+    return dem, extent 
 
 
 def count_points_in_square(
@@ -450,6 +498,18 @@ def plot_level(
     fig.savefig(output_path, dpi=200)
     plt.close(fig)
 
+def read_dem_crs(dem_path: str | Path):
+    """
+    Read only the DEM CRS without reading the DEM data.
+    """
+
+    dem_path = Path(dem_path)
+
+    if not dem_path.exists():
+        raise FileNotFoundError(f"DEM not found: {dem_path}")
+
+    with rasterio.open(dem_path) as src:
+        return src.crs
 
 def run_demo(
     *,
@@ -470,10 +530,12 @@ def run_demo(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    print("[1/4] Reading DEM...")
-    dem, extent, dem_crs = read_dem_for_plotting(dem_path)
+    print("[1/5] Reading DEM CRS...")
+    dem_crs = read_dem_crs(dem_path)
 
-    print("[2/4] Reading candidate viewpoints...")
+    print(f"DEM CRS: {dem_crs}")
+
+    print("[2/5] Reading candidate viewpoints...")
     points = load_candidate_points_csv(
         csv_path=candidates_path,
         x_col=x_col,
@@ -482,11 +544,18 @@ def run_demo(
 
     print(f"Loaded {len(points)} candidate viewpoints.")
 
-    print("[3/4] Reprojecting candidate viewpoints if needed...")
+    print("[3/5] Reprojecting candidate viewpoints if needed...")
     points = reproject_points_if_needed(
         points=points,
         candidate_crs=candidate_crs,
         dem_crs=dem_crs,
+    )
+
+    print("[4/5] Reading cropped DEM...")
+    dem, extent = read_square_dem_crop_for_plotting(
+        dem_path=dem_path,
+        points=points,
+        padding=1000.0,
     )
 
     if dem_crs is not None and dem_crs.is_geographic:
@@ -495,7 +564,7 @@ def run_demo(
             "are probably in degrees, not metres. A projected DEM is better."
         )
 
-    print("[4/4] Building subdivision levels...")
+    print("[5/5] Building subdivision levels...")
     levels = build_square_levels(
         points=points,
         initial_size=initial_size,
@@ -526,7 +595,7 @@ def main() -> None:
     base_dir = Path(__file__).resolve().parent.parent.parent
 
     dem_path = base_dir / "GeoTIFF" / "sicily_cop30_utm33.tif"
-    candidates_path = base_dir / "GSV" / "Libro1.csv"
+    candidates_path = base_dir / "GSV" / "Libro4.csv"
 
     x_col = "lon"
     y_col = "lat"

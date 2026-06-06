@@ -1,481 +1,502 @@
+"""
+Run the VISTA Markov Decision Process.
+
+This module coordinates a complete MDP episode by creating the environment,
+resetting its initial state, selecting actions through a policy, stepping the
+environment forward, and recording the resulting rewards and selected
+viewpoints.
+
+It should act as the entry point for experiments, not as the place where
+viewshed calculations, reward logic, state updates, or action definitions are
+implemented.
+"""
+
+import argparse
 import csv
-from dataclasses import dataclass
+import json
 from pathlib import Path
+from typing import Any
 
-import matplotlib
-matplotlib.use("Agg")
-
-import matplotlib.pyplot as plt
 import numpy as np
-import rasterio
-from rasterio.plot import plotting_extent
-from rasterio.warp import transform as transform_coords
+
+from actions import describe_action, get_action
+from config import VistaMDPConfig, get_default_config
+from environment import CandidateViewpoint, VistaEnvironment
+from policy import (
+    EpsilonGreedyPolicy,
+    GreedyCoveragePolicy,
+    RandomPolicy,
+    SequentialPolicy,
+)
 
 
-@dataclass
-class Square:
-    xmin: float
-    ymin: float
-    xmax: float
-    ymax: float
-    n_points: int
+def load_candidate_viewpoints(csv_path: Path) -> list[CandidateViewpoint]:
+    """
+    Load candidate viewpoints from a CSV file.
 
-    @property
-    def bounds(self):
-        return self.xmin, self.ymin, self.xmax, self.ymax
+    Expected columns:
+        viewpoint_id
+        x
+        y
 
-    @property
-    def cx(self):
-        return (self.xmin + self.xmax) / 2
+    Optional columns:
+        travel_cost
+        computation_cost
 
-    @property
-    def cy(self):
-        return (self.ymin + self.ymax) / 2
+    Example CSV:
 
-    @property
-    def size(self):
-        return self.xmax - self.xmin
+        viewpoint_id,x,y,travel_cost,computation_cost
+        0,120.5,340.2,1.0,1.0
+        1,125.0,345.7,2.0,1.0
+        2,130.2,348.1,1.5,1.0
 
-def draw_square(ax, square: Square, linewidth: float = 1.5):
-    xmin, ymin, xmax, ymax = square.bounds
+    Args:
+        csv_path:
+            Path to the candidate viewpoint CSV file.
 
-    rect = plt.Rectangle(
-        (xmin, ymin),
-        xmax - xmin,
-        ymax - ymin,
-        fill=False,
-        linewidth=linewidth,
-    )
+    Returns:
+        A list of CandidateViewpoint objects.
+    """
 
-    ax.add_patch(rect)
+    if not csv_path.exists():
+        raise FileNotFoundError(f"Candidate viewpoint file not found: {csv_path}")
 
-    ax.text(
-        square.cx,
-        square.cy,
-        str(square.n_points),
-        ha="center",
-        va="center",
-        fontsize=7,
-    )
+    candidate_viewpoints: list[CandidateViewpoint] = []
 
+    with csv_path.open("r", newline="", encoding="utf-8") as csv_file:
+        reader = csv.DictReader(csv_file)
 
-def load_candidate_points_csv(
-    csv_path: str,
-    x_col: str,
-    y_col: str,
-) -> np.ndarray:
-    points = []
-
-    with open(csv_path, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
+        required_columns = {"viewpoint_id", "x", "y"}
 
         if reader.fieldnames is None:
-            raise ValueError("Candidate CSV has no header row.")
+            raise ValueError(f"CSV file has no header row: {csv_path}")
 
-        if x_col not in reader.fieldnames:
-            raise ValueError(f"Column {x_col!r} not found in CSV.")
+        missing_columns = required_columns - set(reader.fieldnames)
 
-        if y_col not in reader.fieldnames:
-            raise ValueError(f"Column {y_col!r} not found in CSV.")
+        if missing_columns:
+            raise ValueError(
+                f"Candidate viewpoint CSV is missing columns: "
+                f"{sorted(missing_columns)}"
+            )
 
         for row in reader:
-            x = float(row[x_col])
-            y = float(row[y_col])
-            points.append((x, y))
+            viewpoint = CandidateViewpoint(
+                viewpoint_id=int(row["viewpoint_id"]),
+                x=float(row["x"]),
+                y=float(row["y"]),
+                travel_cost=float(row.get("travel_cost", 1.0) or 1.0),
+                computation_cost=float(row.get("computation_cost", 1.0) or 1.0),
+            )
 
-    if not points:
-        raise ValueError("No candidate points found in CSV.")
+            candidate_viewpoints.append(viewpoint)
 
-    return np.asarray(points, dtype=float)
+    if not candidate_viewpoints:
+        raise ValueError(f"No candidate viewpoints were loaded from: {csv_path}")
 
-
-def reproject_points_if_needed(
-    points: np.ndarray,
-    candidate_crs: str | None,
-    dem_crs,
-) -> np.ndarray:
-    if candidate_crs is None:
-        return points
-
-    if dem_crs is None:
-        raise ValueError("DEM has no CRS, so candidate points cannot be reprojected.")
-
-    xs = points[:, 0]
-    ys = points[:, 1]
-
-    new_xs, new_ys = transform_coords(
-        candidate_crs,
-        dem_crs,
-        xs.tolist(),
-        ys.tolist(),
-    )
-
-    return np.column_stack([new_xs, new_ys])
+    return candidate_viewpoints
 
 
-def read_dem_for_plotting(
-    dem_path: str,
-    max_pixels_per_side: int = 1600,
+def fake_viewshed_function_factory(
+    map_shape: tuple[int, int],
 ):
-    with rasterio.open(dem_path) as src:
-        if src.count < 1:
-            raise ValueError("DEM has no raster bands.")
+    """
+    Create a temporary fake viewshed function for testing.
 
-        scale = max(
-            src.width / max_pixels_per_side,
-            src.height / max_pixels_per_side,
-            1,
+    This exists so the MDP loop can be tested before the real GDAL/rasterio
+    viewshed code is connected.
+
+    The fake viewshed creates a simple horizontal and vertical band based on
+    the viewpoint ID.
+
+    Replace this later with your real visibility function.
+    """
+
+    height, width = map_shape
+
+    def fake_viewshed_function(viewpoint: CandidateViewpoint) -> np.ndarray:
+        mask = np.zeros(map_shape, dtype=bool)
+
+        row = viewpoint.viewpoint_id % height
+        col = viewpoint.viewpoint_id % width
+
+        mask[row, :] = True
+        mask[:, col] = True
+
+        return mask
+
+    return fake_viewshed_function
+
+
+def create_policy(config: VistaMDPConfig):
+    """
+    Create the policy selected in config.py.
+
+    Returns:
+        A policy object with a choose_action(env) method.
+    """
+
+    policy_name = config.policy.policy_name
+
+    if policy_name == "random":
+        return RandomPolicy(seed=config.policy.random_seed)
+
+    if policy_name == "sequential":
+        return SequentialPolicy()
+
+    if policy_name == "greedy":
+        return GreedyCoveragePolicy()
+
+    if policy_name == "epsilon_greedy":
+        return EpsilonGreedyPolicy(
+            epsilon=config.policy.epsilon,
+            seed=config.policy.random_seed,
         )
 
-        out_width = int(src.width / scale)
-        out_height = int(src.height / scale)
-
-        dem = src.read(
-            1,
-            out_shape=(out_height, out_width),
-            masked=True,
-        )
-
-        # Gives matplotlib the real-world map coordinates for the DEM image.
-        extent = plotting_extent(src)
-        crs = src.crs
-
-    return dem, extent, crs
-
-def count_points_in_square(
-    points: np.ndarray,
-    xmin: float,
-    ymin: float,
-    size: float,
-) -> Square:
-    """
-    Create one square and count how many candidate viewpoints are inside it.
-    """
-
-    xmax = xmin + size
-    ymax = ymin + size
-
-    xs = points[:, 0]
-    ys = points[:, 1]
-
-    inside = (
-        (xs >= xmin)
-        & (xs < xmax)
-        & (ys >= ymin)
-        & (ys < ymax)
-    )
-
-    n_points = int(np.count_nonzero(inside))
-
-    return Square(
-        xmin=xmin,
-        ymin=ymin,
-        xmax=xmax,
-        ymax=ymax,
-        n_points=n_points,
-    )
+    raise ValueError(f"Unknown policy name: {policy_name}")
 
 
-def make_initial_squares(
-    points: np.ndarray,
-    square_size: float,
-) -> list[Square]:
-    """
-    Make the largest starting squares around the candidate viewpoint area.
-    """
-
-    xs = points[:, 0]
-    ys = points[:, 1]
-
-    min_x = float(xs.min())
-    max_x = float(xs.max())
-    min_y = float(ys.min())
-    max_y = float(ys.max())
-
-    start_x = np.floor(min_x / square_size) * square_size
-    start_y = np.floor(min_y / square_size) * square_size
-
-    squares = []
-
-    x = start_x
-    while x <= max_x:
-        y = start_y
-
-        while y <= max_y:
-            square = count_points_in_square(
-                points=points,
-                xmin=x,
-                ymin=y,
-                size=square_size,
-            )
-
-            # No scoring. We only keep squares that actually contain viewpoints.
-            if square.n_points > 0:
-                squares.append(square)
-
-            y += square_size
-
-        x += square_size
-
-    return squares
-
-
-def subdivide_square(
-    square: Square,
-    points: np.ndarray,
-    subdivisions_per_side: int,
-) -> list[Square]:
-    """
-    Split one square into smaller squares.
-
-    Example:
-        subdivisions_per_side = 3
-
-    means:
-        1 parent square -> 3 x 3 = 9 child squares
-    """
-
-    if subdivisions_per_side <= 1:
-        raise ValueError("subdivisions_per_side must be greater than 1.")
-
-    child_size = square.size / subdivisions_per_side
-
-    children = []
-
-    for row in range(subdivisions_per_side):
-        for col in range(subdivisions_per_side):
-            xmin = square.xmin + col * child_size
-            ymin = square.ymin + row * child_size
-
-            child = count_points_in_square(
-                points=points,
-                xmin=xmin,
-                ymin=ymin,
-                size=child_size,
-            )
-
-            # No scoring. Only keep child squares that contain viewpoints.
-            if child.n_points > 0:
-                children.append(child)
-
-    return children
-
-
-def build_square_levels(
-    points: np.ndarray,
-    initial_size: float,
-    min_size: float,
-    subdivisions_per_side: int,
-) -> list[list[Square]]:
-    """
-    Build all subdivision levels.
-
-    Level 0:
-        largest non-empty squares
-
-    Level 1:
-        subdivisions of level 0 squares
-
-    Level 2:
-        subdivisions of level 1 squares
-
-    and so on until the next square size would be smaller than min_size.
-    """
-
-    if initial_size <= 0:
-        raise ValueError("initial_size must be greater than 0.")
-
-    if min_size <= 0:
-        raise ValueError("min_size must be greater than 0.")
-
-    if initial_size < min_size:
-        raise ValueError("initial_size must be greater than or equal to min_size.")
-
-    if subdivisions_per_side <= 1:
-        raise ValueError("subdivisions_per_side must be greater than 1.")
-
-    levels = []
-
-    # Level 0: make the biggest squares.
-    current_level = make_initial_squares(
-        points=points,
-        square_size=initial_size,
-    )
-
-    levels.append(current_level)
-
-    # Keep subdividing every non-empty square.
-    while current_level:
-        current_size = current_level[0].size
-        next_size = current_size / subdivisions_per_side
-
-        if next_size < min_size:
-            break
-
-        next_level = []
-
-        for square in current_level:
-            children = subdivide_square(
-                square=square,
-                points=points,
-                subdivisions_per_side=subdivisions_per_side,
-            )
-
-            next_level.extend(children)
-
-        if not next_level:
-            break
-
-        levels.append(next_level)
-        current_level = next_level
-
-    return levels
-
-
-def plot_level(
+def create_environment(
     *,
-    dem,
-    extent,
-    points: np.ndarray,
-    squares: list[Square],
-    level_index: int,
+    config: VistaMDPConfig,
+    candidate_viewpoints: list[CandidateViewpoint],
+) -> VistaEnvironment:
+    """
+    Create the VISTA MDP environment.
+
+    For now, this uses a fake viewshed function so that the MDP pipeline can
+    be tested before the real visibility function is connected.
+    """
+
+    viewshed_function = fake_viewshed_function_factory(
+        map_shape=config.mdp.map_shape,
+    )
+
+    env = VistaEnvironment(
+        candidate_viewpoints=candidate_viewpoints,
+        viewshed_function=viewshed_function,
+        map_shape=config.mdp.map_shape,
+        initial_budget=config.mdp.initial_budget,
+        target_coverage_percentage=config.mdp.target_coverage_percentage,
+        max_steps=config.mdp.max_steps,
+        new_area_weight=config.rewards.new_area_weight,
+        repeated_area_penalty=config.rewards.repeated_area_penalty,
+        travel_cost_weight=config.rewards.travel_cost_weight,
+        computation_cost_weight=config.rewards.computation_cost_weight,
+        target_reached_bonus=config.rewards.target_reached_bonus,
+        stop_early_penalty=config.rewards.stop_early_penalty,
+    )
+
+    return env
+
+
+def run_mdp(
+    *,
+    config: VistaMDPConfig,
+    candidate_viewpoints: list[CandidateViewpoint],
+) -> dict[str, Any]:
+    """
+    Run one complete MDP episode.
+
+    Args:
+        config:
+            Full MDP configuration object.
+
+        candidate_viewpoints:
+            Candidate viewpoints available to the MDP.
+
+    Returns:
+        A dictionary containing summary results.
+    """
+
+    env = create_environment(
+        config=config,
+        candidate_viewpoints=candidate_viewpoints,
+    )
+
+    policy = create_policy(config)
+
+    state = env.reset()
+
+    done = False
+    total_reward = 0.0
+    step_results: list[dict[str, Any]] = []
+
+    if config.logging.print_step_info:
+        print("Starting VISTA MDP run")
+        print(f"Policy: {config.policy.policy_name}")
+        print(f"Initial budget: {config.mdp.initial_budget}")
+        print(f"Target coverage: {config.mdp.target_coverage_percentage}%")
+        print()
+
+    while not done:
+        action_number = policy.choose_action(env)
+        action = get_action(env.actions, action_number)
+
+        state, reward, done, info = env.step(action_number)
+
+        total_reward += reward
+
+        step_record = {
+            "step": state.steps_taken,
+            "action_number": action_number,
+            "action_description": describe_action(action),
+            "reward": reward,
+            "total_reward": total_reward,
+            "coverage_percentage": state.coverage_percentage,
+            "redundancy_score": state.redundancy_score,
+            "remaining_budget": state.remaining_budget,
+            "done": done,
+            "info": make_json_safe(info),
+        }
+
+        step_results.append(step_record)
+
+        if config.logging.print_step_info:
+            print(f"Step {state.steps_taken}")
+            print(f"Action: {action_number} - {describe_action(action)}")
+            print(f"Reward: {reward}")
+            print(f"Total reward: {total_reward}")
+            print(f"Coverage: {state.coverage_percentage:.2f}%")
+            print(f"Redundancy: {state.redundancy_score}")
+            print(f"Remaining budget: {state.remaining_budget}")
+            print(f"Reason: {info.get('reason', 'no reason given')}")
+            print()
+
+    summary = {
+        "total_reward": total_reward,
+        "steps_taken": state.steps_taken,
+        "selected_viewpoints": sorted(state.selected_viewpoints),
+        "coverage_percentage": state.coverage_percentage,
+        "redundancy_score": state.redundancy_score,
+        "remaining_budget": state.remaining_budget,
+        "step_results": step_results,
+    }
+
+    if config.logging.print_step_info:
+        print("Finished VISTA MDP run")
+        print(f"Selected viewpoints: {summary['selected_viewpoints']}")
+        print(f"Final coverage: {summary['coverage_percentage']:.2f}%")
+        print(f"Total reward: {summary['total_reward']}")
+
+    if config.logging.save_results:
+        save_results(
+            config=config,
+            summary=summary,
+            final_visibility_mask=state.visibility_mask,
+        )
+
+    return summary
+
+
+def save_results(
+    *,
+    config: VistaMDPConfig,
+    summary: dict[str, Any],
+    final_visibility_mask: np.ndarray | None,
+) -> None:
+    """
+    Save MDP results to the results folder.
+    """
+
+    config.create_output_directories()
+
+    save_selected_viewpoints(
+        output_path=config.paths.selected_viewpoints_output_path,
+        selected_viewpoints=summary["selected_viewpoints"],
+    )
+
+    save_summary_json(
+        output_path=config.paths.results_dir / "mdp_summary.json",
+        summary=summary,
+    )
+
+    if final_visibility_mask is not None:
+        np.save(config.paths.visibility_output_path, final_visibility_mask)
+
+
+def save_selected_viewpoints(
+    *,
     output_path: Path,
-):
+    selected_viewpoints: list[int],
+) -> None:
     """
-    Save one PNG showing one subdivision level.
+    Save selected viewpoint IDs to a CSV file.
     """
 
-    fig, ax = plt.subplots(figsize=(10, 10))
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    ax.imshow(dem, extent=extent, origin="upper")
+    with output_path.open("w", newline="", encoding="utf-8") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=["selection_order", "viewpoint_id"])
+        writer.writeheader()
 
-    ax.scatter(
-        points[:, 0],
-        points[:, 1],
-        s=10,
-        marker="o",
-        label="Candidate viewpoints",
-    )
-
-    for square in squares:
-        draw_square(ax, square)
-
-    square_size = squares[0].size if squares else 0
-
-    ax.set_title(
-        f"Subdivision level {level_index} | "
-        f"square size = {square_size:.2f} | "
-        f"non-empty squares = {len(squares)}"
-    )
-
-    ax.set_xlabel("X coordinate")
-    ax.set_ylabel("Y coordinate")
-    ax.legend(loc="upper right")
-    ax.set_aspect("equal", adjustable="box")
-
-    fig.tight_layout()
-    fig.savefig(output_path, dpi=200)
-    plt.close(fig)
+        for selection_order, viewpoint_id in enumerate(selected_viewpoints, start=1):
+            writer.writerow(
+                {
+                    "selection_order": selection_order,
+                    "viewpoint_id": viewpoint_id,
+                }
+            )
 
 
-def run_demo(
+def save_summary_json(
     *,
-    dem_path: str,
-    candidates_path: str,
-    x_col: str,
-    y_col: str,
-    candidate_crs: str | None,
-    output_dir: str,
-    initial_size: float,
-    min_size: float,
-    subdivisions_per_side: int,
-):
+    output_path: Path,
+    summary: dict[str, Any],
+) -> None:
     """
-    Run the simple hierarchical subdivision demo.
+    Save the MDP summary to a JSON file.
     """
 
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    print("[1/4] Reading DEM...")
-    dem, extent, dem_crs = read_dem_for_plotting(dem_path)
-
-    print("[2/4] Reading candidate viewpoints...")
-    points = load_candidate_points_csv(
-        csv_path=candidates_path,
-        x_col=x_col,
-        y_col=y_col,
-    )
-
-    print(f"Loaded {len(points)} candidate viewpoints.")
-
-    print("[3/4] Reprojecting candidate viewpoints if needed...")
-    points = reproject_points_if_needed(
-        points=points,
-        candidate_crs=candidate_crs,
-        dem_crs=dem_crs,
-    )
-
-    if dem_crs is not None and dem_crs.is_geographic:
-        print(
-            "WARNING: DEM CRS appears to be geographic, so initial_size/min_size "
-            "are probably in degrees, not metres. A projected DEM is better."
+    with output_path.open("w", encoding="utf-8") as json_file:
+        json.dump(
+            make_json_safe(summary),
+            json_file,
+            indent=4,
         )
 
-    print("[4/4] Building subdivision levels...")
-    levels = build_square_levels(
-        points=points,
-        initial_size=initial_size,
-        min_size=min_size,
-        subdivisions_per_side=subdivisions_per_side,
+
+def make_json_safe(value: Any) -> Any:
+    """
+    Convert common non-JSON-safe values into JSON-safe values.
+
+    This helps when saving dictionaries that contain sets, NumPy numbers,
+    NumPy arrays, or Path objects.
+    """
+
+    if isinstance(value, dict):
+        return {
+            str(key): make_json_safe(item)
+            for key, item in value.items()
+        }
+
+    if isinstance(value, list):
+        return [make_json_safe(item) for item in value]
+
+    if isinstance(value, tuple):
+        return [make_json_safe(item) for item in value]
+
+    if isinstance(value, set):
+        return sorted(make_json_safe(item) for item in value)
+
+    if isinstance(value, Path):
+        return str(value)
+
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+
+    if isinstance(value, np.integer):
+        return int(value)
+
+    if isinstance(value, np.floating):
+        return float(value)
+
+    if isinstance(value, np.bool_):
+        return bool(value)
+
+    return value
+
+
+def build_argument_parser() -> argparse.ArgumentParser:
+    """
+    Build the command-line argument parser.
+    """
+
+    parser = argparse.ArgumentParser(
+        description="Run the VISTA viewpoint-selection MDP.",
     )
 
-    print(f"Generated {len(levels)} subdivision levels.")
+    parser.add_argument(
+        "--candidates",
+        type=Path,
+        default=None,
+        help="Optional path to candidate_viewpoints.csv.",
+    )
 
-    for level_index, squares in enumerate(levels):
-        output_path = output_dir / f"level_{level_index:02d}.png"
+    parser.add_argument(
+        "--policy",
+        type=str,
+        choices=["random", "sequential", "greedy", "epsilon_greedy"],
+        default=None,
+        help="Optional policy override.",
+    )
 
-        plot_level(
-            dem=dem,
-            extent=extent,
-            points=points,
-            squares=squares,
-            level_index=level_index,
-            output_path=output_path,
+    parser.add_argument(
+        "--no-save",
+        action="store_true",
+        help="Run the MDP without saving output files.",
+    )
+
+    return parser
+
+
+def apply_cli_overrides(
+    *,
+    config: VistaMDPConfig,
+    args: argparse.Namespace,
+) -> VistaMDPConfig:
+    """
+    Apply simple command-line overrides to the config.
+
+    Since the config dataclasses are frozen, this creates a new config object
+    when overrides are needed.
+    """
+
+    from dataclasses import replace
+
+    paths = config.paths
+    policy = config.policy
+    logging_config = config.logging
+
+    if args.candidates is not None:
+        paths = replace(
+            paths,
+            candidate_viewpoints_path=args.candidates,
         )
 
-        print(f"Saved {output_path}")
+    if args.policy is not None:
+        policy = replace(
+            policy,
+            policy_name=args.policy,
+        )
 
-    print("Done.")
+    if args.no_save:
+        logging_config = replace(
+            logging_config,
+            save_results=False,
+        )
+
+    updated_config = replace(
+        config,
+        paths=paths,
+        policy=policy,
+        logging=logging_config,
+    )
+
+    updated_config.validate()
+
+    return updated_config
 
 
-def main():
-    dem_path = "data/dem.tif"
-    candidates_path = "data/candidates.csv"
+def main() -> None:
+    """
+    Main entry point for command-line execution.
+    """
 
-    x_col = "lon"
-    y_col = "lat"
+    parser = build_argument_parser()
+    args = parser.parse_args()
 
-    # Use "EPSG:4326" if your CSV points are longitude/latitude.
-    # Use None if your CSV points are already in the same CRS as the DEM.
-    candidate_crs = "EPSG:4326"
+    config = get_default_config()
+    config = apply_cli_overrides(config=config, args=args)
 
-    output_dir = "Results/hierarchical_subdivision_demo"
+    candidate_viewpoints = load_candidate_viewpoints(
+        config.paths.candidate_viewpoints_path,
+    )
 
-    initial_size = 1000.0
-    min_size = 50.0
-    subdivisions_per_side = 3
-
-    run_demo(
-        dem_path=dem_path,
-        candidates_path=candidates_path,
-        x_col=x_col,
-        y_col=y_col,
-        candidate_crs=candidate_crs,
-        output_dir=output_dir,
-        initial_size=initial_size,
-        min_size=min_size,
-        subdivisions_per_side=subdivisions_per_side,
+    run_mdp(
+        config=config,
+        candidate_viewpoints=candidate_viewpoints,
     )
 
 
