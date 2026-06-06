@@ -1,19 +1,4 @@
-"""
-Pure hierarchical subdivision demo.
 
-This script:
-1. Reads a DEM GeoTIFF.
-2. Reads candidate viewpoint coordinates from a CSV.
-3. Reprojects candidate points into the DEM CRS if needed.
-4. Builds increasingly smaller square subdivision levels.
-5. Saves one PNG map per subdivision level.
-
-No scoring.
-No ranking.
-No clusters.
-No MDP.
-Only non-empty square subdivision.
-"""
 
 from __future__ import annotations
 
