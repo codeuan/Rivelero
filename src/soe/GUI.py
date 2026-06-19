@@ -5,6 +5,8 @@ import csv
 import numpy as np
 import rasterio
 from rasterio.plot import show
+import matplotlib
+matplotlib.use("TkAgg", force=True) #app is Tkinter, so we must use TkAgg.
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib import cm
@@ -13,8 +15,10 @@ from pyproj import Transformer
 import matplotlib.image as mpimg
 from .API_caller import download_dem_for_samples
 from matplotlib.ticker import MaxNLocator, ScalarFormatter
-from .optimiser import optimise_candidates_by_chunk, OptimiserWeights
+from .optimiser import optimise_candidates, OptimiserWeights, scores_to_dataframe
 import pandas as pd
+
+
 
 tif_path = None
 metadata_csv_path = None
@@ -552,7 +556,7 @@ def start_gui(run_program): #entry point for the program.
                 global tif_path
                 file_path = filedialog.askopenfilename(
                     parent=root, #pop up must be shown in the app.
-                    title="Open file for VISTA", #text at the top of window.
+                    title="Open file for Rivelero", #text at the top of window.
                     initialdir=str(VISTA_ROOT), #begin browsing in the directory of the program.
                     filetypes=[
                         ("GeoTIFF files", "*.tif *.tiff"),
@@ -616,6 +620,7 @@ def start_gui(run_program): #entry point for the program.
     def submit():
         global tif_path
         error_label.config(text="")
+
         try:
             sample_metadata = validate_inputs()
             max_distance = validate_max_distance()
@@ -624,23 +629,48 @@ def start_gui(run_program): #entry point for the program.
             right_sidebar.load_dem(dem_path)
 
             print("Number of samples:", len(sample_metadata))
+            print("DEM path:", dem_path)
+            print("CSV path:", metadata_csv_path)
 
-            chunk_dataframes = optimise_candidates_by_chunk(
-            sample_metadata=sample_metadata,
-            dem_path=dem_path,
-            max_distance_m=max_distance,
-            weights=OptimiserWeights(
-                ndvi=0.40,
-                visibility_strength=0.40,
-                unseenness=0.00,
-                obstacle_penalty=0.20,
-            ),
-            download_images=False,
-        )
+            sample_metadata_with_original_ids = [
+                {**row, "original_index": index}
+                for index, row in enumerate(sample_metadata)
+            ]
 
-            print("\n=== CHUNKED OPTIMISER RESULTS ===")
-            print("Total points received:", len(sample_metadata))
-            print("Total chunks:", len(chunk_dataframes))
+            ranked_scores = optimise_candidates(
+                sample_metadata=sample_metadata_with_original_ids,
+                dem_path=dem_path,
+                max_distance_m=max_distance,
+                weights=OptimiserWeights(
+                    ndvi=0.40,
+                    visibility_strength=0.40,
+                    unseenness=0.00,
+                    obstacle_penalty=0.20,
+                ),
+                download_images=False,
+            )
+
+            df = scores_to_dataframe(ranked_scores)
+
+            df.insert(0, "chunk_id", 1)
+
+            df.insert(
+                1,
+                "original_index",
+                df["index"].apply(
+                    lambda local_index: sample_metadata_with_original_ids[int(local_index)]["original_index"]
+                ),
+            )
+
+            if metadata_csv_path:
+                output_path = Path(metadata_csv_path).with_name("optimiser_results.csv")
+            else:
+                output_path = VISTA_ROOT / "optimiser_results.csv"
+
+            df.to_csv(output_path, index=False)
+
+            print("\n=== OPTIMISER RESULTS ===")
+            print(f"Saved optimiser results to: {output_path}")
 
             columns_to_print = [
                 "chunk_id",
@@ -658,47 +688,40 @@ def start_gui(run_program): #entry point for the program.
                 "final_score",
             ]
 
-            for chunk_number, chunk_df in enumerate(chunk_dataframes, start=1):
-                print()
-                print("=" * 80)
-                print(f"CHUNK {chunk_number}")
-                print(f"Candidates in chunk: {len(chunk_df)}")
-                print("=" * 80)
+            existing_columns = [
+                column for column in columns_to_print
+                if column in df.columns
+            ]
 
-                existing_columns = [
-                    column for column in columns_to_print
-                    if column in chunk_df.columns
-                ]
+            print(df[existing_columns].to_string(index=False))
 
-            print(chunk_df[existing_columns].to_string(index=False))
+            best_row = df.sort_values("final_score", ascending=False).iloc[0]
 
-            if chunk_dataframes:
-                combined_df = pd.concat(chunk_dataframes, ignore_index=True)
-                best_row = combined_df.sort_values("final_score", ascending=False).iloc[0]
+            print("\n=== BEST CANDIDATE OVERALL ===")
+            print(f"Original CSV index: {best_row['original_index']}")
+            print(f"Longitude: {best_row['lon']}")
+            print(f"Latitude: {best_row['lat']}")
+            print(f"Final score: {best_row['final_score']}")
+            print(f"Mean NDVI: {best_row['mean_ndvi']}")
+            print(f"Mean visibility count: {best_row['mean_visibility_count']}")
+            print(f"Obstacle fraction: {best_row['occlusion_fraction']}")
 
-                print("\n=== BEST CANDIDATE OVERALL ===")
-                print(f"Chunk: {best_row['chunk_id']}")
-                print(f"Original CSV index: {best_row['original_index']}")
-                print(f"Local chunk index: {best_row['index']}")
-                print(f"Longitude: {best_row['lon']}")
-                print(f"Latitude: {best_row['lat']}")
-                print(f"Final score: {best_row['final_score']}")
-                print(f"Mean NDVI: {best_row['mean_ndvi']}")
-                print(f"Mean visibility count: {best_row['mean_visibility_count']}")
-                print(f"Obstacle fraction: {best_row['occlusion_fraction']}")
-
+            error_label.config(text=f"Optimiser complete. Saved to {output_path}")
             right_sidebar.canvas.draw_idle()
 
         except ValueError as e:
             print("Input error:", e)
             show_error(str(e))
+            raise
+
         except Exception as e:
             print("Optimiser error:", e)
             show_error(str(e))
+            raise
 
     global tif_path 
     root = tk.Tk() #create the GUI window.
-    root.title("VISTA") #title the window.
+    root.title("Rivelero") #title the window.
     root.geometry("1350x760") #default window size.
     root.resizable(True, True) #allow user to resize window.
 
