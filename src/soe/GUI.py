@@ -633,7 +633,6 @@ def start_gui(run_program): #entry point for the program.
                 sample_metadata=sample_metadata,
                 dem_path=dem_path,
                 output_dir=output_dir,
-                initial_size=max_distance,
                 min_size=50.0,
                 subdivisions_per_side=3,
                 random_seed=42,
@@ -643,14 +642,17 @@ def start_gui(run_program): #entry point for the program.
             print(f"Saved hierarchical pruner files to: {output_dir}")
             print(f"Generated {len(levels)} levels.")
 
-            for level_index, squares in enumerate(levels):
+            for level_index, (plot_window, squares) in enumerate(levels):
                 square = squares[0]
+
                 print(
                     f"Level {level_index}: "
-                    f"bounds={square.bounds}, "
-                    f"size={square.size:.2f}, "
+                    f"window=({plot_window.left:.2f}, {plot_window.right:.2f}, "
+                    f"{plot_window.bottom:.2f}, {plot_window.top:.2f}), "
+                    f"selected_bounds={square.bounds}, "
+                    f"selected_size={square.size:.2f}, "
                     f"candidate_count={square.n_points}"
-                ) #print contents of each level for debugging purposes.
+                )
 
             error_label.config(text=f"Hierarchical pruner complete. Saved to {output_dir}")
             right_sidebar.canvas.draw_idle()
