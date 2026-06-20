@@ -9,14 +9,10 @@ import matplotlib
 matplotlib.use("TkAgg", force=True) #app is Tkinter, so we must use TkAgg.
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
-from matplotlib import cm
-from matplotlib.colors import Normalize
 from pyproj import Transformer
-import matplotlib.image as mpimg
 from .API_caller import download_dem_for_samples
 from matplotlib.ticker import MaxNLocator, ScalarFormatter
-from .optimiser import optimise_candidates, OptimiserWeights, scores_to_dataframe
-import pandas as pd
+from .hierarchical_pruner import run_hierarchical_pruner_from_gui
 
 
 
@@ -631,82 +627,32 @@ def start_gui(run_program): #entry point for the program.
             print("Number of samples:", len(sample_metadata))
             print("DEM path:", dem_path)
             print("CSV path:", metadata_csv_path)
+            output_dir = VISTA_ROOT / "Results" / "hierarchical_pruner"
 
-            sample_metadata_with_original_ids = [
-                {**row, "original_index": index}
-                for index, row in enumerate(sample_metadata)
-            ]
-
-            ranked_scores = optimise_candidates(
-                sample_metadata=sample_metadata_with_original_ids,
+            output_dir, levels = run_hierarchical_pruner_from_gui(
+                sample_metadata=sample_metadata,
                 dem_path=dem_path,
-                max_distance_m=max_distance,
-                weights=OptimiserWeights(
-                    ndvi=0.40,
-                    visibility_strength=0.40,
-                    unseenness=0.00,
-                    obstacle_penalty=0.20,
-                ),
-                download_images=False,
+                output_dir=output_dir,
+                initial_size=max_distance,
+                min_size=50.0,
+                subdivisions_per_side=3,
+                random_seed=42,
             )
 
-            df = scores_to_dataframe(ranked_scores)
+            print("\n=== HIERARCHICAL PRUNER RESULTS ===")
+            print(f"Saved hierarchical pruner files to: {output_dir}")
+            print(f"Generated {len(levels)} levels.")
 
-            df.insert(0, "chunk_id", 1)
+            for level_index, squares in enumerate(levels):
+                square = squares[0]
+                print(
+                    f"Level {level_index}: "
+                    f"bounds={square.bounds}, "
+                    f"size={square.size:.2f}, "
+                    f"candidate_count={square.n_points}"
+                ) #print contents of each level for debugging purposes.
 
-            df.insert(
-                1,
-                "original_index",
-                df["index"].apply(
-                    lambda local_index: sample_metadata_with_original_ids[int(local_index)]["original_index"]
-                ),
-            )
-
-            if metadata_csv_path:
-                output_path = Path(metadata_csv_path).with_name("optimiser_results.csv")
-            else:
-                output_path = VISTA_ROOT / "optimiser_results.csv"
-
-            df.to_csv(output_path, index=False)
-
-            print("\n=== OPTIMISER RESULTS ===")
-            print(f"Saved optimiser results to: {output_path}")
-
-            columns_to_print = [
-                "chunk_id",
-                "original_index",
-                "index",
-                "lon",
-                "lat",
-                "heading_deg",
-                "mean_ndvi",
-                "ndvi_score",
-                "mean_visibility_count",
-                "visibility_score",
-                "unseenness_score",
-                "occlusion_fraction",
-                "final_score",
-            ]
-
-            existing_columns = [
-                column for column in columns_to_print
-                if column in df.columns
-            ]
-
-            print(df[existing_columns].to_string(index=False))
-
-            best_row = df.sort_values("final_score", ascending=False).iloc[0]
-
-            print("\n=== BEST CANDIDATE OVERALL ===")
-            print(f"Original CSV index: {best_row['original_index']}")
-            print(f"Longitude: {best_row['lon']}")
-            print(f"Latitude: {best_row['lat']}")
-            print(f"Final score: {best_row['final_score']}")
-            print(f"Mean NDVI: {best_row['mean_ndvi']}")
-            print(f"Mean visibility count: {best_row['mean_visibility_count']}")
-            print(f"Obstacle fraction: {best_row['occlusion_fraction']}")
-
-            error_label.config(text=f"Optimiser complete. Saved to {output_path}")
+            error_label.config(text=f"Hierarchical pruner complete. Saved to {output_dir}")
             right_sidebar.canvas.draw_idle()
 
         except ValueError as e:
@@ -715,7 +661,7 @@ def start_gui(run_program): #entry point for the program.
             raise
 
         except Exception as e:
-            print("Optimiser error:", e)
+            print("Hierachical pruner error:", e)
             show_error(str(e))
             raise
 

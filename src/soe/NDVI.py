@@ -231,11 +231,21 @@ def _fetch_s2_ndvi_for_bbox(
         timeout=timeout,
     )  #send actual request to API.
 
-    try:
-        response.raise_for_status() #if a bad HTTP response is given, raise an error.
-    except requests.HTTPError as exc:
-        msg = response.text[:2000] if response.text else str(exc) #only obtain first 2000 characters of error message.
-        raise RuntimeError(f"CDSE Process API request failed: {msg}") from exc
+    if response.status_code >= 400:
+        print("\n=== CDSE REQUEST FAILED ===")
+        print("Status code:", response.status_code)
+        print("Reason:", response.reason)
+
+        print("\n=== CDSE RESPONSE BODY ===")
+        print(response.text[:5000])
+
+        print("\n=== REQUEST BODY SENT ===")
+        print(json.dumps(request_body, indent=2)[:5000])
+
+        raise RuntimeError(
+            f"CDSE Process API request failed with status {response.status_code}: "
+            f"{response.text[:2000]}"
+        )#if a bad HTTP response is given, raise an error.
 
     with MemoryFile(response.content) as memfile: #raw bytes treated as in memory file.
         with memfile.open() as ds: 

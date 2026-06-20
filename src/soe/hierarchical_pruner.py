@@ -7,14 +7,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import matplotlib
-matplotlib.use("Agg")  # Allows saving PNGs from terminal without opening a window.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rasterio
 from rasterio.plot import plotting_extent
 from rasterio.warp import transform as transform_coords
-
+from random import Random
 
 @dataclass
 class Square:
@@ -214,6 +213,21 @@ def read_square_dem_crop_for_plotting(
     return dem, extent 
 
 
+def choose_next_square_random(
+    squares: list[Square],
+    rng: Random,
+) -> Square:
+    """
+    Randomly choose the next non-empty square to zoom into.
+
+    This is a temporary placeholder for a real heuristic later.
+    """
+    if not squares:
+        raise ValueError("Cannot choose from an empty list of squares.")
+
+    return rng.choice(squares) #randomly select a blob.
+
+
 def count_points_in_square(
     points: np.ndarray,
     xmin: float,
@@ -311,7 +325,7 @@ def subdivide_square(
     """
 
     if subdivisions_per_side <= 1:
-        raise ValueError("subdivisions_per_side must be greater than 1.")
+        raise ValueError("subdivisions_per_side must be greater than 1.") #avoids infinite loop.
 
     child_size = square.size / subdivisions_per_side
 
@@ -340,22 +354,18 @@ def build_square_levels(
     initial_size: float,
     min_size: float,
     subdivisions_per_side: int,
+    random_seed: int | None = None,
 ) -> list[list[Square]]:
     """
-    Build every subdivision level.
+    Build a single random zoom path through the hierarchy.
 
-    Level 0:
-        largest non-empty squares
+    Level 0: randomly chosen non-empty starting square.
+    Level 1: randomly chosen non-empty child of level 0.
+    Level 2: randomly chosen non-empty child of level 1.
+    And so on until the next square size would be smaller than min_size.
 
-    Level 1:
-        subdivisions of level 0 squares
-
-    Level 2:
-        subdivisions of level 1 squares
-
-    and so on until the next square size would be smaller than min_size.
+    Later, choose_next_square_random() can be replaced with a real heuristic.
     """
-
     if initial_size <= 0:
         raise ValueError("initial_size must be greater than 0.")
 
@@ -366,46 +376,49 @@ def build_square_levels(
         raise ValueError("initial_size must be greater than or equal to min_size.")
 
     if subdivisions_per_side <= 1:
-        raise ValueError("subdivisions_per_side must be greater than 1.")
+        raise ValueError("subdivisions_per_side must be greater than 1.") #prevent an infinite loop.
 
-    levels = []
+    rng = Random(random_seed)
 
-    current_level = make_initial_squares(
+    initial_squares = make_initial_squares(
         points=points,
         square_size=initial_size,
     )
 
-    if not current_level:
+    if not initial_squares:
         raise ValueError("No non-empty initial squares were created.")
 
-    levels.append(current_level)
+    selected_square = choose_next_square_random(
+        squares=initial_squares,
+        rng=rng,
+    ) #randomly select a blob to zoom into.
 
-    while current_level:
-        current_size = current_level[0].size
-        next_size = current_size / subdivisions_per_side
+    levels = [[selected_square]] #a list of lists.
+
+    while True:
+        next_size = selected_square.size / subdivisions_per_side
 
         if next_size < min_size:
+            print("Stopping because selected square produced no children.")
             break
 
-        next_level = []
+        children = subdivide_square(
+            square=selected_square,
+            points=points,
+            subdivisions_per_side=subdivisions_per_side,
+        ) #find children of square.
 
-        for square in current_level:
-            children = subdivide_square(
-                square=square,
-                points=points,
-                subdivisions_per_side=subdivisions_per_side,
-            )
-
-            next_level.extend(children)
-
-        if not next_level:
+        if not children:
             break
 
-        levels.append(next_level)
-        current_level = next_level
+        selected_square = choose_next_square_random(
+            squares=children,
+            rng=rng,
+        )
+
+        levels.append([selected_square]) #append to square.
 
     return levels
-
 
 def draw_square(
     ax,
@@ -496,47 +509,48 @@ def read_dem_crs(dem_path: str | Path):
     with rasterio.open(dem_path) as src:
         return src.crs
 
-def run_demo(
+def run_hierarchical_pruner_from_gui(
     *,
+    sample_metadata: list[dict],
     dem_path: str | Path,
-    candidates_path: str | Path,
-    x_col: str,
-    y_col: str,
-    candidate_crs: str | None,
     output_dir: str | Path,
     initial_size: float,
     min_size: float,
     subdivisions_per_side: int,
-) -> None:
+    random_seed: int | None = 42,
+) -> tuple[Path, list[list[Square]]]:
     """
-    Run the simple hierarchical subdivision demo.
-    """
+    Run the hierarchical pruner from GUI sample metadata.
 
+    The GUI already has validated lon/lat samples in memory, so this avoids
+    forcing the GUI to go back through a CSV file.
+    """
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    print("[1/5] Reading DEM CRS...")
-    dem_crs = read_dem_crs(dem_path)
+    if not sample_metadata:
+        raise ValueError("No sample metadata was provided to the hierarchical pruner.")
 
-    print(f"DEM CRS: {dem_crs}")
-
-    print("[2/5] Reading candidate viewpoints...")
-    points = load_candidate_points_csv(
-        csv_path=candidates_path,
-        x_col=x_col,
-        y_col=y_col,
+    points = np.asarray(
+        [
+            (sample["lon"], sample["lat"])
+            for sample in sample_metadata
+        ],
+        dtype=float,
     )
 
-    print(f"Loaded {len(points)} candidate viewpoints.")
+    print("[1/5] Reading DEM CRS...")
+    dem_crs = read_dem_crs(dem_path)
+    print(f"DEM CRS: {dem_crs}")
 
-    print("[3/5] Reprojecting candidate viewpoints if needed...")
+    print("[2/5] Reprojecting GUI candidate viewpoints...")
     points = reproject_points_if_needed(
         points=points,
-        candidate_crs=candidate_crs,
+        candidate_crs="EPSG:4326",
         dem_crs=dem_crs,
     )
 
-    print("[4/5] Reading cropped DEM...")
+    print("[3/5] Reading cropped DEM...")
     dem, extent = read_square_dem_crop_for_plotting(
         dem_path=dem_path,
         points=points,
@@ -549,16 +563,18 @@ def run_demo(
             "are probably in degrees, not metres. A projected DEM is better."
         )
 
-    print("[5/5] Building subdivision levels...")
+    print("[4/5] Building random subdivision path...")
     levels = build_square_levels(
         points=points,
         initial_size=initial_size,
         min_size=min_size,
         subdivisions_per_side=subdivisions_per_side,
+        random_seed=random_seed,
     )
 
     print(f"Generated {len(levels)} subdivision levels.")
 
+    print("[5/5] Saving level PNGs...")
     for level_index, squares in enumerate(levels):
         output_path = output_dir / f"level_{level_index:02d}.png"
 
@@ -573,10 +589,13 @@ def run_demo(
 
         print(f"Saved {output_path}")
 
-    print("Done.")
+    print("Hierarchical pruner done.")
+
+    return output_dir, levels
 
 
 def main() -> None:
+
     base_dir = Path(__file__).resolve().parent.parent.parent
 
     dem_path = base_dir / "GeoTIFF" / "sicily_cop30_utm33.tif"
@@ -595,7 +614,9 @@ def main() -> None:
     min_size = 50.0
     subdivisions_per_side = 3
 
-    run_demo(
+    random_seed = 42 #seed so 'random' behaviour is repeatable for debugging.
+
+    run_hierarchical_pruner_from_gui(
         dem_path=dem_path,
         candidates_path=candidates_path,
         x_col=x_col,
@@ -605,8 +626,8 @@ def main() -> None:
         initial_size=initial_size,
         min_size=min_size,
         subdivisions_per_side=subdivisions_per_side,
+        random_seed=random_seed,
     )
-
 
 if __name__ == "__main__":
     main()
