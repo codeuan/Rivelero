@@ -21,9 +21,48 @@ import cv2
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-OTHONNA_CSV = Path(__file__).resolve().parent / "flightpath.csv"
-SWEEP_PATH_CSV = Path(__file__).resolve().parent / "sweep_path.csv"
+SWEEP_PATH_CSV = Path(__file__).resolve().parent / "flightpath.csv"
 SURVEY_RESULTS_CSV = Path(__file__).resolve().parent / "survey_results.csv"
+
+# Complete ground-truth catalogue of Othonna actors in the Unreal scene.
+#
+# This is deliberately independent of sweep_path.csv.  The sweep path says
+# WHERE the drone searches; this catalogue says WHICH segmentation colour
+# belongs to each of the 30 plants.  Consequently, every Othonna remains a
+# possible detection no matter which search region or route is being flown.
+# The numeric suffix is also the Project AirSim segmentation/stencil ID.
+OTHONNA_CATALOGUE = (
+    ("Othonna_001", 249.109, 302.953),
+    ("Othonna_002", -240.842, 22.692),
+    ("Othonna_003", 396.397, -91.335),
+    ("Othonna_004", 135.843, -432.229),
+    ("Othonna_005", 174.168, -225.917),
+    ("Othonna_006", -350.536, -175.048),
+    ("Othonna_007", 440.747, -84.036),
+    ("Othonna_008", 279.488, 55.877),
+    ("Othonna_009", 153.733, 72.382),
+    ("Othonna_010", 128.673, 332.476),
+    ("Othonna_011", -55.378, -271.709),
+    ("Othonna_012", 39.200, 442.334),
+    ("Othonna_013", -198.169, -241.722),
+    ("Othonna_014", 266.264, 309.390),
+    ("Othonna_015", 157.647, -284.670),
+    ("Othonna_016", 24.822, -42.288),
+    ("Othonna_017", 144.042, 77.986),
+    ("Othonna_018", 258.779, 72.727),
+    ("Othonna_019", 143.384, -178.193),
+    ("Othonna_020", 133.057, 259.812),
+    ("Othonna_021", 233.319, 438.885),
+    ("Othonna_022", -208.678, 299.604),
+    ("Othonna_023", 82.136, -370.132),
+    ("Othonna_024", -358.755, 112.632),
+    ("Othonna_025", -222.754, 288.076),
+    ("Othonna_026", 16.487, -275.830),
+    ("Othonna_027", 287.183, -447.721),
+    ("Othonna_028", -358.276, -154.263),
+    ("Othonna_029", 282.127, -205.284),
+    ("Othonna_030", -26.185, 235.236),
+)
 
 # Unreal reads this file and displays it using the DroneTelemetryHUD actor.
 UNREAL_PROJECT_DIR = Path(
@@ -50,8 +89,8 @@ YAW_CORRECTION_TIMEOUT_SEC = 10.0
 MIN_VISIBLE_FRACTION_FOR_OBSERVATION = 0.90
 
 # An Othonna can only count as observed while the drone is within this absolute
-# X/Y (planar Euclidean) distance of it. flightpath.csv currently provides only
-# target X/Y coordinates, so no target Z value is invented here.
+# X/Y (planar Euclidean) distance of it. The catalogue provides only target X/Y
+# coordinates, so no target Z value is invented here.
 MAX_OBSERVATION_DISTANCE_M = 50.0
 
 
@@ -127,61 +166,45 @@ async def camera_debug_viewer(drone, stop_event):
         cv2.destroyWindow("DownCamera - X-Ray")
 
 # ---------------------------------------------------------------------------
-# Load plant targets
+# Build the complete plant catalogue
 # ---------------------------------------------------------------------------
 
 
 def load_othonnas():
-    """Load Othonna actor IDs and their segmentation IDs from flightpath.csv."""
+    """
+    Return all 30 scene actors and their segmentation identities.
+
+    Nothing is selected from the search region here.  For example,
+    Othonna_017 always maps to segmentation ID 17 and therefore to
+    SEGMENTATION_PALLETE[17], whether or not the sweep passes near it.
+    """
     targets = []
 
-    with OTHONNA_CSV.open(
-        "r",
-        newline="",
-        encoding="utf-8",
-    ) as file:
-        reader = csv.DictReader(file)
-
-        required_columns = {"id", "x_m", "y_m"}
-        if reader.fieldnames is None:
-            raise RuntimeError("flightpath.csv has no header row.")
-
-        missing = required_columns - set(reader.fieldnames)
-        if missing:
+    for expected_segmentation_id, (plant_id, x_m, y_m) in enumerate(
+        OTHONNA_CATALOGUE,
+        start=1,
+    ):
+        expected_id = f"Othonna_{expected_segmentation_id:03d}"
+        if plant_id != expected_id:
             raise RuntimeError(
-                "flightpath.csv is missing required column(s): "
-                + ", ".join(sorted(missing))
+                "Invalid Othonna catalogue entry: expected "
+                f"{expected_id!r}, found {plant_id!r}."
             )
 
-        for row in reader:
-            plant_id = row["id"].strip()
+        targets.append({
+            "id": plant_id,
+            "segmentation_id": expected_segmentation_id,
 
-            # Example:
-            # Othonna_017 -> segmentation ID 17
-            try:
-                segmentation_id = int(plant_id.rsplit("_", 1)[1])
-            except (IndexError, ValueError) as exc:
-                raise RuntimeError(
-                    f"Could not derive a segmentation ID from plant ID "
-                    f"{plant_id!r}. Expected a name such as Othonna_017."
-                ) from exc
+            # Ground-truth metadata used only for the absolute 50 m validation
+            # gate and result export.  These are never flight destinations.
+            "x": float(x_m),
+            "y": float(y_m),
+        })
 
-            if not 1 <= segmentation_id <= 255:
-                raise RuntimeError(
-                    f"{plant_id!r} produced segmentation ID "
-                    f"{segmentation_id}, but stencil IDs must be 1-255 "
-                    f"for this script."
-                )
-
-            targets.append({
-                "id": plant_id,
-                "segmentation_id": segmentation_id,
-
-                # Retained as metadata only. These coordinates are NOT used as
-                # destinations during the sweep.
-                "x": float(row["x_m"]),
-                "y": float(row["y_m"]),
-            })
+    if len(targets) != 30:
+        raise RuntimeError(
+            f"Expected 30 Othonnas in the scene catalogue, found {len(targets)}."
+        )
 
     return targets
 
@@ -257,7 +280,7 @@ def create_observation_status(targets):
 def configure_plant_segmentation(world, targets):
     """
     Give the rest of the scene segmentation ID 0, then give each plant
-    the numeric ID derived from its CSV name.
+    its permanent catalogue segmentation ID.
 
     Example:
         Othonna_001 -> 1
@@ -313,7 +336,7 @@ def configure_plant_segmentation(world, targets):
     if missing_plants:
         raise RuntimeError(
             "Project AirSim could not find these Unreal plant actors by "
-            "their CSV IDs: "
+            "their catalogue IDs: "
             + ", ".join(missing_plants)
         )
 
@@ -471,7 +494,7 @@ def export_survey_results(targets, observation_status):
     """
     Write one summary row per Othonna to survey_results.csv.
 
-    Every target from flightpath.csv is included, even if it was never
+    Every plant from the complete 30-actor catalogue is included, even if it was never
     detected by either the normal segmentation camera or the X-ray camera.
     """
     fieldnames = [
@@ -1107,29 +1130,16 @@ async def main(manual=False):
    
 
         projectairsim_log().info(
-            "Loaded %d plant targets",
+            "Loaded complete %d-plant Othonna catalogue",
             len(targets),
         )
 
-   
-        # Manual control itself does not require a sweep path.
-        # If targets do exist, keep configuring their segmentation IDs so the
-        # existing debug camera remains useful in manual mode.
-        if targets:
-            configure_plant_segmentation(
-                world,
-                targets,
-            )
-        elif manual:
-            projectairsim_log().warning(
-                "No Othonnas found in flightpath.csv; manual control will "
-                "continue without plant-specific segmentation IDs"
-            )
-        else:
-            projectairsim_log().warning(
-                "No Othonnas found in flightpath.csv"
-            )
-            return
+        # Configure all 30 identities before either manual or autonomous
+        # surveying.  This never depends on the chosen sweep/search region.
+        configure_plant_segmentation(
+            world,
+            targets,
+        )
     
 
         # Manual mode is only for debugging, so its camera viewer may start

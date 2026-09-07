@@ -54,7 +54,7 @@ CAPTURE_Y_CM = 0.0
 CAPTURE_Z_CM = 51000.0
 
 # Set this to the SceneCapture2D's Ortho Width from Unreal.
-ORTHO_WIDTH_CM = 7000.0
+ORTHO_WIDTH_CM = 100000.0
 
 
 # ------------------------------------------------------------
