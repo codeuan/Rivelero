@@ -60,21 +60,21 @@ from .raster_view import (
 )
 from .worker import FunctionWorker
 
-from SOE.EXR_to_NDVI import load_ndvi_exr
+from rivelero.applications.UE.exr_to_ndvi import load_ndvi_exr
 
-from SOE.downsample_to_resolution import downsample_to_resolution
-
-
-from SOE.redundancy_correction import correct_redundancy
+from rivelero.design.selection import downsample_to_resolution
 
 
-from SOE.viewpoint import (
+from rivelero.design.redundancy import correct_redundancy
+
+
+from rivelero.core.viewpoint import (
     ViewpointRegion,
     ViewpointOPFResult,
-    build_viewpoint_opf,
 )
+from rivelero.design.viewpoint import build_viewpoint_opf
 
-from SOE.viewpoint_generator import (
+from rivelero.design.candidates import (
     ViewpointGenerationResult,
     generate_viewpoints_from_opf,
 )

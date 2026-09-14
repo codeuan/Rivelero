@@ -21,7 +21,10 @@ from rasterio.windows import Window
 from rasterio.windows import bounds as window_bounds
 
 from rivelero.io.sentinel import fetch_ndvi
-from .EXR_to_NDVI import UNREAL_LOCAL_CRS, load_ndvi_exr
+from rivelero.applications.UE.exr_to_ndvi import (
+    UNREAL_LOCAL_CRS,
+    load_ndvi_exr,
+)
 
 Geometry = Mapping[str, Any]
 SuitabilityFunction = Callable[[np.ndarray], np.ndarray]

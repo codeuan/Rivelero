@@ -16,9 +16,9 @@ import numpy as np
 from affine import Affine
 from rasterio.crs import CRS
 
-from .botanical_suitability_field import BotanicalSuitabilityFieldResult
-from .obstacle_occlusion_field import ObstacleOcclusionFieldResult
-from .visibility_field import VisibilityFieldResult
+from rivelero.suitability.botanical import BotanicalSuitabilityFieldResult
+from rivelero.visibility.field import VisibilityFieldResult
+from rivelero.visibility.obstacles import ObstacleOcclusionFieldResult
 
 
 @dataclass(slots=True)

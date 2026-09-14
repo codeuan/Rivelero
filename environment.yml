@@ -9,6 +9,7 @@ dependencies:
   - numpy
   - matplotlib
   - requests
+  - python-dateutil
   - shapely
   - scikit-learn
   - geopandas

@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .viewpoint import ViewpointOPFResult
+from rivelero.core.viewpoint import ViewpointOPFResult
 
 
 @dataclass(frozen=True, slots=True)

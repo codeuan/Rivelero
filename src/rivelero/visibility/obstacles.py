@@ -55,7 +55,11 @@ from rasterio.windows import bounds as window_bounds
 from shapely.geometry import box
 from shapely.geometry.base import BaseGeometry
 
-from osm import DEFAULT_OBSTACLE_TAGS, fetch_obstacles_for_extent, projected_bounds_to_wgs84
+from rivelero.io.osm import (
+    DEFAULT_OBSTACLE_TAGS,
+    fetch_obstacles_for_extent,
+    projected_bounds_to_wgs84,
+)
 
 Geometry = Mapping[str, Any]
 

@@ -7,20 +7,21 @@ import argparse
 from dateutil.relativedelta import relativedelta
 from PySide6.QtWidgets import QApplication
 
-from SOE.botanical_suitability_field import (
+from rivelero.suitability.botanical import (
     build_botanical_suitability_field,
 )
-from SOE.obstacle_occlusion_field import (
+from rivelero.visibility.obstacles import (
     build_obstacle_occlusion_field,
 )
-from SOE.observability_potential_field import (
+from rivelero.observability.potential_field import (
     build_observability_potential_field,
 )
-from SOE.visibility_field import build_visibility_field
+from rivelero.visibility.field import build_visibility_field
 
 from .main_window import MainWindow
 
-from SOE.viewpoint import ViewpointRegion, build_viewpoint_opf
+from rivelero.core.viewpoint import ViewpointRegion
+from rivelero.design.viewpoint import build_viewpoint_opf
 
 from admin.sysinfo.process_monitor import (
     start_process_monitor,

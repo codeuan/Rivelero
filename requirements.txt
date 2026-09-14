@@ -4,6 +4,7 @@ matplotlib
 pyproj
 affine
 requests
+python-dateutil
 pandas
 shapely
 scikit-learn

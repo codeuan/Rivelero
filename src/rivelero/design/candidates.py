@@ -7,11 +7,11 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .observability_potential_field import (
+from rivelero.observability.potential_field import (
     ObservabilityPotentialFieldResult,
 )
-from .viewpoint import (
-    ViewpointRegion,
+from rivelero.core.viewpoint import ViewpointRegion
+from rivelero.design.viewpoint import (
     build_viewpoint_opf,
 )
 
