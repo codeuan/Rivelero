@@ -16,54 +16,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
+import math
 
 
 @dataclass(slots=True)
 class ObservationEvent:
-    """Occurrence of an observation associated with a Rivelero Viewpoint.
+    """Occurrence of an observation associated with a Viewpoint.
 
-    Parameters
-    ----------
-    event_id
-        Unique identifier for this observation event.
-
-    viewpoint_id
-        Identifier of the Viewpoint associated with the event. Multiple
-        ObservationEvents may reference the same Viewpoint.
-
-    timestamp
-        Date and time at which the observation occurred, when known.
-        Timezone-aware datetime values are preferred when available.
-
-    sequence_id
-        Identifier of the acquisition sequence or trajectory to which the
-        event belongs, when applicable.
-
-    sequence_index
-        Position of the event within its sequence. This allows acquisition
-        order to be preserved independently of timestamps.
-
-    image_id
-        Identifier of the image or other observation associated with this
-        event, when available.
-
-    source
-        Source or platform from which the event metadata originated, such as
-        Google Street View, Mapillary, UAV imagery, or a simulation.
-
-    acquisition_conditions
-        Extensible dictionary describing conditions that apply specifically
-        to this acquisition rather than to the underlying Viewpoint or
-        Sensor. Examples include illumination, weather, platform speed, or
-        image-specific acquisition settings.
-
-    metadata_uncertainty
-        Optional dictionary describing uncertainties associated specifically
-        with the event metadata.
-
-    extra_metadata
-        Source-specific metadata not represented by the standardized Rivelero
-        attributes.
+    Event-level geometry represents acquisition-specific overrides. When an
+    attribute is None, downstream analysis may fall back to the associated
+    Viewpoint, Sensor, and finally VisibilityConfiguration.
     """
 
     event_id: str
@@ -75,103 +37,189 @@ class ObservationEvent:
     sequence_index: int | None = None
 
     image_id: str | None = None
-
     source: str | None = None
+
+    # Acquisition-specific spatial/viewing overrides.
+    observer_height_m: float | None = None
+    heading_deg: float | None = None
+    pitch_deg: float | None = None
+    roll_deg: float | None = None
+    horizontal_fov_deg: float | None = None
+    vertical_fov_deg: float | None = None
 
     acquisition_conditions: dict[str, Any] = field(default_factory=dict)
     metadata_uncertainty: dict[str, Any] = field(default_factory=dict)
     extra_metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        """Validate and normalize event metadata."""
+        self.event_id = self._required_string(
+            "event_id",
+            self.event_id,
+        )
+        self.viewpoint_id = self._required_string(
+            "viewpoint_id",
+            self.viewpoint_id,
+        )
 
-        if not isinstance(self.event_id, str) or not self.event_id.strip():
-            raise ValueError("event_id must be a non-empty string.")
-
-        if not isinstance(self.viewpoint_id, str) or not self.viewpoint_id.strip():
-            raise ValueError("viewpoint_id must be a non-empty string.")
-
-        self.event_id = self.event_id.strip()
-        self.viewpoint_id = self.viewpoint_id.strip()
-
-        if self.sequence_id is not None:
-            if not isinstance(self.sequence_id, str):
-                raise TypeError("sequence_id must be a string or None.")
-
-            self.sequence_id = self.sequence_id.strip()
-
-            if not self.sequence_id:
-                raise ValueError(
-                    "sequence_id cannot be an empty string when provided."
-                )
+        self.sequence_id = self._optional_string(
+            "sequence_id",
+            self.sequence_id,
+        )
+        self.image_id = self._optional_string(
+            "image_id",
+            self.image_id,
+        )
+        self.source = self._optional_string(
+            "source",
+            self.source,
+        )
 
         if self.sequence_index is not None:
             if not isinstance(self.sequence_index, int):
-                raise TypeError("sequence_index must be an integer or None.")
-
+                raise TypeError(
+                    "sequence_index must be an integer or None."
+                )
             if self.sequence_index < 0:
                 raise ValueError(
                     "sequence_index must be greater than or equal to zero."
                 )
 
         if self.timestamp is not None and not isinstance(
-            self.timestamp, datetime
+            self.timestamp,
+            datetime,
         ):
-            raise TypeError("timestamp must be a datetime object or None.")
+            raise TypeError("timestamp must be a datetime or None.")
 
-        if self.image_id is not None:
-            if not isinstance(self.image_id, str):
-                raise TypeError("image_id must be a string or None.")
-
-            self.image_id = self.image_id.strip()
-
-            if not self.image_id:
+        if self.observer_height_m is not None:
+            self.observer_height_m = self._finite_float(
+                "observer_height_m",
+                self.observer_height_m,
+            )
+            if self.observer_height_m < 0:
                 raise ValueError(
-                    "image_id cannot be an empty string when provided."
+                    "observer_height_m must be non-negative."
                 )
 
-        if self.source is not None:
-            if not isinstance(self.source, str):
-                raise TypeError("source must be a string or None.")
+        if self.heading_deg is not None:
+            self.heading_deg = (
+                self._finite_float("heading_deg", self.heading_deg)
+                % 360.0
+            )
 
-            self.source = self.source.strip()
-
-            if not self.source:
+        if self.pitch_deg is not None:
+            self.pitch_deg = self._finite_float(
+                "pitch_deg",
+                self.pitch_deg,
+            )
+            if not -90.0 <= self.pitch_deg <= 90.0:
                 raise ValueError(
-                    "source cannot be an empty string when provided."
+                    "pitch_deg must be within [-90, 90]."
                 )
 
-        self._validate_dictionary(
+        if self.roll_deg is not None:
+            roll = self._finite_float("roll_deg", self.roll_deg)
+            self.roll_deg = ((roll + 180.0) % 360.0) - 180.0
+
+        self.horizontal_fov_deg = self._validate_fov(
+            "horizontal_fov_deg",
+            self.horizontal_fov_deg,
+        )
+        self.vertical_fov_deg = self._validate_fov(
+            "vertical_fov_deg",
+            self.vertical_fov_deg,
+        )
+
+        for name in (
             "acquisition_conditions",
-            self.acquisition_conditions,
-        )
-        self._validate_dictionary(
             "metadata_uncertainty",
-            self.metadata_uncertainty,
-        )
-        self._validate_dictionary(
             "extra_metadata",
-            self.extra_metadata,
-        )
-
-    @staticmethod
-    def _validate_dictionary(name: str, value: dict[str, Any]) -> None:
-        """Validate extensible metadata dictionaries."""
-
-        if not isinstance(value, dict):
-            raise TypeError(f"{name} must be a dictionary.")
+        ):
+            if not isinstance(getattr(self, name), dict):
+                raise TypeError(f"{name} must be a dictionary.")
 
     @property
     def is_temporal(self) -> bool:
-        """Return whether the event contains explicit temporal information."""
-
         return self.timestamp is not None
 
     @property
     def is_sequenced(self) -> bool:
-        """Return whether the event belongs to an ordered sequence."""
-
         return (
             self.sequence_id is not None
             or self.sequence_index is not None
         )
+
+    @property
+    def has_view_override(self) -> bool:
+        """Whether the event overrides any Viewpoint viewing geometry."""
+
+        return any(
+            value is not None
+            for value in (
+                self.observer_height_m,
+                self.heading_deg,
+                self.pitch_deg,
+                self.roll_deg,
+                self.horizontal_fov_deg,
+                self.vertical_fov_deg,
+            )
+        )
+
+    @staticmethod
+    def _required_string(name: str, value: str) -> str:
+        if not isinstance(value, str):
+            raise TypeError(f"{name} must be a string.")
+
+        result = value.strip()
+
+        if not result:
+            raise ValueError(f"{name} must be non-empty.")
+
+        return result
+
+    @staticmethod
+    def _optional_string(
+        name: str,
+        value: str | None,
+    ) -> str | None:
+        if value is None:
+            return None
+
+        if not isinstance(value, str):
+            raise TypeError(f"{name} must be a string or None.")
+
+        result = value.strip()
+
+        if not result:
+            raise ValueError(f"{name} cannot be empty when provided.")
+
+        return result
+
+    @staticmethod
+    def _finite_float(name: str, value: float) -> float:
+        if not isinstance(value, (int, float)):
+            raise TypeError(f"{name} must be numeric.")
+
+        result = float(value)
+
+        if not math.isfinite(result):
+            raise ValueError(f"{name} must be finite.")
+
+        return result
+
+    @classmethod
+    def _validate_fov(
+        cls,
+        name: str,
+        value: float | None,
+    ) -> float | None:
+        if value is None:
+            return None
+
+        result = cls._finite_float(name, value)
+
+        if not 0.0 < result <= 360.0:
+            raise ValueError(
+                f"{name} must be within (0, 360] degrees."
+            )
+
+        return result

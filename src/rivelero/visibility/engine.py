@@ -32,10 +32,12 @@ from rivelero.core.sensor import Sensor
 from rivelero.core.viewpoint import Viewpoint
 from rivelero.visibility.configuration import (
     MissingMetadataPolicy,
+    VisibilityBackend,
     VisibilityConfiguration,
 )
 from rivelero.visibility.directional import apply_horizontal_fov
 from rivelero.visibility.viewshed import (
+    accumulate_viewshed,
     open_viewshed_dem,
     run_viewshed,
 )
@@ -43,12 +45,7 @@ from rivelero.visibility.viewshed import (
 
 @dataclass(frozen=True, slots=True)
 class ResolvedVisibilityParameters:
-    """Effective parameters used for one visibility calculation.
-
-    These values may originate from source metadata or from explicit defaults
-    in VisibilityConfiguration. Keeping the resolved values in the result
-    makes the assumptions used for each viewpoint auditable.
-    """
+    """Effective parameters used for one visibility calculation."""
 
     observer_height_m: float
     target_height_m: float
@@ -59,7 +56,8 @@ class ResolvedVisibilityParameters:
     pitch_deg: float | None
     vertical_fov_deg: float | None
 
-    max_distance_m: float | None
+    max_distance_m: float
+    curvature_coefficient: float
 
     used_default_observer_height: bool = False
     used_default_heading: bool = False
@@ -70,35 +68,7 @@ class ResolvedVisibilityParameters:
 
 @dataclass(slots=True)
 class SingleViewpointVisibility:
-    """Standard visibility result for one Rivelero sampling unit.
-
-    Parameters
-    ----------
-    viewpoint_id
-        Identifier of the Viewpoint used for the calculation.
-
-    visibility_mask
-        Final effective visibility mask after terrain, domain, and directional
-        constraints have been applied.
-
-    geometric_visibility_mask
-        Terrain-based 2.5D visibility before directional filtering.
-
-    valid_mask
-        Cells that were valid and analysable for this calculation.
-
-    transform, crs
-        Spatial definition of the result raster.
-
-    resolved_parameters
-        Effective visibility parameters used by the engine.
-
-    event_id
-        ObservationEvent identifier when the calculation represents an event.
-
-    metadata
-        Additional processing/provenance information.
-    """
+    """Standard visibility result for one Viewpoint or ObservationEvent."""
 
     viewpoint_id: str
 
@@ -112,12 +82,9 @@ class SingleViewpointVisibility:
     resolved_parameters: ResolvedVisibilityParameters
 
     event_id: str | None = None
-
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        """Validate result arrays."""
-
         for name in (
             "visibility_mask",
             "geometric_visibility_mask",
@@ -135,19 +102,16 @@ class SingleViewpointVisibility:
 
         if self.geometric_visibility_mask.shape != shape:
             raise ValueError(
-                "geometric_visibility_mask must have the same shape as "
+                "geometric_visibility_mask shape does not match "
                 "visibility_mask."
             )
 
         if self.valid_mask.shape != shape:
             raise ValueError(
-                "valid_mask must have the same shape as visibility_mask."
+                "valid_mask shape does not match visibility_mask."
             )
 
-        self.visibility_mask = self.visibility_mask.astype(
-            bool,
-            copy=False,
-        )
+        self.visibility_mask = self.visibility_mask.astype(bool, copy=False)
         self.geometric_visibility_mask = (
             self.geometric_visibility_mask.astype(bool, copy=False)
         )
@@ -155,21 +119,11 @@ class SingleViewpointVisibility:
 
     @property
     def visible_cell_count(self) -> int:
-        """Number of effectively visible cells."""
-
         return int(np.count_nonzero(self.visibility_mask))
-
-    @property
-    def geometric_visible_cell_count(self) -> int:
-        """Number of cells visible before directional filtering."""
-
-        return int(
-            np.count_nonzero(self.geometric_visibility_mask)
-        )
 
 
 class ViewpointExcludedError(RuntimeError):
-    """Raised when analysis policy excludes a Viewpoint from processing."""
+    """Raised when missing-metadata policy excludes a sampling unit."""
 
 
 def compute_viewpoint_visibility(
@@ -181,45 +135,7 @@ def compute_viewpoint_visibility(
     sensor: Sensor | None = None,
     event: ObservationEvent | None = None,
 ) -> SingleViewpointVisibility:
-    """Compute effective 2.5D visibility for one Viewpoint or event.
-
-    Parameters
-    ----------
-    viewpoint
-        Spatial observer configuration.
-
-    environment
-        Physical Environment containing the elevation model.
-
-    domain
-        AnalysisDomain defining the output grid and analysable space.
-
-    configuration
-        Scientific assumptions controlling visibility.
-
-    sensor
-        Optional Sensor associated with the Viewpoint. When supplied, its
-        metadata may provide fallback camera characteristics such as native
-        field of view.
-
-    event
-        Optional ObservationEvent associated with the Viewpoint.
-
-    Returns
-    -------
-    SingleViewpointVisibility
-        Standardized visibility result suitable for later ingestion by a
-        SurveyObservabilityField.
-
-    Raises
-    ------
-    ViewpointExcludedError
-        When a missing-metadata policy explicitly excludes the viewpoint.
-
-    ValueError
-        When required metadata cannot be resolved or spatial inputs are
-        incompatible.
-    """
+    """Compute effective visibility for one standardized observation unit."""
 
     _validate_relationships(
         viewpoint=viewpoint,
@@ -227,10 +143,23 @@ def compute_viewpoint_visibility(
         event=event,
     )
 
-    _validate_domain_environment(
-        environment=environment,
-        domain=domain,
-    )
+    if configuration.backend != VisibilityBackend.GDAL:
+        raise NotImplementedError(
+            "The common Rivelero visibility engine currently supports "
+            "only the GDAL backend."
+        )
+
+    if configuration.use_environment_obstacles:
+        raise NotImplementedError(
+            "Environment obstacle layers are represented by the Rivelero "
+            "architecture but are not yet integrated into the common "
+            "single-viewpoint visibility engine."
+        )
+
+    if configuration.use_vertical_fov:
+        raise NotImplementedError(
+            "Vertical FOV filtering is not yet implemented."
+        )
 
     resolved = resolve_visibility_parameters(
         viewpoint=viewpoint,
@@ -249,39 +178,27 @@ def compute_viewpoint_visibility(
         observer_y=observer_y,
         environment=environment,
         domain=domain,
-        configuration=configuration,
         resolved=resolved,
     )
 
     analysable_mask = domain.analysable_mask
 
     if analysable_mask is None:
-        analysable_mask = np.ones(
-            domain.grid.shape,
-            dtype=bool,
-        )
+        analysable_mask = np.ones(domain.grid.shape, dtype=bool)
     else:
-        analysable_mask = analysable_mask.astype(
-            bool,
-            copy=False,
-        )
+        analysable_mask = analysable_mask.astype(bool, copy=False)
 
     geometric_visibility &= analysable_mask
 
-    if (
-        configuration.use_direction
-        and not resolved.omnidirectional
-    ):
+    if configuration.use_direction and not resolved.omnidirectional:
         if resolved.heading_deg is None:
             raise ValueError(
-                "Directional visibility was requested but no effective "
-                "heading was resolved."
+                "Directional visibility requires an effective heading."
             )
 
         if resolved.horizontal_fov_deg is None:
             raise ValueError(
-                "Directional visibility was requested but no effective "
-                "horizontal FOV was resolved."
+                "Directional visibility requires an effective horizontal FOV."
             )
 
         effective_visibility = apply_horizontal_fov(
@@ -296,13 +213,6 @@ def compute_viewpoint_visibility(
     else:
         effective_visibility = geometric_visibility.copy()
 
-    if configuration.use_vertical_fov:
-        raise NotImplementedError(
-            "Vertical FOV filtering is represented in "
-            "VisibilityConfiguration but is not yet implemented in the "
-            "Rivelero 2.5D visibility engine."
-        )
-
     return SingleViewpointVisibility(
         viewpoint_id=viewpoint.viewpoint_id,
         event_id=None if event is None else event.event_id,
@@ -315,12 +225,8 @@ def compute_viewpoint_visibility(
         metadata={
             "environment_id": environment.environment_id,
             "analysis_domain_id": domain.domain_id,
-            "visibility_configuration_id": (
-                configuration.configuration_id
-            ),
-            "sensor_id": (
-                None if sensor is None else sensor.sensor_id
-            ),
+            "visibility_configuration_id": configuration.configuration_id,
+            "sensor_id": None if sensor is None else sensor.sensor_id,
         },
     )
 
@@ -332,41 +238,12 @@ def resolve_visibility_parameters(
     sensor: Sensor | None = None,
     event: ObservationEvent | None = None,
 ) -> ResolvedVisibilityParameters:
-    """Resolve source metadata and analysis assumptions for one calculation.
+    """Resolve Event -> Viewpoint -> Sensor -> Configuration metadata."""
 
-    The intended precedence is:
-
-        ObservationEvent
-            -> Viewpoint
-            -> Sensor
-            -> VisibilityConfiguration
-            -> missing-metadata policy
-
-    The current ObservationEvent model does not yet contain standardized
-    orientation/FOV fields. Event-specific overrides can therefore be supplied
-    through ``extra_metadata`` when explicitly present.
-
-    No resolved default is written back into the original source objects.
-    """
-
-    event_metadata = (
-        {}
-        if event is None
-        else event.extra_metadata
-    )
-
-    # --------------------------------------------------------------
     # Observer height
-    # --------------------------------------------------------------
-
-    event_height = _optional_numeric_metadata(
-        event_metadata,
-        "observer_height_m",
-    )
-
     observer_height = (
-        event_height
-        if event_height is not None
+        event.observer_height_m
+        if event is not None and event.observer_height_m is not None
         else viewpoint.observer_height_m
     )
 
@@ -378,42 +255,26 @@ def resolve_visibility_parameters(
         if policy == MissingMetadataPolicy.USE_DEFAULT:
             observer_height = configuration.default_observer_height_m
             used_default_height = True
-
         elif policy == MissingMetadataPolicy.EXCLUDE:
             raise ViewpointExcludedError(
-                f"Viewpoint {viewpoint.viewpoint_id!r} excluded because "
-                "observer height is missing."
+                f"{viewpoint.viewpoint_id!r}: observer height missing."
             )
-
         elif policy == MissingMetadataPolicy.ERROR:
             raise ValueError(
-                f"Viewpoint {viewpoint.viewpoint_id!r} has no observer "
-                "height and the visibility policy is 'error'."
+                f"{viewpoint.viewpoint_id!r}: observer height missing."
             )
-
         else:
             raise ValueError(
-                "OMNIDIRECTIONAL is not a valid missing-observer-height "
-                "policy."
+                "OMNIDIRECTIONAL is invalid for observer-height metadata."
             )
 
     if observer_height is None:
-        raise ValueError(
-            "No effective observer height could be resolved."
-        )
+        raise ValueError("No effective observer height could be resolved.")
 
-    # --------------------------------------------------------------
     # Heading
-    # --------------------------------------------------------------
-
-    event_heading = _optional_numeric_metadata(
-        event_metadata,
-        "heading_deg",
-    )
-
     heading = (
-        event_heading
-        if event_heading is not None
+        event.heading_deg
+        if event is not None and event.heading_deg is not None
         else viewpoint.heading_deg
     )
 
@@ -426,42 +287,29 @@ def resolve_visibility_parameters(
         if policy == MissingMetadataPolicy.USE_DEFAULT:
             heading = configuration.default_heading_deg
             used_default_heading = True
-
         elif policy == MissingMetadataPolicy.OMNIDIRECTIONAL:
             omnidirectional = True
-
         elif policy == MissingMetadataPolicy.EXCLUDE:
             raise ViewpointExcludedError(
-                f"Viewpoint {viewpoint.viewpoint_id!r} excluded because "
-                "heading is missing."
+                f"{viewpoint.viewpoint_id!r}: heading missing."
             )
-
         elif policy == MissingMetadataPolicy.ERROR:
             raise ValueError(
-                f"Viewpoint {viewpoint.viewpoint_id!r} has no heading "
-                "and the visibility policy is 'error'."
+                f"{viewpoint.viewpoint_id!r}: heading missing."
             )
 
     if heading is not None:
         heading = float(heading) % 360.0
 
-    # --------------------------------------------------------------
     # Horizontal FOV
-    # --------------------------------------------------------------
-
-    event_fov = _optional_numeric_metadata(
-        event_metadata,
-        "horizontal_fov_deg",
-    )
-
-    if event_fov is not None:
-        horizontal_fov = event_fov
+    if (
+        event is not None
+        and event.horizontal_fov_deg is not None
+    ):
+        horizontal_fov = event.horizontal_fov_deg
     elif viewpoint.horizontal_fov_deg is not None:
         horizontal_fov = viewpoint.horizontal_fov_deg
-    elif (
-        sensor is not None
-        and sensor.horizontal_fov_deg is not None
-    ):
+    elif sensor is not None and sensor.horizontal_fov_deg is not None:
         horizontal_fov = sensor.horizontal_fov_deg
     else:
         horizontal_fov = None
@@ -476,25 +324,18 @@ def resolve_visibility_parameters(
         policy = configuration.missing_fov_policy
 
         if policy == MissingMetadataPolicy.USE_DEFAULT:
-            horizontal_fov = (
-                configuration.default_horizontal_fov_deg
-            )
+            horizontal_fov = configuration.default_horizontal_fov_deg
             used_default_fov = True
-
         elif policy == MissingMetadataPolicy.OMNIDIRECTIONAL:
-            omnidirectional = True
             horizontal_fov = 360.0
-
+            omnidirectional = True
         elif policy == MissingMetadataPolicy.EXCLUDE:
             raise ViewpointExcludedError(
-                f"Viewpoint {viewpoint.viewpoint_id!r} excluded because "
-                "horizontal FOV is missing."
+                f"{viewpoint.viewpoint_id!r}: horizontal FOV missing."
             )
-
         elif policy == MissingMetadataPolicy.ERROR:
             raise ValueError(
-                f"Viewpoint {viewpoint.viewpoint_id!r} has no horizontal "
-                "FOV and the visibility policy is 'error'."
+                f"{viewpoint.viewpoint_id!r}: horizontal FOV missing."
             )
 
     if horizontal_fov is not None:
@@ -502,61 +343,48 @@ def resolve_visibility_parameters(
 
         if not 0.0 < horizontal_fov <= 360.0:
             raise ValueError(
-                "Resolved horizontal FOV must be within (0, 360] degrees."
+                "Resolved horizontal FOV must be within (0, 360]."
             )
 
         if np.isclose(horizontal_fov, 360.0):
             omnidirectional = True
 
-    # --------------------------------------------------------------
-    # Pitch / vertical FOV
-    # --------------------------------------------------------------
-
-    event_pitch = _optional_numeric_metadata(
-        event_metadata,
-        "pitch_deg",
-    )
-
+    # Pitch
     pitch = (
-        event_pitch
-        if event_pitch is not None
+        event.pitch_deg
+        if event is not None and event.pitch_deg is not None
         else viewpoint.pitch_deg
     )
 
     if pitch is None:
         pitch = configuration.default_pitch_deg
 
-    event_vertical_fov = _optional_numeric_metadata(
-        event_metadata,
-        "vertical_fov_deg",
-    )
-
-    if event_vertical_fov is not None:
-        vertical_fov = event_vertical_fov
+    # Vertical FOV
+    if (
+        event is not None
+        and event.vertical_fov_deg is not None
+    ):
+        vertical_fov = event.vertical_fov_deg
     elif viewpoint.vertical_fov_deg is not None:
         vertical_fov = viewpoint.vertical_fov_deg
-    elif (
-        sensor is not None
-        and sensor.vertical_fov_deg is not None
-    ):
+    elif sensor is not None and sensor.vertical_fov_deg is not None:
         vertical_fov = sensor.vertical_fov_deg
     else:
         vertical_fov = configuration.default_vertical_fov_deg
 
     return ResolvedVisibilityParameters(
         observer_height_m=float(observer_height),
-        target_height_m=float(
-            configuration.default_target_height_m
-        ),
+        target_height_m=float(configuration.default_target_height_m),
         heading_deg=heading,
         horizontal_fov_deg=horizontal_fov,
         pitch_deg=None if pitch is None else float(pitch),
         vertical_fov_deg=(
-            None
-            if vertical_fov is None
-            else float(vertical_fov)
+            None if vertical_fov is None else float(vertical_fov)
         ),
-        max_distance_m=configuration.max_distance_m,
+        max_distance_m=float(configuration.max_distance_m),
+        curvature_coefficient=float(
+            configuration.curvature_coefficient
+        ),
         used_default_observer_height=used_default_height,
         used_default_heading=used_default_heading,
         used_default_horizontal_fov=used_default_fov,
@@ -570,125 +398,124 @@ def _compute_geometric_visibility(
     observer_y: float,
     environment: Environment,
     domain: AnalysisDomain,
-    configuration: VisibilityConfiguration,
     resolved: ResolvedVisibilityParameters,
 ) -> np.ndarray:
-    """Run the existing Rivelero/GDAL 2.5D visibility calculation.
-
-    This function is intentionally the only adapter between the new common
-    engine and the existing low-level viewshed API. If the exact signature of
-    ``run_viewshed`` changes, adapt this function rather than coupling the
-    rest of the engine to GDAL details.
-    """
+    """Run one GDAL viewshed and place it on the full AnalysisGrid."""
 
     elevation_source = environment.elevation_model.source
 
     if not isinstance(elevation_source, (str, Path)):
         raise TypeError(
-            "The current GDAL visibility backend requires the Environment "
-            "elevation model to reference a local raster path."
+            "The GDAL backend currently requires a local elevation raster."
         )
 
-    elevation_path = Path(elevation_source)
+    dem_path = Path(elevation_source)
 
-    if not elevation_path.exists():
-        raise FileNotFoundError(
-            f"Elevation raster does not exist: {elevation_path}"
+    if not dem_path.is_file():
+        raise FileNotFoundError(f"DEM does not exist: {dem_path}")
+
+    with rasterio.open(dem_path) as source:
+        if source.count < 1:
+            raise ValueError("The elevation raster contains no bands.")
+
+        coordinate_mode = (
+            source.tags().get("coordinate_mode", "").strip().lower()
         )
 
-    # Open the elevation raster through Rivelero's common low-level API.
-    dem = open_viewshed_dem(elevation_path)
+        if coordinate_mode != "unreal_local":
+            if source.crs is None:
+                raise ValueError("The elevation raster has no CRS.")
+
+            if not source.crs.is_projected:
+                raise ValueError(
+                    "The current 2.5D visibility engine requires a "
+                    "projected elevation raster."
+                )
+
+        _validate_grid_matches_dem(source=source, domain=domain)
+
+        dem_transform = source.transform
+        dem_shape = (source.height, source.width)
+
+        effective_curvature = (
+            0.0
+            if coordinate_mode == "unreal_local"
+            else resolved.curvature_coefficient
+        )
+
+    dataset = open_viewshed_dem(
+        dem_path,
+        strip_crs=(coordinate_mode == "unreal_local"),
+    )
 
     try:
+        band = dataset.GetRasterBand(1)
+
+        if band is None:
+            raise RuntimeError("GDAL could not access DEM band 1.")
+
         viewshed = run_viewshed(
-            dem,
+            band=band,
             observer_x=observer_x,
             observer_y=observer_y,
             observer_height_m=resolved.observer_height_m,
             target_height_m=resolved.target_height_m,
             max_distance_m=resolved.max_distance_m,
-            use_earth_curvature=configuration.use_earth_curvature,
-            refraction_coefficient=configuration.refraction_coefficient,
-        )
-    finally:
-        close_method = getattr(dem, "close", None)
-        if callable(close_method):
-            close_method()
-
-    visibility = _extract_visibility_array(viewshed)
-
-    if visibility.shape != domain.grid.shape:
-        visibility = _align_visibility_to_domain(
-            visibility=visibility,
-            source=viewshed,
-            domain=domain,
+            curvature_coefficient=effective_curvature,
         )
 
-    return visibility.astype(bool, copy=False)
-
-
-def _extract_visibility_array(result: Any) -> np.ndarray:
-    """Extract a 2D visibility array from the low-level backend result."""
-
-    if isinstance(result, np.ndarray):
-        array = result
-    elif hasattr(result, "ReadAsArray"):
-        array = result.ReadAsArray()
-    elif hasattr(result, "read"):
         try:
-            array = result.read(1)
-        except TypeError:
-            array = result.read()
-    elif hasattr(result, "array"):
-        array = result.array
-    else:
-        raise TypeError(
-            "Unsupported viewshed result type. The low-level visibility "
-            "backend must return an array or raster-like object."
-        )
+            full_visibility = np.zeros(
+                dem_shape,
+                dtype=np.uint8,
+            )
 
-    array = np.asarray(array)
+            accumulate_viewshed(
+                accumulator=full_visibility,
+                viewshed_dataset=viewshed,
+                dem_transform=dem_transform,
+            )
+        finally:
+            viewshed = None
 
-    if array.ndim != 2:
-        raise ValueError(
-            "The low-level viewshed result must be two-dimensional."
-        )
+    finally:
+        dataset = None
 
-    return array > 0
+    return full_visibility > 0
 
 
-def _align_visibility_to_domain(
+def _validate_grid_matches_dem(
     *,
-    visibility: np.ndarray,
-    source: Any,
+    source: rasterio.io.DatasetReader,
     domain: AnalysisDomain,
-) -> np.ndarray:
-    """Handle visibility rasters that do not match the AnalysisGrid.
+) -> None:
+    """Require the current AnalysisGrid to match the DEM exactly."""
 
-    The current common engine requires the low-level viewshed to be aligned
-    with the AnalysisDomain grid. Automatic reprojection is deliberately not
-    performed here because silently resampling a binary visibility product
-    would introduce an analytical decision.
+    if source.crs != domain.grid.crs:
+        raise ValueError(
+            "AnalysisGrid CRS does not match the elevation raster."
+        )
 
-    This function exists as an explicit boundary for future grid-alignment
-    support.
-    """
+    if source.transform != domain.grid.transform:
+        raise ValueError(
+            "AnalysisGrid transform does not match the elevation raster."
+        )
 
-    raise ValueError(
-        "Viewshed output shape does not match the AnalysisDomain grid. "
-        f"Viewshed shape={visibility.shape}, "
-        f"domain shape={domain.grid.shape}. "
-        "The visibility backend and AnalysisDomain must currently use the "
-        "same raster grid."
-    )
+    if source.width != domain.grid.width:
+        raise ValueError(
+            "AnalysisGrid width does not match the elevation raster."
+        )
+
+    if source.height != domain.grid.height:
+        raise ValueError(
+            "AnalysisGrid height does not match the elevation raster."
+        )
 
 
 def _viewpoint_in_analysis_crs(
     viewpoint: Viewpoint,
     target_crs: CRS,
 ) -> tuple[float, float]:
-    """Return Viewpoint coordinates in the AnalysisDomain CRS."""
-
     if viewpoint.crs == target_crs:
         return viewpoint.x, viewpoint.y
 
@@ -708,8 +535,6 @@ def _validate_relationships(
     sensor: Sensor | None,
     event: ObservationEvent | None,
 ) -> None:
-    """Validate relationships among the observation-side objects."""
-
     if sensor is not None:
         if not isinstance(sensor, Sensor):
             raise TypeError("sensor must be a Sensor or None.")
@@ -719,9 +544,7 @@ def _validate_relationships(
             and viewpoint.sensor_id != sensor.sensor_id
         ):
             raise ValueError(
-                f"Viewpoint {viewpoint.viewpoint_id!r} references Sensor "
-                f"{viewpoint.sensor_id!r}, but Sensor {sensor.sensor_id!r} "
-                "was supplied to the visibility engine."
+                "The supplied Sensor does not match viewpoint.sensor_id."
             )
 
     if event is not None:
@@ -732,61 +555,5 @@ def _validate_relationships(
 
         if event.viewpoint_id != viewpoint.viewpoint_id:
             raise ValueError(
-                f"ObservationEvent {event.event_id!r} references Viewpoint "
-                f"{event.viewpoint_id!r}, but Viewpoint "
-                f"{viewpoint.viewpoint_id!r} was supplied."
+                "The ObservationEvent references a different Viewpoint."
             )
-
-
-def _validate_domain_environment(
-    *,
-    environment: Environment,
-    domain: AnalysisDomain,
-) -> None:
-    """Validate basic spatial compatibility before processing."""
-
-    if not isinstance(environment, Environment):
-        raise TypeError("environment must be an Environment.")
-
-    if not isinstance(domain, AnalysisDomain):
-        raise TypeError("domain must be an AnalysisDomain.")
-
-    elevation_crs = environment.elevation_model.crs
-
-    if (
-        elevation_crs is not None
-        and elevation_crs != domain.grid.crs
-    ):
-        raise ValueError(
-            "The current visibility engine requires the Environment "
-            "elevation model and AnalysisGrid to use the same CRS. "
-            "Reprojection should occur during environment/domain "
-            "preparation rather than silently inside the visibility engine."
-        )
-
-
-def _optional_numeric_metadata(
-    metadata: dict[str, Any],
-    key: str,
-) -> float | None:
-    """Read an optional numeric event-level metadata override."""
-
-    if key not in metadata or metadata[key] is None:
-        return None
-
-    value = metadata[key]
-
-    if not isinstance(value, (int, float)):
-        raise TypeError(
-            f"ObservationEvent metadata {key!r} must be numeric when "
-            "provided."
-        )
-
-    result = float(value)
-
-    if not np.isfinite(result):
-        raise ValueError(
-            f"ObservationEvent metadata {key!r} must be finite."
-        )
-
-    return result
