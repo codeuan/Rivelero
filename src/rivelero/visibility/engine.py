@@ -181,13 +181,11 @@ def compute_viewpoint_visibility(
         resolved=resolved,
     )
 
-    analysable_mask = domain.analysable_mask
-
-    if analysable_mask is None:
-        analysable_mask = np.ones(domain.grid.shape, dtype=bool)
-    else:
-        analysable_mask = analysable_mask.astype(bool, copy=False)
-
+    analysable_mask = (
+        domain.effective_analysis_mask
+        & domain.effective_valid_mask
+    )
+    
     geometric_visibility &= analysable_mask
 
     if configuration.use_direction and not resolved.omnidirectional:
