@@ -1,0 +1,108 @@
+{
+  "flat_single": {
+    "dem": "environments/dem_flat.tif",
+    "viewpoints": [
+      "vp_center_360"
+    ],
+    "sampling_unit": "viewpoint",
+    "max_distance_m": 200,
+    "expect": [
+      "maximum exposure = 1",
+      "finite-distance blind spots exist"
+    ]
+  },
+  "directional_east": {
+    "dem": "environments/dem_flat.tif",
+    "viewpoints": [
+      "vp_center_east"
+    ],
+    "sampling_unit": "viewpoint",
+    "max_distance_m": 250,
+    "expect": [
+      "effective visibility is subset of geometric visibility",
+      "visible sector faces east"
+    ]
+  },
+  "ridge_occlusion": {
+    "dem": "environments/dem_ridge.tif",
+    "viewpoints": [
+      "vp_west_ridge"
+    ],
+    "sampling_unit": "viewpoint",
+    "max_distance_m": 600,
+    "expect": [
+      "ridge reduces visibility east of ridge versus flat DEM"
+    ]
+  },
+  "overlap": {
+    "dem": "environments/dem_flat.tif",
+    "viewpoints": [
+      "vp_overlap_west",
+      "vp_overlap_east"
+    ],
+    "sampling_unit": "viewpoint",
+    "max_distance_m": 300,
+    "expect": [
+      "maximum exposure = 2",
+      "both exposure 1 and 2 occur"
+    ]
+  },
+  "redundancy_and_marginal_gain": {
+    "dem": "environments/dem_flat.tif",
+    "viewpoints": [
+      "vp_redundant_a",
+      "vp_redundant_b",
+      "vp_complementary"
+    ],
+    "sampling_unit": "viewpoint",
+    "max_distance_m": 300,
+    "expect": [
+      "A and B strongly overlap",
+      "complementary adds new cells"
+    ]
+  },
+  "nodata_states": {
+    "dem": "environments/dem_nodata.tif",
+    "viewpoints": [
+      "vp_center_360"
+    ],
+    "sampling_unit": "viewpoint",
+    "max_distance_m": 300,
+    "expect": [
+      "nodata block is INVALID not BLIND_SPOT"
+    ]
+  },
+  "temporal_events": {
+    "dem": "environments/dem_flat.tif",
+    "viewpoints": [
+      "vp_redundant_a",
+      "vp_overlap_east",
+      "vp_complementary"
+    ],
+    "events": [
+      "event_001",
+      "event_002",
+      "event_003",
+      "event_004"
+    ],
+    "sampling_unit": "observation_event",
+    "max_distance_m": 300,
+    "expect": [
+      "4 events but 3 unique viewpoints",
+      "event_003 overrides heading/FOV"
+    ]
+  },
+  "metadata_fallback": {
+    "dem": "environments/dem_flat.tif",
+    "viewpoints": [
+      "vp_missing_heading",
+      "vp_missing_height"
+    ],
+    "sampling_unit": "viewpoint",
+    "max_distance_m": 250,
+    "expect": [
+      "missing heading can use omnidirectional policy",
+      "missing height uses configured default"
+    ]
+  }
+}

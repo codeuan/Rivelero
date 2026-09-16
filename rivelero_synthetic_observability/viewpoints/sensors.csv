@@ -1,0 +1,4 @@
+sensor_id,modality,horizontal_fov_deg,description
+sensor_rgb_90,rgb,90,Synthetic RGB 90 deg
+sensor_rgb_120,rgb,120,Synthetic RGB 120 deg
+sensor_rgb_70,rgb,70,Sensor fallback FOV test

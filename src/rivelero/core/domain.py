@@ -308,24 +308,71 @@ class AnalysisDomain:
 
     @property
     def analysable_mask(self) -> np.ndarray | None:
-        """Return cells that are both in-domain and valid for analysis.
+        """Return cells that are both inside the domain and valid for analysis.
 
-        Returns None when neither raster mask has yet been materialized.
+        Returns None if neither raster mask has been materialized.
 
-        If only one mask exists, that mask defines the currently known
-        analysable space.
+        If only one mask exists, the missing component is treated as unrestricted:
+        - missing analysis_mask -> all grid cells are considered in-domain
+        - missing valid_mask -> all in-domain cells are considered valid
+
+        This fallback is explicit and should primarily support domains whose
+        raster masks have not yet been fully materialized.
         """
 
         if self.analysis_mask is None and self.valid_mask is None:
             return None
 
         if self.analysis_mask is None:
-            return self.valid_mask.copy()
+            analysis = np.ones(
+                self.grid.shape,
+                dtype=bool,
+            )
+        else:
+            analysis = self.analysis_mask
 
         if self.valid_mask is None:
-            return self.analysis_mask.copy()
+            valid = np.ones(
+                self.grid.shape,
+                dtype=bool,
+            )
+        else:
+            valid = self.valid_mask
 
-        return self.analysis_mask & self.valid_mask
+        return analysis & valid
+
+    @property
+    def effective_analysis_mask(self) -> np.ndarray:
+        """Return the rasterized analysis-domain mask.
+
+        If no explicit analysis mask has been materialized, all AnalysisGrid
+        cells are provisionally treated as belonging to the domain.
+        """
+
+        if self.analysis_mask is None:
+            return np.ones(
+                self.grid.shape,
+                dtype=bool,
+            )
+
+        return self.analysis_mask.copy()
+
+
+    @property
+    def effective_valid_mask(self) -> np.ndarray:
+        """Return the effective environmental-validity mask.
+
+        If no explicit validity mask has been materialized, all grid cells are
+        provisionally treated as valid.
+        """
+
+        if self.valid_mask is None:
+            return np.ones(
+                self.grid.shape,
+                dtype=bool,
+            )
+
+        return self.valid_mask.copy()
 
     @property
     def n_analysable_cells(self) -> int | None:
