@@ -1,61 +1,408 @@
-import os
+"""DEM acquisition utilities for Rivelero.
+
+OpenTopography acquisition belongs to the Rivelero I/O layer.
+
+GUI code should provide canonical survey/domain information to these
+functions rather than implementing provider-specific HTTP requests itself.
+"""
+
+from __future__ import annotations
+
 import math
+import os
 import tempfile
 from pathlib import Path
-from typing import Sequence, Mapping, Any
+from typing import (
+    Any,
+    Iterable,
+    Mapping,
+    Sequence,
+)
 
 import requests
+from pyproj import (
+    CRS as PyprojCRS,
+    Transformer,
+)
 
 
-OPENTOPO_API_KEY = os.getenv("OPENTOPO_API_KEY")
+OPENTOPO_API_KEY = os.getenv(
+    "OPENTOPO_API_KEY"
+)
+
+OPENTOPO_GLOBALDEM_URL = (
+    "https://portal.opentopography.org/API/globaldem"
+)
+
+
+# ---------------------------------------------------------------------------
+# Bounding boxes
+# ---------------------------------------------------------------------------
+
+
+def _validate_bbox(
+    south: float,
+    north: float,
+    west: float,
+    east: float,
+) -> tuple[
+    float,
+    float,
+    float,
+    float,
+]:
+    """Validate a WGS84 bounding box."""
+
+    values = tuple(
+        float(value)
+        for value in (
+            south,
+            north,
+            west,
+            east,
+        )
+    )
+
+    if not all(
+        math.isfinite(
+            value
+        )
+        for value in values
+    ):
+        raise ValueError(
+            "OpenTopography bounds must be finite."
+        )
+
+    south, north, west, east = values
+
+    if not (
+        -90.0
+        <= south
+        < north
+        <= 90.0
+    ):
+        raise ValueError(
+            "Latitude bounds must satisfy "
+            "-90 <= south < north <= 90."
+        )
+
+    if not (
+        -180.0
+        <= west
+        < east
+        <= 180.0
+    ):
+        raise ValueError(
+            "Longitude bounds must satisfy "
+            "-180 <= west < east <= 180."
+        )
+
+    return values
+
+
+def buffered_wgs84_bbox(
+    lon_lat_points: Iterable[
+        tuple[
+            float,
+            float,
+        ]
+    ],
+    *,
+    buffer_m: float = 0.0,
+) -> tuple[
+    float,
+    float,
+    float,
+    float,
+]:
+    """Return a buffered WGS84 bounding box.
+
+    Parameters
+    ----------
+    lon_lat_points
+        Longitude/latitude pairs.
+
+    buffer_m
+        Approximate geographic buffer in metres.
+
+    Returns
+    -------
+    tuple
+        ``(south, north, west, east)``.
+    """
+
+    points = [
+        (
+            float(lon),
+            float(lat),
+        )
+        for lon, lat
+        in lon_lat_points
+    ]
+
+    if not points:
+        raise ValueError(
+            "At least one point is required."
+        )
+
+    buffer_m = float(
+        buffer_m
+    )
+
+    if (
+        not math.isfinite(
+            buffer_m
+        )
+        or buffer_m < 0
+    ):
+        raise ValueError(
+            "buffer_m must be finite and non-negative."
+        )
+
+    if not all(
+        math.isfinite(value)
+        for point in points
+        for value in point
+    ):
+        raise ValueError(
+            "Point coordinates must be finite."
+        )
+
+    if not all(
+        -180.0 <= lon <= 180.0
+        and -90.0 <= lat <= 90.0
+        for lon, lat in points
+    ):
+        raise ValueError(
+            "WGS84 point coordinates are outside valid "
+            "longitude/latitude ranges."
+        )
+
+    lons = [
+        point[0]
+        for point in points
+    ]
+
+    lats = [
+        point[1]
+        for point in points
+    ]
+
+    center_lat = (
+        sum(lats)
+        / len(lats)
+    )
+
+    lat_buffer_deg = (
+        buffer_m
+        / 111_320.0
+    )
+
+    lon_buffer_deg = (
+        buffer_m
+        / (
+            111_320.0
+            * max(
+                0.1,
+                math.cos(
+                    math.radians(
+                        center_lat
+                    )
+                ),
+            )
+        )
+    )
+
+    return _validate_bbox(
+        max(
+            -90.0,
+            min(lats)
+            - lat_buffer_deg,
+        ),
+        min(
+            90.0,
+            max(lats)
+            + lat_buffer_deg,
+        ),
+        max(
+            -180.0,
+            min(lons)
+            - lon_buffer_deg,
+        ),
+        min(
+            180.0,
+            max(lons)
+            + lon_buffer_deg,
+        ),
+    )
+
 
 def _bbox_from_samples(
-    sample_metadata: Sequence[Mapping[str, Any]],
+    sample_metadata: Sequence[
+        Mapping[
+            str,
+            Any,
+        ]
+    ],
     buffer_m: float,
-) -> tuple[float, float, float, float]:
-    """
-    Compute a WGS84 bounding box around lon/lat points with a buffer in metres.
+) -> tuple[
+    float,
+    float,
+    float,
+    float,
+]:
+    """Backward-compatible helper for lon/lat dictionaries."""
 
-    Args:
-        sample_metadata:
-            A sequence of dicts, each containing "lon" and "lat" keys.
-        buffer_m:
-            Buffer distance in metres to add around the points.
-
-    Returns:
-        (south, north, west, east)
-    """
     if not sample_metadata:
-        raise ValueError("sample_metadata is empty.")
+        raise ValueError(
+            "sample_metadata is empty."
+        )
 
-    lons = [float(s["lon"]) for s in sample_metadata]
-    lats = [float(s["lat"]) for s in sample_metadata]
+    return buffered_wgs84_bbox(
+        [
+            (
+                float(
+                    sample["lon"]
+                ),
+                float(
+                    sample["lat"]
+                ),
+            )
+            for sample
+            in sample_metadata
+        ],
+        buffer_m=buffer_m,
+    )
 
-    center_lat = sum(lats) / len(lats)
-    lat_buffer_deg = buffer_m / 111_320.0
-    lon_buffer_deg = buffer_m / (111_320.0 * max(0.1, math.cos(math.radians(center_lat))))
 
-    south = min(lats) - lat_buffer_deg
-    north = max(lats) + lat_buffer_deg
-    west = min(lons) - lon_buffer_deg
-    east = max(lons) + lon_buffer_deg
+def wgs84_bbox_from_viewpoints(
+    viewpoints: Iterable[Any],
+    *,
+    buffer_m: float = 0.0,
+) -> tuple[
+    float,
+    float,
+    float,
+    float,
+]:
+    """Return OpenTopography bounds around canonical Viewpoints.
 
-    return south, north, west, east
-
-
-def _download_binary_to_tempfile(content: bytes, suffix: str) -> str:
+    Each Viewpoint is explicitly transformed from its own CRS to WGS84.
+    Numeric coordinates are never guessed to be longitude/latitude.
     """
-    Write binary content to a temporary file and return the path.
-    """
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-    tmp.write(content)
-    tmp.close()
-    return tmp.name
+
+    viewpoints = list(
+        viewpoints
+    )
+
+    if not viewpoints:
+        raise ValueError(
+            "At least one Viewpoint is required."
+        )
+
+    wgs84 = PyprojCRS.from_epsg(
+        4326
+    )
+
+    transformers: dict[
+        str,
+        Transformer,
+    ] = {}
+
+    lon_lat = []
+
+    for viewpoint in viewpoints:
+
+        try:
+            x = float(
+                viewpoint.x
+            )
+
+            y = float(
+                viewpoint.y
+            )
+
+            source_crs = (
+                PyprojCRS.from_user_input(
+                    viewpoint.crs
+                )
+            )
+
+        except (
+            AttributeError,
+            TypeError,
+            ValueError,
+        ) as exc:
+            raise ValueError(
+                "Every Viewpoint must provide valid x, y and crs."
+            ) from exc
+
+        key = source_crs.to_string()
+
+        transformer = transformers.get(
+            key
+        )
+
+        if transformer is None:
+
+            transformer = (
+                Transformer.from_crs(
+                    source_crs,
+                    wgs84,
+                    always_xy=True,
+                )
+            )
+
+            transformers[
+                key
+            ] = transformer
+
+        lon, lat = transformer.transform(
+            x,
+            y,
+        )
+
+        lon_lat.append(
+            (
+                float(lon),
+                float(lat),
+            )
+        )
+
+    return buffered_wgs84_bbox(
+        lon_lat,
+        buffer_m=buffer_m,
+    )
 
 
-# -------------------------------------------------------------------
-# OpenTopography DEM functions
-# -------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Download
+# ---------------------------------------------------------------------------
+
+
+def _download_binary_to_tempfile(
+    content: bytes,
+    suffix: str,
+) -> str:
+    """Write binary content to a temporary file."""
+
+    temporary = (
+        tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=suffix,
+        )
+    )
+
+    try:
+        temporary.write(
+            content
+        )
+
+    finally:
+        temporary.close()
+
+    return temporary.name
+
 
 def download_dem_from_opentopo(
     south: float,
@@ -63,52 +410,184 @@ def download_dem_from_opentopo(
     west: float,
     east: float,
     demtype: str = "COP30",
+    *,
+    api_key: str | None = None,
+    output_path: str | Path | None = None,
+    timeout: float = 120.0,
+    session: requests.Session | None = None,
 ) -> str:
+    """Download an OpenTopography global DEM GeoTIFF.
+
+    Existing callers remain compatible. New GUI code may supply an explicit
+    destination and API key.
     """
-    Download a DEM GeoTIFF from OpenTopography and return the local file path.
-    """
-    if not OPENTOPO_API_KEY:
-        raise RuntimeError("OPENTOPO_API_KEY is not set.")
 
-    url = "https://portal.opentopography.org/API/globaldem"
+    south, north, west, east = (
+        _validate_bbox(
+            south,
+            north,
+            west,
+            east,
+        )
+    )
 
-    params = {
-        "demtype": demtype,
-        "south": south,
-        "north": north,
-        "west": west,
-        "east": east,
-        "outputFormat": "GTiff",
-        "API_Key": OPENTOPO_API_KEY,
-    }
+    key = (
+        api_key
+        or os.getenv(
+            "OPENTOPO_API_KEY"
+        )
+        or OPENTOPO_API_KEY
+    )
 
-    response = requests.get(url, params=params, timeout=120)
-    response.raise_for_status()
-
-    content_type = response.headers.get("Content-Type", "").lower()
-    if "html" in content_type:
+    if not key:
         raise RuntimeError(
-            "OpenTopography returned HTML instead of a GeoTIFF. "
-            "Check your parameters and API key."
+            "OPENTOPO_API_KEY is not set and no api_key "
+            "was supplied."
         )
 
-    return _download_binary_to_tempfile(response.content, suffix=".tif")
+    demtype = str(
+        demtype
+    ).strip()
+
+    if not demtype:
+        raise ValueError(
+            "demtype must be non-empty."
+        )
+
+    timeout = float(
+        timeout
+    )
+
+    if (
+        not math.isfinite(
+            timeout
+        )
+        or timeout <= 0
+    ):
+        raise ValueError(
+            "timeout must be finite and greater than zero."
+        )
+
+    client = (
+        requests
+        if session is None
+        else session
+    )
+
+    response = client.get(
+        OPENTOPO_GLOBALDEM_URL,
+        params={
+            "demtype": demtype,
+            "south": south,
+            "north": north,
+            "west": west,
+            "east": east,
+            "outputFormat": "GTiff",
+            "API_Key": key,
+        },
+        timeout=timeout,
+    )
+
+    response.raise_for_status()
+
+    content_type = (
+        response.headers
+        .get(
+            "Content-Type",
+            "",
+        )
+        .lower()
+    )
+
+    if (
+        "html" in content_type
+        or "json" in content_type
+    ):
+        raise RuntimeError(
+            "OpenTopography did not return a GeoTIFF. "
+            "Check dataset, bounds and API credentials."
+        )
+
+    if not response.content:
+        raise RuntimeError(
+            "OpenTopography returned an empty response."
+        )
+
+    if output_path is None:
+        return _download_binary_to_tempfile(
+            response.content,
+            suffix=".tif",
+        )
+
+    destination = Path(
+        output_path
+    ).expanduser().resolve()
+
+    destination.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    destination.write_bytes(
+        response.content
+    )
+
+    return str(
+        destination
+    )
 
 
 def download_dem_for_samples(
-    sample_metadata: Sequence[Mapping[str, Any]],
+    sample_metadata: Sequence[
+        Mapping[
+            str,
+            Any,
+        ]
+    ],
     max_distance_m: float,
     demtype: str = "COP30",
+    **download_kwargs: Any,
 ) -> str:
-    """
-    Compute a bounding box around sample points and download a DEM for that area.
-    """
-    south, north, west, east = _bbox_from_samples(sample_metadata, max_distance_m)
+    """Backward-compatible download around WGS84 sample dictionaries."""
+
+    south, north, west, east = (
+        _bbox_from_samples(
+            sample_metadata,
+            max_distance_m,
+        )
+    )
+
     return download_dem_from_opentopo(
         south=south,
         north=north,
         west=west,
         east=east,
         demtype=demtype,
+        **download_kwargs,
     )
 
+
+def download_dem_for_viewpoints(
+    viewpoints: Iterable[Any],
+    *,
+    buffer_m: float,
+    demtype: str = "COP30",
+    **download_kwargs: Any,
+) -> str:
+    """Download an OpenTopography DEM covering canonical Viewpoints."""
+
+    south, north, west, east = (
+        wgs84_bbox_from_viewpoints(
+            viewpoints,
+            buffer_m=buffer_m,
+        )
+    )
+
+    return download_dem_from_opentopo(
+        south=south,
+        north=north,
+        west=west,
+        east=east,
+        demtype=demtype,
+        **download_kwargs,
+    )
