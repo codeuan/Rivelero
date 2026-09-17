@@ -25,6 +25,7 @@ from rivelero.gui.survey_import_dialog import (
 from rivelero.gui.viewpoint_dialog import ViewpointDialog
 from rivelero.gui.sensor_dialog import SensorManagerDialog
 from rivelero.gui.observation_event_dialog import ObservationEventManagerDialog
+from rivelero.gui.world_page import WorldPage
 
 from rivelero.gui.theme import (
     SIZES,
@@ -908,21 +909,15 @@ class MainWindow(QMainWindow):
             self.state
         )
 
+        self.world_page = WorldPage(
+            self.state,
+            task_controller=self.task_controller,
+        )
+
         pages = {
             WorkflowPage.SURVEY: self.survey_page,
 
-            WorkflowPage.WORLD: PlaceholderPage(
-                title="World",
-                description=(
-                    "Define the physical environment and the spatial area "
-                    "over which visual observability will be reconstructed."
-                ),
-                sections=(
-                    "Terrain / elevation model",
-                    "Analysis area",
-                    "Validity and analysis masks",
-                ),
-            ),
+            WorkflowPage.WORLD: self.world_page,
 
             WorkflowPage.OBSERVABILITY: PlaceholderPage(
                 title="Observability",
@@ -1042,6 +1037,13 @@ class MainWindow(QMainWindow):
             lambda: self.navigate_to(
                 WorkflowPage.WORLD
             )
+        )
+
+        self.world_page.continue_requested.connect(
+            lambda: self.navigate_to(WorkflowPage.OBSERVABILITY)
+        )
+        self.world_page.state_changed.connect(
+            self.refresh_from_state
         )
 
         self.survey_page.import_viewpoints_requested.connect(
@@ -1244,6 +1246,11 @@ class MainWindow(QMainWindow):
             page
         )
 
+        widget = self.page_stack.widget(self._page_indices[page])
+        refresh = getattr(widget, "refresh_from_state", None)
+        if callable(refresh):
+            refresh()
+
         self._apply_navigation_state()
 
     def _apply_navigation_state(
@@ -1333,6 +1340,8 @@ class MainWindow(QMainWindow):
             (
                 "World ready"
                 if world["ready"]
+                else "Terrain loaded"
+                if world["environment"]
                 else "World not defined"
             ),
         )

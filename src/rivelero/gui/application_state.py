@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from rivelero.core.configuration import ViewpointConfiguration
-from rivelero.core.domain import AnalysisDomain
+from rivelero.core.domain import AnalysisDomain, AnalysisGrid
 from rivelero.core.environment import Environment
 from rivelero.core.observation import ObservationEvent
 from rivelero.core.sensor import Sensor
@@ -307,6 +307,8 @@ class AnalysisState:
 
     environment: Environment | None = None
 
+    analysis_grid: AnalysisGrid | None = None
+
     analysis_domain: AnalysisDomain | None = None
 
     visibility_configuration: VisibilityConfiguration | None = None
@@ -338,6 +340,14 @@ class AnalysisState:
         ):
             raise TypeError(
                 "analysis_domain must be an AnalysisDomain or None."
+            )
+
+        if (
+            self.analysis_grid is not None
+            and not isinstance(self.analysis_grid, AnalysisGrid)
+        ):
+            raise TypeError(
+                "analysis_grid must be an AnalysisGrid or None."
             )
 
         if (
@@ -704,11 +714,16 @@ class ApplicationState:
 
     @property
     def world_ready(self) -> bool:
-        """Whether Environment and AnalysisDomain are available."""
+        """Whether compatible Environment, grid and domain are available."""
 
         return (
             self.analysis.has_environment
+            and self.analysis.analysis_grid is not None
             and self.analysis.has_domain
+            and _grid_matches_domain(
+                self.analysis.analysis_grid,
+                self.analysis.analysis_domain,
+            )
         )
 
     @property
@@ -1052,8 +1067,10 @@ class ApplicationState:
     def set_environment(
         self,
         environment: Environment | None,
+        *,
+        grid: AnalysisGrid | None = None,
     ) -> None:
-        """Replace the active Environment and invalidate derived SOF."""
+        """Install Environment and its grid as one World transition."""
 
         if (
             environment is not None
@@ -1066,12 +1083,25 @@ class ApplicationState:
                 "environment must be an Environment or None."
             )
 
+        if environment is not None and not isinstance(grid, AnalysisGrid):
+            raise TypeError(
+                "grid must be an AnalysisGrid when environment is provided."
+            )
+
+        if environment is None and grid is not None:
+            raise ValueError(
+                "grid cannot be provided without an Environment."
+            )
+
         self.analysis.environment = environment
+        self.analysis.analysis_grid = grid
+        self.analysis.analysis_domain = None
 
         self._invalidate_observability()
 
         self._mark_changed(
             StateChange.ENVIRONMENT,
+            StateChange.DOMAIN,
             StateChange.OBSERVABILITY,
         )
 
@@ -1091,6 +1121,17 @@ class ApplicationState:
             raise TypeError(
                 "domain must be an AnalysisDomain or None."
             )
+
+        if domain is not None:
+            grid = self.analysis.analysis_grid
+            if grid is None:
+                raise ValueError(
+                    "An active AnalysisGrid is required before setting a domain."
+                )
+            if not _grid_matches_domain(grid, domain):
+                raise ValueError(
+                    "AnalysisDomain grid does not match the active AnalysisGrid."
+                )
 
         self.analysis.analysis_domain = domain
 
@@ -1857,6 +1898,23 @@ class ApplicationState:
 # ---------------------------------------------------------------------------
 # Validation helpers
 # ---------------------------------------------------------------------------
+
+
+def _grid_matches_domain(
+    grid: AnalysisGrid | None,
+    domain: AnalysisDomain | None,
+) -> bool:
+    if grid is None or domain is None:
+        return False
+    domain_grid = domain.grid
+    return (
+        domain_grid.crs == grid.crs
+        and domain_grid.transform == grid.transform
+        and domain_grid.width == grid.width
+        and domain_grid.height == grid.height
+        and domain_grid.resolution_x == grid.resolution_x
+        and domain_grid.resolution_y == grid.resolution_y
+    )
 
 
 def _validate_sensor_mapping(
