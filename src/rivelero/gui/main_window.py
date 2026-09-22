@@ -26,6 +26,7 @@ from rivelero.gui.viewpoint_dialog import ViewpointDialog
 from rivelero.gui.sensor_dialog import SensorManagerDialog
 from rivelero.gui.observation_event_dialog import ObservationEventManagerDialog
 from rivelero.gui.world_page import WorldPage
+from rivelero.gui.observability_page import ObservabilityPage
 
 from rivelero.gui.theme import (
     SIZES,
@@ -914,25 +915,16 @@ class MainWindow(QMainWindow):
             task_controller=self.task_controller,
         )
 
+        self.observability_page = ObservabilityPage(
+            self.state
+        )
+
         pages = {
             WorkflowPage.SURVEY: self.survey_page,
 
             WorkflowPage.WORLD: self.world_page,
 
-            WorkflowPage.OBSERVABILITY: PlaceholderPage(
-                title="Observability",
-                description=(
-                    "Configure visibility assumptions, reconstruct visual "
-                    "survey effort and inspect individual and collective "
-                    "observation opportunity."
-                ),
-                sections=(
-                    "Visibility configuration",
-                    "Build observability",
-                    "Survey observability results",
-                    "Individual visibility inspection",
-                ),
-            ),
+            WorkflowPage.OBSERVABILITY: self.observability_page,
 
             WorkflowPage.ANALYSIS_DESIGN: PlaceholderPage(
                 title="Analysis & Design",
@@ -1043,6 +1035,9 @@ class MainWindow(QMainWindow):
             lambda: self.navigate_to(WorkflowPage.OBSERVABILITY)
         )
         self.world_page.state_changed.connect(
+            self.refresh_from_state
+        )
+        self.observability_page.state_changed.connect(
             self.refresh_from_state
         )
 
