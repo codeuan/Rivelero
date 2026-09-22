@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any, Iterable
 
+import numpy as np
 import rasterio
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from pyproj import CRS as PyprojCRS
+from pyproj import Transformer
+from rasterio.crs import CRS
 
 try:
     from PySide6.QtCore import Qt
@@ -16,6 +22,56 @@ except ImportError:
     from PyQt6.QtWidgets import QVBoxLayout, QLabel, QWidget
 
 from rivelero.gui.environment_import import RasterMetadata, inspect_elevation_raster
+
+
+def project_viewpoints(
+    viewpoints: Iterable[Any],
+    target_crs: CRS,
+) -> tuple[list[str], np.ndarray, np.ndarray]:
+    """Return Viewpoint IDs and coordinates transformed for display.
+
+    Coordinates are transformed into ``target_crs`` for display only; the
+    canonical Viewpoints are never modified. Viewpoints with missing or
+    non-finite coordinates are skipped.
+    """
+
+    ids: list[str] = []
+    xs: list[float] = []
+    ys: list[float] = []
+
+    transformers: dict[str, Transformer] = {}
+
+    for viewpoint in viewpoints:
+        try:
+            viewpoint_id = str(viewpoint.viewpoint_id)
+            x = float(viewpoint.x)
+            y = float(viewpoint.y)
+            source_crs = CRS.from_user_input(viewpoint.crs)
+        except (AttributeError, TypeError, ValueError):
+            continue
+
+        if not (np.isfinite(x) and np.isfinite(y)):
+            continue
+
+        if source_crs != target_crs:
+            key = source_crs.to_string()
+            transformer = transformers.get(key)
+
+            if transformer is None:
+                transformer = Transformer.from_crs(
+                    PyprojCRS.from_user_input(source_crs.to_string()),
+                    PyprojCRS.from_user_input(target_crs.to_string()),
+                    always_xy=True,
+                )
+                transformers[key] = transformer
+
+            x, y = transformer.transform(x, y)
+
+        ids.append(viewpoint_id)
+        xs.append(float(x))
+        ys.append(float(y))
+
+    return ids, np.asarray(xs, dtype=float), np.asarray(ys, dtype=float)
 
 
 class RasterMapWidget(QWidget):
@@ -28,6 +84,11 @@ class RasterMapWidget(QWidget):
         self.full_extent: tuple[float, float, float, float] | None = None
         self.current_extent: tuple[float, float, float, float] | None = None
         self._raster_artist = None
+
+        # One colourbar axis is reused for the widget's lifetime so that
+        # layer changes never stack additional colourbars.
+        self._colorbar = None
+        self._colorbar_axes = None
 
         self.figure = Figure(figsize=(8, 6), dpi=100)
         self.canvas = FigureCanvasQTAgg(self.figure)
@@ -90,6 +151,46 @@ class RasterMapWidget(QWidget):
         """Hook for semantic subclasses such as WorldMapWidget."""
         self.canvas.draw_idle()
 
+    # ------------------------------------------------------------------
+    # Colourbar lifecycle
+    # ------------------------------------------------------------------
+
+    @property
+    def colorbar_visible(self) -> bool:
+        """Whether a continuous colourbar is currently shown."""
+        return (
+            self._colorbar is not None
+            and self._colorbar_axes is not None
+            and self._colorbar_axes.get_visible()
+        )
+
+    @property
+    def colorbar_label(self) -> str | None:
+        if self._colorbar is None:
+            return None
+        return self._colorbar.ax.get_ylabel()
+
+    def show_colorbar(self, mappable, label: str) -> None:
+        """Show the single colourbar for ``mappable`` with ``label``."""
+        if self._colorbar_axes is None:
+            divider = make_axes_locatable(self.axes)
+            self._colorbar_axes = divider.append_axes(
+                "right", size="3.5%", pad=0.12
+            )
+        if self._colorbar is None:
+            self._colorbar = self.figure.colorbar(
+                mappable, cax=self._colorbar_axes
+            )
+        else:
+            self._colorbar.update_normal(mappable)
+        self._colorbar.set_label(label)
+        self._colorbar_axes.set_visible(True)
+
+    def hide_colorbar(self) -> None:
+        """Hide the colourbar, e.g. for categorical layers with a legend."""
+        if self._colorbar_axes is not None:
+            self._colorbar_axes.set_visible(False)
+
     def _draw_raster(self) -> None:
         if self.metadata is None or self.raster_path is None:
             return
@@ -104,6 +205,7 @@ class RasterMapWidget(QWidget):
             interpolation="nearest",
             zorder=0,
         )
+        self.show_colorbar(self._raster_artist, "Elevation")
         self.axes.set_xlabel("X")
         self.axes.set_ylabel("Y")
         self.axes.set_aspect("equal", adjustable="box")

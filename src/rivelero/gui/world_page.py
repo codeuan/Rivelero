@@ -60,6 +60,7 @@ from rivelero.gui.domain_service import (
     build_domain_from_drawn_polygon,
     build_domain_from_grid_extent,
     build_domain_from_survey_extent,
+    elevation_valid_mask,
 )
 from rivelero.gui.environment_import_dialog import (
     EnvironmentImportDialog,
@@ -568,6 +569,26 @@ class WorldPage(QWidget):
     def _grid(self):
         return self.state.analysis.analysis_grid
 
+    def _valid_mask(self):
+        """Elevation-validity mask so terrain nodata stays INVALID.
+
+        Without it every cell would be treated as valid and nodata areas
+        would later be misreported as observability blind spots.
+        """
+        environment = self.state.analysis.environment
+        grid = self._grid()
+        if environment is None or grid is None:
+            return None
+        cached = getattr(self, "_valid_mask_cache", None)
+        if cached is not None and cached[0] is environment:
+            return cached[1]
+        mask = elevation_valid_mask(
+            environment.elevation_model.source,
+            grid,
+        )
+        self._valid_mask_cache = (environment, mask)
+        return mask
+
     def _apply_domain_choice(self) -> None:
         grid = self._grid()
 
@@ -585,6 +606,7 @@ class WorldPage(QWidget):
                     grid=grid,
                     domain_id=uuid4().hex,
                     name="Entire terrain",
+                    valid_mask=self._valid_mask(),
                 )
 
                 self._install_domain(
@@ -600,6 +622,7 @@ class WorldPage(QWidget):
                     buffer_m=float(
                         self.buffer_spin.value()
                     ),
+                    valid_mask=self._valid_mask(),
                 )
 
                 self._install_domain(
@@ -612,6 +635,7 @@ class WorldPage(QWidget):
             elif self.import_domain_radio.isChecked():
                 dialog = DomainImportDialog(
                     grid=grid,
+                    valid_mask=self._valid_mask(),
                     parent=self,
                 )
 
@@ -646,6 +670,7 @@ class WorldPage(QWidget):
                 grid=grid,
                 domain_id=uuid4().hex,
                 name="Drawn analysis area",
+                valid_mask=self._valid_mask(),
             )
 
         except Exception as exc:

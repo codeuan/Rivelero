@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
-from matplotlib.colors import BoundaryNorm, ListedColormap
+from matplotlib.colors import BoundaryNorm, Colormap, ListedColormap
 from matplotlib.figure import Figure
 from matplotlib.patches import Patch
 
@@ -37,6 +37,72 @@ if TYPE_CHECKING:
 
 
 # ---------------------------------------------------------------------------
+# Shared observability colour semantics
+# ---------------------------------------------------------------------------
+
+# Categorical state colours, indexed by ObservabilityState. Blind spot
+# (orange) and observable (blue) replace an earlier red/green pair whose
+# OKLab separation under deuteranopia was only 3.4; every pair below stays
+# above 11 under simulated protan/deutan/tritan vision.
+OBSERVABILITY_STATE_COLORS: dict[ObservabilityState, str] = {
+    ObservabilityState.OUTSIDE_DOMAIN: "#F2F2F2",
+    ObservabilityState.INVALID: "#6E6E6E",
+    ObservabilityState.BLIND_SPOT: "#E07B39",
+    ObservabilityState.OBSERVABLE: "#2A78D6",
+}
+
+OBSERVABILITY_STATE_LABELS: dict[ObservabilityState, str] = {
+    ObservabilityState.OUTSIDE_DOMAIN: "Outside domain",
+    ObservabilityState.INVALID: "Invalid / unanalysable",
+    ObservabilityState.BLIND_SPOT: "Blind spot",
+    ObservabilityState.OBSERVABLE: "Observable",
+}
+
+# Neutral context for analysable cells that are not the highlighted class.
+CONTEXT_COLOR = "#D9D9D9"
+
+# Single-hue light-to-dark ramp for continuous exposure quantities. The ramp
+# starts at a visible pale blue so that zero exposure (a blind spot) is not
+# confused with the white surface or with cells that carry no value.
+EXPOSURE_CMAP = ListedColormap(
+    plt.get_cmap("Blues")(np.linspace(0.15, 1.0, 256)),
+    name="rivelero_exposure",
+)
+
+
+def observability_state_colormap() -> tuple[ListedColormap, BoundaryNorm]:
+    """Return the fixed categorical colormap and norm for state rasters."""
+
+    cmap = ListedColormap(
+        [
+            OBSERVABILITY_STATE_COLORS[state]
+            for state in ObservabilityState
+        ],
+        name="rivelero_observability_state",
+    )
+
+    norm = BoundaryNorm(
+        np.arange(len(ObservabilityState) + 1, dtype=float) - 0.5,
+        cmap.N,
+    )
+
+    return cmap, norm
+
+
+def observability_state_legend_handles() -> list[Patch]:
+    """Return legend patches for every categorical observability state."""
+
+    return [
+        Patch(
+            facecolor=OBSERVABILITY_STATE_COLORS[state],
+            edgecolor="#8A9297",
+            label=OBSERVABILITY_STATE_LABELS[state],
+        )
+        for state in ObservabilityState
+    ]
+
+
+# ---------------------------------------------------------------------------
 # Public visualization functions
 # ---------------------------------------------------------------------------
 
@@ -46,7 +112,7 @@ def plot_exposure(
     *,
     ax: Axes | None = None,
     title: str = "Visual exposure",
-    cmap: str = "viridis",
+    cmap: str | Colormap = EXPOSURE_CMAP,
     show_colorbar: bool = True,
     mask_nonanalysable: bool = True,
 ) -> tuple[Figure, Axes]:
@@ -140,7 +206,7 @@ def plot_normalized_exposure(
     *,
     ax: Axes | None = None,
     title: str = "Normalized visual exposure",
-    cmap: str = "viridis",
+    cmap: str | Colormap = EXPOSURE_CMAP,
     show_colorbar: bool = True,
     mask_nonanalysable: bool = True,
 ) -> tuple[Figure, Axes]:
@@ -279,27 +345,7 @@ def plot_observability_state(
 
     # Fixed categorical colors are appropriate here because these values are
     # discrete semantic states rather than a continuous quantitative field.
-    colors = (
-        "#f2f2f2",  # outside domain
-        "#8c8c8c",  # invalid
-        "#d95f5f",  # blind spot
-        "#4daf4a",  # observable
-    )
-
-    cmap = ListedColormap(
-        colors,
-        name="rivelero_observability_state",
-    )
-
-    boundaries = np.array(
-        [-0.5, 0.5, 1.5, 2.5, 3.5],
-        dtype=float,
-    )
-
-    norm = BoundaryNorm(
-        boundaries,
-        cmap.N,
-    )
+    cmap, norm = observability_state_colormap()
 
     ax.imshow(
         state,
@@ -318,35 +364,8 @@ def plot_observability_state(
     )
 
     if show_legend:
-        handles = [
-            Patch(
-                facecolor=colors[
-                    ObservabilityState.OUTSIDE_DOMAIN
-                ],
-                label="Outside domain",
-            ),
-            Patch(
-                facecolor=colors[
-                    ObservabilityState.INVALID
-                ],
-                label="Invalid / unanalysable",
-            ),
-            Patch(
-                facecolor=colors[
-                    ObservabilityState.BLIND_SPOT
-                ],
-                label="Blind spot",
-            ),
-            Patch(
-                facecolor=colors[
-                    ObservabilityState.OBSERVABLE
-                ],
-                label="Observable",
-            ),
-        ]
-
         ax.legend(
-            handles=handles,
+            handles=observability_state_legend_handles(),
             title="Observability state",
             loc="upper right",
             frameon=True,
@@ -411,7 +430,7 @@ def plot_blindspots(
         )
 
         observable_cmap = ListedColormap(
-            ["#d9d9d9"]
+            [CONTEXT_COLOR]
         )
 
         ax.imshow(
@@ -433,7 +452,9 @@ def plot_blindspots(
     )
 
     blind_cmap = ListedColormap(
-        ["#d95f5f"]
+        [OBSERVABILITY_STATE_COLORS[
+            ObservabilityState.BLIND_SPOT
+        ]]
     )
 
     ax.imshow(
@@ -459,14 +480,16 @@ def plot_blindspots(
         if show_observable_context:
             handles.append(
                 Patch(
-                    facecolor="#d9d9d9",
+                    facecolor=CONTEXT_COLOR,
                     label="Observable",
                 )
             )
 
         handles.append(
             Patch(
-                facecolor="#d95f5f",
+                facecolor=OBSERVABILITY_STATE_COLORS[
+            ObservabilityState.BLIND_SPOT
+        ],
                 label="Blind spot",
             )
         )

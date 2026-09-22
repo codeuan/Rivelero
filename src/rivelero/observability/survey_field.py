@@ -31,10 +31,12 @@ from rivelero.core.domain import AnalysisDomain
 from rivelero.core.environment import Environment
 from rivelero.observability.exposure import (
     add_visibility_to_exposure,
+    maximum_exposure as calculate_maximum_exposure,
     normalize_exposure_global,
     remove_visibility_from_exposure,
 )
 from rivelero.observability.masks import (
+    ObservabilityState,
     blindspot_mask as calculate_blindspot_mask,
     calculate_analysable_mask,
     observability_state as calculate_observability_state,
@@ -504,6 +506,32 @@ class SurveyObservabilityField:
                 self.blindspot_mask
             )
         )
+
+    @property
+    def maximum_exposure(
+        self,
+    ) -> int:
+        """Largest exposure count among analysable cells."""
+
+        return calculate_maximum_exposure(
+            self.exposure_count,
+            analysable_mask=self.analysable_mask,
+        )
+
+    def state_counts(
+        self,
+    ) -> dict[ObservabilityState, int]:
+        """Return the number of cells in each categorical state."""
+
+        counts = np.bincount(
+            self.observability_state.ravel(),
+            minlength=len(ObservabilityState),
+        )
+
+        return {
+            state: int(counts[state])
+            for state in ObservabilityState
+        }
 
     # ------------------------------------------------------------------
     # Incremental SOF modification

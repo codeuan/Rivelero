@@ -429,6 +429,7 @@ def test_temporal_events(make_context, viewpoints, sensors, events, tmp_path):
     )
     key = make_visibility_key(
         viewpoint=viewpoints[event_003.viewpoint_id],
+        sensor=sensors[viewpoints[event_003.viewpoint_id].sensor_id],
         event=event_003,
         environment=make_context("dem_flat.tif").environment,
         domain=make_context("dem_flat.tif").domain,
@@ -468,6 +469,7 @@ def test_redundancy_and_marginal_gain(make_context, viewpoints, sensors, tmp_pat
     keys = {
         viewpoint_id: make_visibility_key(
             viewpoint=viewpoints[viewpoint_id],
+            sensor=sensors[viewpoints[viewpoint_id].sensor_id],
             environment=context.environment,
             domain=context.domain,
             visibility_configuration=configuration,
@@ -497,6 +499,7 @@ def test_visibility_store_disk_cache(make_context, viewpoints, sensors, tmp_path
     viewpoint = viewpoints["vp_center_360"]
     key = make_visibility_key(
         viewpoint=viewpoint,
+        sensor=sensors[viewpoint.sensor_id],
         environment=context.environment,
         domain=context.domain,
         visibility_configuration=configuration,
@@ -522,6 +525,7 @@ def test_visibility_store_lru(make_context, viewpoints, sensors, tmp_path):
         viewpoint = viewpoints[viewpoint_id]
         key = make_visibility_key(
             viewpoint=viewpoint,
+            sensor=sensors[viewpoint.sensor_id],
             environment=context.environment,
             domain=context.domain,
             visibility_configuration=configuration,

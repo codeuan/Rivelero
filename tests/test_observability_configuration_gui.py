@@ -24,6 +24,17 @@ def app():
     return QApplication.instance() or QApplication([])
 
 
+# Pages (which embed Matplotlib maps) stay referenced for the session so that
+# queued redraws never reach a canvas whose C++ object was already deleted.
+_PAGES = []
+
+
+def _page(state):
+    page = ObservabilityPage(state)
+    _PAGES.append(page)
+    return page
+
+
 def _ready_state():
     state = ApplicationState()
     vp = Viewpoint(
@@ -56,7 +67,7 @@ def _ready_state():
 
 def test_o1_saves_canonical_configuration(app):
     state = _ready_state()
-    page = ObservabilityPage(state)
+    page = _page(state)
     page.max_distance.setValue(750.0)
     page._save_configuration()
     config = state.analysis.visibility_configuration
@@ -71,24 +82,24 @@ def test_o1_missing_source_metadata_is_not_modified(app):
     state = _ready_state()
     viewpoint = state.survey.viewpoint_configuration.viewpoints[0]
     assert viewpoint.heading_deg is None
-    page = ObservabilityPage(state)
+    page = _page(state)
     page._save_configuration()
     assert viewpoint.heading_deg is None
 
 
 def test_o1_rehydrates_existing_configuration(app):
     state = _ready_state()
-    page = ObservabilityPage(state)
+    page = _page(state)
     page.max_distance.setValue(1234.0)
     page._save_configuration()
-    page2 = ObservabilityPage(state)
+    page2 = _page(state)
     assert page2.max_distance.value() == pytest.approx(1234.0)
     assert page2.name_edit.text() == "Default visibility"
 
 
 def test_event_sampling_requires_events(app):
     state = _ready_state()
-    page = ObservabilityPage(state)
+    page = _page(state)
     page.sampling_unit.setCurrentIndex(
         page.sampling_unit.findData(SamplingUnit.OBSERVATION_EVENT)
     )
@@ -98,6 +109,6 @@ def test_event_sampling_requires_events(app):
 
 def test_height_policy_never_offers_omnidirectional(app):
     state = _ready_state()
-    page = ObservabilityPage(state)
+    page = _page(state)
     values = [page.height_policy.itemData(i) for i in range(page.height_policy.count())]
     assert MissingMetadataPolicy.OMNIDIRECTIONAL not in values

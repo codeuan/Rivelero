@@ -23,9 +23,6 @@ import numpy as np
 from matplotlib.collections import PathCollection
 from matplotlib.patches import Polygon as MplPolygon
 from matplotlib.widgets import PolygonSelector
-from pyproj import CRS as PyprojCRS
-from pyproj import Transformer
-from rasterio.crs import CRS
 
 try:
     from PySide6.QtCore import Qt, Signal
@@ -57,7 +54,7 @@ except ImportError:
 
 
 from rivelero.core.domain import AnalysisDomain
-from rivelero.gui.raster_map import RasterMapWidget
+from rivelero.gui.raster_map import RasterMapWidget, project_viewpoints
 from rivelero.gui.theme import SPACING
 
 
@@ -460,97 +457,40 @@ class WorldMapWidget(RasterMapWidget):
         ):
             return
 
-        target_crs = (
-            self.metadata.crs
+        ids, xs, ys = project_viewpoints(
+            self._viewpoints,
+            self.metadata.crs,
         )
 
-        transformer_cache: dict[
-            str,
-            Transformer,
-        ] = {}
-
-        for viewpoint in self._viewpoints:
-
-            try:
-                viewpoint_id = str(
-                    viewpoint.viewpoint_id
-                )
-
-                x = float(
-                    viewpoint.x
-                )
-
-                y = float(
-                    viewpoint.y
-                )
-
-                source_crs = (
-                    CRS.from_user_input(
-                        viewpoint.crs
-                    )
-                )
-
-            except (
-                AttributeError,
-                TypeError,
-                ValueError,
-            ):
-                continue
-
-            if not (
-                np.isfinite(x)
-                and np.isfinite(y)
-            ):
-                continue
-
-            if source_crs != target_crs:
-
-                key = source_crs.to_string()
-
-                transformer = (
-                    transformer_cache.get(
-                        key
-                    )
-                )
-
-                if transformer is None:
-
-                    transformer = (
-                        Transformer.from_crs(
-                            PyprojCRS.from_user_input(
-                                source_crs.to_string()
-                            ),
-                            PyprojCRS.from_user_input(
-                                target_crs.to_string()
-                            ),
-                            always_xy=True,
-                        )
-                    )
-
-                    transformer_cache[
-                        key
-                    ] = transformer
-
-                x, y = transformer.transform(
-                    x,
-                    y,
-                )
-
-            self._resolved_viewpoints.append(
-                (
-                    viewpoint_id,
-                    float(x),
-                    float(y),
-                )
-            )
+        self._resolved_viewpoints = [
+            (viewpoint_id, float(x), float(y))
+            for viewpoint_id, x, y in zip(ids, xs, ys)
+        ]
 
     # ------------------------------------------------------------------
     # Overlay drawing
     # ------------------------------------------------------------------
 
+    def redraw_overlays(
+        self,
+    ) -> None:
+        """Redraw Survey and AnalysisDomain overlays over the terrain."""
+
+        self._remove_semantic_overlays()
+        self._draw_semantic_overlays()
+        self.canvas.draw_idle()
+
     def _remove_semantic_overlays(
         self,
     ) -> None:
+
+        for artist in self._domain_artists:
+            try:
+                artist.remove()
+            except ValueError:
+                pass
+
+        self._domain_artists = []
 
         for artist in (
             self._viewpoint_artist,
@@ -765,6 +705,10 @@ class WorldMapWidget(RasterMapWidget):
             )
 
             self.axes.add_patch(
+                artist
+            )
+
+            self._domain_artists.append(
                 artist
             )
 

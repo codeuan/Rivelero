@@ -51,9 +51,13 @@ class DomainImportDialog(QDialog):
         self,
         *,
         grid: AnalysisGrid,
+        valid_mask=None,
         parent=None,
     ) -> None:
         super().__init__(parent)
+
+        # Elevation-validity mask applied to the imported domain.
+        self.valid_mask = valid_mask
 
         if not isinstance(grid, AnalysisGrid):
             raise TypeError(
@@ -245,6 +249,7 @@ class DomainImportDialog(QDialog):
                     self.role_edit.text().strip()
                     or None
                 ),
+                valid_mask=self.valid_mask,
                 clip_to_grid=True,
             )
 

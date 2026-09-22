@@ -79,6 +79,7 @@ class VisualizationLayer(str, Enum):
     VISIBILITY_DIFFERENCE = "visibility_difference"
 
     # Survey observability
+    OBSERVABLE_SPACE = "observable_space"
     EXPOSURE = "exposure"
     NORMALIZED_EXPOSURE = "normalized_exposure"
     OBSERVABILITY_STATE = "observability_state"
@@ -122,6 +123,14 @@ class StateChange(str, Enum):
     VIEW = "view"
     TASK = "task"
     LEGACY_CONTEXT = "legacy_context"
+
+
+class StaleObservabilityResultError(ValueError):
+    """Raised when an SOF was built from inputs that have since changed."""
+
+
+# Task name used for SOF builds so status displays can recognise them.
+OBSERVABILITY_BUILD_TASK_NAME = "Building observability"
 
 
 # ---------------------------------------------------------------------------
@@ -318,6 +327,15 @@ class AnalysisState:
     survey_observability_field: SurveyObservabilityField | None = None
 
     build_report: Any | None = None
+
+    # Incremented whenever an SOF input changes. A background build records
+    # the revision it started from so that a result computed from inputs
+    # edited mid-build is never installed as current.
+    inputs_revision: int = 0
+
+    # Why the most recent SOF was discarded, if it was discarded because an
+    # upstream dependency changed. Cleared when a new SOF is installed.
+    invalidation_reason: str | None = None
 
     def __post_init__(self) -> None:
         if (
@@ -746,6 +764,52 @@ class ApplicationState:
         )
 
     @property
+    def observability_building(self) -> bool:
+        """Whether an SOF build task is currently running."""
+
+        return (
+            self.task.busy
+            and self.task.task_name == OBSERVABILITY_BUILD_TASK_NAME
+        )
+
+    def observability_build_blockers(self) -> list[str]:
+        """Return human-readable reasons why an SOF cannot be built yet.
+
+        An empty list means every upstream prerequisite exists. The checks
+        mirror what the builder would otherwise reject deep in the engine.
+        """
+
+        blockers: list[str] = []
+
+        if not self.survey_ready:
+            blockers.append("Import or define a Survey with at least one Viewpoint.")
+
+        if not self.world_ready:
+            blockers.append("Define terrain and an AnalysisDomain in World.")
+
+        configuration = self.analysis.visibility_configuration
+
+        if configuration is None:
+            blockers.append("Save a visibility configuration.")
+
+        elif (
+            configuration.is_event_based
+            and self.survey.n_observation_events == 0
+        ):
+            blockers.append(
+                "The visibility configuration samples ObservationEvents, "
+                "but the Survey contains none."
+            )
+
+        if not self.analysis.has_store:
+            blockers.append("Configure visibility storage.")
+
+        if self.task.busy:
+            blockers.append("Wait for the running task to finish.")
+
+        return blockers
+
+    @property
     def export_ready(self) -> bool:
         """Whether scientific SOF products can be exported."""
 
@@ -831,7 +895,7 @@ class ApplicationState:
 
         self.selection.clear()
 
-        self._invalidate_observability()
+        self._invalidate_observability("Survey replaced.")
 
         self._mark_changed(
             StateChange.SURVEY,
@@ -856,7 +920,7 @@ class ApplicationState:
         self.survey.sensors = sensor_mapping
 
         # Sensor metadata can affect resolved visibility parameters.
-        self._invalidate_observability()
+        self._invalidate_observability("Sensors changed.")
 
         self._mark_changed(
             StateChange.SURVEY,
@@ -1017,7 +1081,7 @@ class ApplicationState:
         self.survey.sensors = sensors
         if configuration is not None:
             self.survey.viewpoint_configuration = configuration
-        self._invalidate_observability()
+        self._invalidate_observability("Sensors changed.")
         self._mark_changed(StateChange.SURVEY, StateChange.OBSERVABILITY)
 
     def remove_sensor(self, sensor_id: str) -> None:
@@ -1053,7 +1117,7 @@ class ApplicationState:
         selected = self.selection.viewpoint_id
         if selected is not None and selected not in configuration.viewpoint_ids:
             self.selection.clear()
-        self._invalidate_observability()
+        self._invalidate_observability("Survey changed.")
         self._mark_changed(
             StateChange.SURVEY,
             StateChange.OBSERVABILITY,
@@ -1097,7 +1161,7 @@ class ApplicationState:
         self.analysis.analysis_grid = grid
         self.analysis.analysis_domain = None
 
-        self._invalidate_observability()
+        self._invalidate_observability("Terrain changed.")
 
         self._mark_changed(
             StateChange.ENVIRONMENT,
@@ -1135,7 +1199,7 @@ class ApplicationState:
 
         self.analysis.analysis_domain = domain
 
-        self._invalidate_observability()
+        self._invalidate_observability("Analysis domain changed.")
 
         self._mark_changed(
             StateChange.DOMAIN,
@@ -1166,7 +1230,7 @@ class ApplicationState:
 
         self.analysis.visibility_configuration = configuration
 
-        self._invalidate_observability()
+        self._invalidate_observability("Visibility configuration changed.")
 
         self._mark_changed(
             StateChange.VISIBILITY_CONFIGURATION,
@@ -1210,11 +1274,18 @@ class ApplicationState:
         sof: SurveyObservabilityField,
         *,
         build_report: Any | None = None,
+        inputs_revision: int | None = None,
     ) -> None:
         """Install a completed SurveyObservabilityField.
 
         The SOF is checked against the active survey/environment/domain/
         visibility configuration before it is accepted.
+
+        Identifiers alone cannot detect in-place edits (an edited Viewpoint
+        keeps its ViewpointConfiguration ID). Background builds therefore
+        pass the ``inputs_revision`` observed when they started; the result
+        is rejected with StaleObservabilityResultError if any SOF input has
+        changed since.
         """
 
         if not isinstance(
@@ -1225,12 +1296,23 @@ class ApplicationState:
                 "sof must be a SurveyObservabilityField."
             )
 
+        if (
+            inputs_revision is not None
+            and inputs_revision != self.analysis.inputs_revision
+        ):
+            raise StaleObservabilityResultError(
+                "Survey, World or visibility inputs changed while the "
+                "observability field was being built; the result no longer "
+                "describes the current analysis."
+            )
+
         self._validate_sof_against_current_state(
             sof
         )
 
         self.analysis.survey_observability_field = sof
         self.analysis.build_report = build_report
+        self.analysis.invalidation_reason = None
 
         self._mark_changed(
             StateChange.OBSERVABILITY,
@@ -1717,6 +1799,21 @@ class ApplicationState:
             },
             "observability": {
                 "ready": self.observability_ready,
+                "building": self.observability_building,
+                "processed": (
+                    self.task.processed
+                    if self.observability_building
+                    else 0
+                ),
+                "total": (
+                    self.task.total
+                    if self.observability_building
+                    else None
+                ),
+                "invalidated": (
+                    self.analysis.invalidation_reason is not None
+                    and not self.observability_ready
+                ),
                 "active_units": (
                     0
                     if self.analysis.survey_observability_field
@@ -1772,8 +1869,19 @@ class ApplicationState:
 
     def _invalidate_observability(
         self,
+        reason: str | None = None,
     ) -> None:
-        """Invalidate survey-level derived observability products."""
+        """Invalidate survey-level derived observability products.
+
+        ``reason`` describes the upstream change. It is recorded only when a
+        result actually existed, so the Observability page can tell the user
+        that a previous result was discarded rather than never built.
+        """
+
+        self.analysis.inputs_revision += 1
+
+        if reason is not None and self.analysis.has_sof:
+            self.analysis.invalidation_reason = reason
 
         self.analysis.survey_observability_field = None
         self.analysis.build_report = None

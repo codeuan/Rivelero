@@ -22,13 +22,15 @@ higher-level observability architecture.
 from __future__ import annotations
 
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from hashlib import sha256
 from pathlib import Path
 from typing import Any, Callable, Iterator
 import json
 import os
+import re
 import tempfile
+import threading
 
 import numpy as np
 from affine import Affine
@@ -69,6 +71,18 @@ class VisibilityKey:
 
     visibility_configuration_id
         VisibilityConfiguration used for the calculation.
+
+    input_fingerprint
+        Optional digest of the scientific content of every input that can
+        change the visibility mask: Viewpoint/Event/Sensor geometry and
+        metadata, terrain source, grid, domain masks and visibility
+        assumptions.
+
+        Identifiers alone are not sufficient: an edited Viewpoint or a
+        re-saved VisibilityConfiguration may keep its identifier while its
+        content changes. The fingerprint prevents such stale cache entries
+        from being reused while identical inputs still share cached results.
+        Keys without a fingerprint retain their historical identity.
     """
 
     sampling_unit_id: str
@@ -79,6 +93,8 @@ class VisibilityKey:
     environment_id: str
     analysis_domain_id: str
     visibility_configuration_id: str
+
+    input_fingerprint: str | None = None
 
     def __post_init__(self) -> None:
         for name in (
@@ -94,20 +110,52 @@ class VisibilityKey:
             if not isinstance(value, str) or not value.strip():
                 raise ValueError(f"{name} must be a non-empty string.")
 
+        if self.input_fingerprint is not None and (
+            not isinstance(self.input_fingerprint, str)
+            or not self.input_fingerprint.strip()
+        ):
+            raise ValueError(
+                "input_fingerprint must be a non-empty string or None."
+            )
+
     @property
     def canonical_string(self) -> str:
         """Return a stable textual representation of the cache identity."""
 
-        return "|".join(
-            (
-                self.sampling_unit_type,
-                self.sampling_unit_id,
-                self.viewpoint_id,
-                self.environment_id,
-                self.analysis_domain_id,
-                self.visibility_configuration_id,
-            )
-        )
+        parts = [
+            self.sampling_unit_type,
+            self.sampling_unit_id,
+            self.viewpoint_id,
+            self.environment_id,
+            self.analysis_domain_id,
+            self.visibility_configuration_id,
+        ]
+
+        # Appended only when present so that historical keys keep their
+        # digest and existing cache files remain addressable.
+        if self.input_fingerprint is not None:
+            parts.append(f"fingerprint={self.input_fingerprint}")
+
+        return "|".join(parts)
+
+    def as_metadata(self) -> dict[str, str]:
+        """Return the JSON representation stored alongside cached masks."""
+
+        metadata = {
+            "sampling_unit_id": self.sampling_unit_id,
+            "sampling_unit_type": self.sampling_unit_type,
+            "viewpoint_id": self.viewpoint_id,
+            "environment_id": self.environment_id,
+            "analysis_domain_id": self.analysis_domain_id,
+            "visibility_configuration_id": (
+                self.visibility_configuration_id
+            ),
+        }
+
+        if self.input_fingerprint is not None:
+            metadata["input_fingerprint"] = self.input_fingerprint
+
+        return metadata
 
     @property
     def digest(self) -> str:
@@ -216,6 +264,9 @@ class VisibilityStore:
 
     STORAGE_VERSION = 1
 
+    # Files written by path_for(): <two-hex-prefix>/<sha256-hex>.npz
+    _MANAGED_FILENAME = re.compile(r"[0-9a-f]{64}\.npz")
+
     def __init__(
         self,
         cache_directory: Path | str,
@@ -254,6 +305,11 @@ class VisibilityStore:
             StoredVisibility,
         ] = OrderedDict()
 
+        # The GUI builds SOFs on a worker thread while the main thread may
+        # inspect individual visibility. The lock protects the LRU
+        # bookkeeping; visibility computation itself runs outside it.
+        self._lock = threading.RLock()
+
     # ------------------------------------------------------------------
     # Public retrieval API
     # ------------------------------------------------------------------
@@ -273,13 +329,14 @@ class VisibilityStore:
         digest = key.digest
 
         # Fastest path: in-memory LRU cache.
-        if digest in self._memory_cache:
-            result = self._memory_cache.pop(digest)
+        with self._lock:
+            if digest in self._memory_cache:
+                result = self._memory_cache.pop(digest)
 
-            # Reinsert as most recently used.
-            self._memory_cache[digest] = result
+                # Reinsert as most recently used.
+                self._memory_cache[digest] = result
 
-            return result
+                return result
 
         # Second level: persistent disk cache.
         path = self.path_for(key)
@@ -352,6 +409,11 @@ class VisibilityStore:
                 **result.metadata,
                 "event_id": result.event_id,
                 "visible_cell_count": result.visible_cell_count,
+                # Provenance of the effective parameters, including which
+                # values came from VisibilityConfiguration defaults.
+                "resolved_parameters": asdict(
+                    result.resolved_parameters
+                ),
             },
         )
 
@@ -393,10 +455,10 @@ class VisibilityStore:
 
         self._validate_key(key)
 
-        return (
-            key.digest in self._memory_cache
-            or self.path_for(key).is_file()
-        )
+        with self._lock:
+            in_memory = key.digest in self._memory_cache
+
+        return in_memory or self.path_for(key).is_file()
 
     def path_for(
         self,
@@ -444,8 +506,9 @@ class VisibilityStore:
 
         removed = False
 
-        if self._memory_cache.pop(key.digest, None) is not None:
-            removed = True
+        with self._lock:
+            if self._memory_cache.pop(key.digest, None) is not None:
+                removed = True
 
         if remove_disk:
             path = self.path_for(key)
@@ -459,7 +522,8 @@ class VisibilityStore:
     def clear_memory(self) -> None:
         """Empty the in-memory LRU cache without deleting disk data."""
 
-        self._memory_cache.clear()
+        with self._lock:
+            self._memory_cache.clear()
 
     def clear_disk(self) -> int:
         """Delete all visibility files managed by this store.
@@ -471,13 +535,15 @@ class VisibilityStore:
 
         Notes
         -----
-        The cache root directory itself is retained.
+        The cache root directory itself is retained. Only files whose names
+        and locations match the store's own layout are deleted, so other
+        ``.npz`` files placed under a user-chosen directory survive.
         """
 
         count = 0
 
-        for path in self.cache_directory.rglob("*.npz"):
-            path.unlink()
+        for path in list(self.iter_disk_paths()):
+            path.unlink(missing_ok=True)
             count += 1
 
         self.clear_memory()
@@ -492,18 +558,26 @@ class VisibilityStore:
     def memory_item_count(self) -> int:
         """Number of visibility masks currently resident in RAM."""
 
-        return len(self._memory_cache)
+        with self._lock:
+            return len(self._memory_cache)
 
     @property
     def memory_keys(self) -> tuple[str, ...]:
         """Return cache digests from least to most recently used."""
 
-        return tuple(self._memory_cache.keys())
+        with self._lock:
+            return tuple(self._memory_cache.keys())
 
     def iter_disk_paths(self) -> Iterator[Path]:
-        """Iterate over persistent visibility files."""
+        """Iterate over persistent visibility files managed by this store."""
 
-        yield from self.cache_directory.rglob("*.npz")
+        for path in self.cache_directory.glob("??/*.npz"):
+            if (
+                path.is_file()
+                and self._MANAGED_FILENAME.fullmatch(path.name)
+                and path.parent.name == path.name[:2]
+            ):
+                yield path
 
     @property
     def disk_item_count(self) -> int:
@@ -526,14 +600,16 @@ class VisibilityStore:
 
         digest = visibility.key.digest
 
-        # Remove old instance so reinsertion marks it as most recently used.
-        self._memory_cache.pop(digest, None)
+        with self._lock:
+            # Remove old instance so reinsertion marks it as most recently
+            # used.
+            self._memory_cache.pop(digest, None)
 
-        self._memory_cache[digest] = visibility
+            self._memory_cache[digest] = visibility
 
-        while len(self._memory_cache) > self.max_memory_items:
-            # OrderedDict stores least recently used at the beginning.
-            self._memory_cache.popitem(last=False)
+            while len(self._memory_cache) > self.max_memory_items:
+                # OrderedDict stores least recently used at the beginning.
+                self._memory_cache.popitem(last=False)
 
     # ------------------------------------------------------------------
     # Disk serialization
@@ -554,16 +630,7 @@ class VisibilityStore:
 
         metadata = {
             "storage_version": self.STORAGE_VERSION,
-            "key": {
-                "sampling_unit_id": visibility.key.sampling_unit_id,
-                "sampling_unit_type": visibility.key.sampling_unit_type,
-                "viewpoint_id": visibility.key.viewpoint_id,
-                "environment_id": visibility.key.environment_id,
-                "analysis_domain_id": visibility.key.analysis_domain_id,
-                "visibility_configuration_id": (
-                    visibility.key.visibility_configuration_id
-                ),
-            },
+            "key": visibility.key.as_metadata(),
             "transform": tuple(visibility.transform)[:6],
             "crs": visibility.crs.to_string(),
             "shape": list(visibility.shape),
@@ -650,16 +717,7 @@ class VisibilityStore:
 
         stored_key = metadata.get("key", {})
 
-        expected_key = {
-            "sampling_unit_id": key.sampling_unit_id,
-            "sampling_unit_type": key.sampling_unit_type,
-            "viewpoint_id": key.viewpoint_id,
-            "environment_id": key.environment_id,
-            "analysis_domain_id": key.analysis_domain_id,
-            "visibility_configuration_id": (
-                key.visibility_configuration_id
-            ),
-        }
+        expected_key = key.as_metadata()
 
         if stored_key != expected_key:
             raise RuntimeError(

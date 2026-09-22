@@ -916,7 +916,8 @@ class MainWindow(QMainWindow):
         )
 
         self.observability_page = ObservabilityPage(
-            self.state
+            self.state,
+            task_controller=self.task_controller,
         )
 
         pages = {
@@ -1039,6 +1040,9 @@ class MainWindow(QMainWindow):
         )
         self.observability_page.state_changed.connect(
             self.refresh_from_state
+        )
+        self.observability_page.continue_requested.connect(
+            lambda: self.navigate_to(WorkflowPage.ANALYSIS_DESIGN)
         )
 
         self.survey_page.import_viewpoints_requested.connect(
@@ -1246,7 +1250,9 @@ class MainWindow(QMainWindow):
         if callable(refresh):
             refresh()
 
-        self._apply_navigation_state()
+        # Also refreshes the sidebar status, which may lag behind state
+        # changes made on the page being left.
+        self.refresh_from_state()
 
     def _apply_navigation_state(
         self,
@@ -1346,26 +1352,49 @@ class MainWindow(QMainWindow):
         ]
 
         self.visibility_status.set_ready(
-            visibility["ready"],
+            visibility["configuration"],
             (
                 "Visibility configured"
-                if visibility["ready"]
+                if visibility["configuration"]
                 else "Visibility not configured"
             ),
         )
 
-        observability = summary[
+        self._refresh_observability_status()
+
+        self._refresh_task_state()
+
+    def _refresh_observability_status(
+        self,
+    ) -> None:
+        """Sidebar status for the Survey Observability Field."""
+
+        observability = self.state.readiness_summary()[
             "observability"
         ]
 
-        if observability["ready"]:
+        if observability["building"]:
+            total = observability["total"]
+            detail = "Building observability"
+            if total:
+                detail += (
+                    f" {observability['processed']:,}/{total:,}"
+                )
+            self.sof_status.set_ready(False, detail)
 
+        elif observability["ready"]:
             self.sof_status.set_ready(
                 True,
                 (
-                    f"{observability['active_units']:,} "
-                    "sampling units"
+                    "Observability ready · "
+                    f"{observability['active_units']:,} units"
                 ),
+            )
+
+        elif observability["invalidated"]:
+            self.sof_status.set_ready(
+                False,
+                "Observability out of date",
             )
 
         else:
@@ -1373,8 +1402,6 @@ class MainWindow(QMainWindow):
                 False,
                 "Observability not built",
             )
-
-        self._refresh_task_state()
 
     # ------------------------------------------------------------------
     # Task display
@@ -1440,6 +1467,9 @@ class MainWindow(QMainWindow):
             )
 
         self._refresh_task_state()
+
+        if self.state.observability_building:
+            self._refresh_observability_status()
 
     def _on_task_error(
         self,

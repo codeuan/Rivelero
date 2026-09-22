@@ -719,8 +719,10 @@ class TaskController(QObject):
                 processed=processed,
                 total=total,
                 unit_id=sampling_unit_id,
+                # The builder reports each unit after it has been
+                # processed, not while it is being computed.
                 message=(
-                    f"Processing {sampling_unit_id}"
+                    f"Processed {sampling_unit_id}"
                 ),
             )
 

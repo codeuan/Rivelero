@@ -23,6 +23,7 @@ from typing import Any, Iterable, Mapping
 
 import json
 import numpy as np
+import rasterio
 from pyproj import CRS as PyprojCRS
 from pyproj import Transformer
 from rasterio.crs import CRS
@@ -292,6 +293,35 @@ def rasterize_domain_geometry(
 # ---------------------------------------------------------------------------
 # Generic constructor
 # ---------------------------------------------------------------------------
+
+
+def elevation_valid_mask(
+    path: str | Path,
+    grid: AnalysisGrid,
+) -> np.ndarray:
+    """Return cells with usable elevation (not nodata and finite).
+
+    Cells without elevation cannot be analysed for visibility. Passing this
+    mask as ``valid_mask`` keeps them classified as INVALID rather than as
+    blind spots.
+    """
+
+    with rasterio.open(path) as dataset:
+        band = dataset.read(1, masked=True)
+
+    if band.shape != grid.shape:
+        raise DomainConstructionError(
+            f"Elevation raster shape {band.shape} does not match the "
+            f"AnalysisGrid shape {grid.shape}."
+        )
+
+    values = np.ma.getdata(band)
+    invalid = np.ma.getmaskarray(band)
+
+    if np.issubdtype(values.dtype, np.floating):
+        invalid = invalid | ~np.isfinite(values)
+
+    return ~invalid
 
 
 def build_domain_from_geometry(

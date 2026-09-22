@@ -112,15 +112,14 @@ class ColorPalette:
     # Scientific observability states
     # --------------------------------------------------------------
     #
-    # These mirror the first visualization implementation. Keeping them
-    # here gives the GUI a consistent semantic legend. Scientific plotting
-    # modules may later consume the same palette through a neutral shared
-    # design module if desired.
+    # These mirror OBSERVABILITY_STATE_COLORS in
+    # rivelero.visualization.observability, which is the canonical,
+    # colour-vision-deficiency-checked palette used by the maps.
 
     state_outside_domain: str = "#F2F2F2"
-    state_invalid: str = "#8C8C8C"
-    state_blind_spot: str = "#D95F5F"
-    state_observable: str = "#4DAF4A"
+    state_invalid: str = "#6E6E6E"
+    state_blind_spot: str = "#E07B39"
+    state_observable: str = "#2A78D6"
 
 
 COLORS = ColorPalette()

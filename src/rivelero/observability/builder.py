@@ -29,7 +29,14 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from enum import Enum
+from hashlib import sha256
+from pathlib import Path
 from typing import Any, Callable
+import json
+
+import numpy as np
+from rasterio.crs import CRS
 
 from rivelero.core.configuration import ViewpointConfiguration
 from rivelero.core.domain import AnalysisDomain
@@ -231,6 +238,13 @@ def build_survey_observability_field(
         requested_units=len(units)
     )
 
+    # Hashing the domain masks is done once per build rather than per unit.
+    context_fingerprint = visibility_context_fingerprint(
+        environment=environment,
+        domain=domain,
+        visibility_configuration=visibility_configuration,
+    )
+
     total = len(units)
 
     for index, unit in enumerate(
@@ -253,9 +267,11 @@ def build_survey_observability_field(
             key = make_visibility_key(
                 viewpoint=viewpoint,
                 event=event,
+                sensor=sensor,
                 environment=environment,
                 domain=domain,
                 visibility_configuration=visibility_configuration,
+                context_fingerprint=context_fingerprint,
             )
 
             was_cached = store.contains(key)
@@ -331,6 +347,9 @@ def build_survey_observability_field(
 # ---------------------------------------------------------------------------
 
 
+_FINGERPRINT_SCHEME = "rivelero-visibility-inputs-v1"
+
+
 def make_visibility_key(
     *,
     viewpoint: Viewpoint,
@@ -338,8 +357,29 @@ def make_visibility_key(
     domain: AnalysisDomain,
     visibility_configuration: VisibilityConfiguration,
     event: ObservationEvent | None = None,
+    sensor: Sensor | None = None,
+    context_fingerprint: str | None = None,
 ) -> VisibilityKey:
-    """Construct the cache identity for one visibility calculation."""
+    """Construct the cache identity for one visibility calculation.
+
+    The key contains the canonical identifiers plus an input fingerprint of
+    the scientific content that can change the visibility mask. Therefore an
+    edited Viewpoint, Sensor or VisibilityConfiguration that keeps its
+    identifier never reuses a stale cached mask, while identical inputs
+    still share cached results.
+
+    Parameters
+    ----------
+    sensor
+        Sensor referenced by ``viewpoint.sensor_id``. Required whenever the
+        Viewpoint references a Sensor, because Sensor metadata can supply
+        the effective field of view.
+
+    context_fingerprint
+        Optional precomputed :func:`visibility_context_fingerprint`. Callers
+        creating many keys for one analysis should pass it to avoid hashing
+        the domain masks repeatedly.
+    """
 
     if not isinstance(
         viewpoint,
@@ -347,6 +387,29 @@ def make_visibility_key(
     ):
         raise TypeError(
             "viewpoint must be a Viewpoint."
+        )
+
+    if sensor is not None:
+        if not isinstance(sensor, Sensor):
+            raise TypeError("sensor must be a Sensor or None.")
+
+        if viewpoint.sensor_id != sensor.sensor_id:
+            raise ValueError(
+                "The supplied Sensor does not match viewpoint.sensor_id."
+            )
+
+    elif viewpoint.sensor_id is not None:
+        raise ValueError(
+            f"Viewpoint {viewpoint.viewpoint_id!r} references Sensor "
+            f"{viewpoint.sensor_id!r}; supply sensor= so that the "
+            "visibility key identifies every input."
+        )
+
+    if context_fingerprint is None:
+        context_fingerprint = visibility_context_fingerprint(
+            environment=environment,
+            domain=domain,
+            visibility_configuration=visibility_configuration,
         )
 
     sampling_unit = (
@@ -395,6 +458,22 @@ def make_visibility_key(
             f"Unsupported sampling unit: {sampling_unit!r}."
         )
 
+    unit_fingerprint = _digest(
+        {
+            "viewpoint": _viewpoint_inputs(viewpoint),
+            "event": (
+                None
+                if event is None
+                else _event_inputs(event)
+            ),
+            "sensor": (
+                None
+                if sensor is None
+                else _sensor_inputs(sensor)
+            ),
+        }
+    )
+
     return VisibilityKey(
         sampling_unit_id=sampling_unit_id,
         sampling_unit_type=sampling_unit_type,
@@ -404,7 +483,163 @@ def make_visibility_key(
         visibility_configuration_id=(
             visibility_configuration.configuration_id
         ),
+        input_fingerprint=_digest(
+            {
+                "context": context_fingerprint,
+                "unit": unit_fingerprint,
+            }
+        ),
     )
+
+
+def visibility_context_fingerprint(
+    *,
+    environment: Environment,
+    domain: AnalysisDomain,
+    visibility_configuration: VisibilityConfiguration,
+) -> str:
+    """Digest the analysis-wide inputs shared by every sampling unit.
+
+    Covers the terrain source, AnalysisGrid, effective analysis/valid masks
+    and every VisibilityConfiguration field except its identifier and
+    human-readable name.
+    """
+
+    grid = domain.grid
+
+    analysis_mask = np.ascontiguousarray(
+        domain.effective_analysis_mask,
+        dtype=bool,
+    )
+    valid_mask = np.ascontiguousarray(
+        domain.effective_valid_mask,
+        dtype=bool,
+    )
+
+    mask_hash = sha256()
+    mask_hash.update(analysis_mask.tobytes())
+    mask_hash.update(valid_mask.tobytes())
+
+    elevation = environment.elevation_model
+
+    configuration = {
+        name: getattr(visibility_configuration, name)
+        for name in visibility_configuration.__dataclass_fields__
+        if name not in {"configuration_id", "name"}
+    }
+
+    return _digest(
+        {
+            "scheme": _FINGERPRINT_SCHEME,
+            "environment": {
+                "elevation_source": _source_string(elevation.source),
+                "model_type": elevation.model_type,
+                "crs": elevation.crs,
+                "layers": [
+                    [layer.layer_id, _source_string(layer.source)]
+                    for layer in environment.layers
+                ],
+            },
+            "grid": {
+                "crs": grid.crs,
+                "transform": tuple(grid.transform)[:6],
+                "width": grid.width,
+                "height": grid.height,
+            },
+            "masks": mask_hash.hexdigest(),
+            "configuration": configuration,
+        }
+    )
+
+
+def _viewpoint_inputs(viewpoint: Viewpoint) -> dict[str, Any]:
+    return {
+        name: getattr(viewpoint, name)
+        for name in (
+            "x",
+            "y",
+            "crs",
+            "z",
+            "observer_height_m",
+            "heading_deg",
+            "pitch_deg",
+            "roll_deg",
+            "horizontal_fov_deg",
+            "vertical_fov_deg",
+            "sensor_id",
+        )
+    }
+
+
+def _event_inputs(event: ObservationEvent) -> dict[str, Any]:
+    return {
+        name: getattr(event, name)
+        for name in (
+            "event_id",
+            "viewpoint_id",
+            "observer_height_m",
+            "heading_deg",
+            "pitch_deg",
+            "roll_deg",
+            "horizontal_fov_deg",
+            "vertical_fov_deg",
+        )
+    }
+
+
+def _sensor_inputs(sensor: Sensor) -> dict[str, Any]:
+    # Geometry-relevant Sensor metadata. Optical parameters are included
+    # conservatively so that future FOV derivations cannot reuse stale masks.
+    return {
+        name: getattr(sensor, name)
+        for name in (
+            "sensor_id",
+            "horizontal_fov_deg",
+            "vertical_fov_deg",
+            "focal_length_mm",
+            "sensor_width_mm",
+            "sensor_height_mm",
+            "image_width_px",
+            "image_height_px",
+        )
+    }
+
+
+def _source_string(source: Any) -> str:
+    if isinstance(source, (str, Path)):
+        return str(Path(source).expanduser().resolve())
+
+    return repr(source)
+
+
+def _digest(payload: Any) -> str:
+    text = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=_fingerprint_value,
+    )
+
+    return sha256(text.encode("utf-8")).hexdigest()
+
+
+def _fingerprint_value(value: Any) -> Any:
+    if isinstance(value, Enum):
+        return value.value
+
+    if isinstance(value, CRS):
+        return value.to_string()
+
+    if isinstance(value, Path):
+        return str(value)
+
+    if isinstance(value, (tuple, set, frozenset)):
+        return list(value)
+
+    if isinstance(value, np.generic):
+        return value.item()
+
+    return repr(value)
 
 
 # ---------------------------------------------------------------------------
