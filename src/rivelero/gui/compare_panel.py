@@ -98,6 +98,8 @@ class ComparePanel(QWidget):
 
     # Emitted after a snapshot has been loaded into the live scenario.
     scenario_loaded = Signal()
+    # Saved scenarios changed (saved with the project).
+    edited = Signal()
 
     def __init__(self, state: ApplicationState, *, parent=None) -> None:
         super().__init__(parent)
@@ -450,6 +452,7 @@ class ComparePanel(QWidget):
         except ValueError as exc:
             self._set_status(str(exc), kind="error")
             return
+        self._edited()
         self.refresh_from_state()
 
     def describe_selected(self, description: str | None = None) -> None:
@@ -464,6 +467,7 @@ class ComparePanel(QWidget):
             if not accepted:
                 return
         self.workspace.describe(snapshot_id, description)
+        self._edited()
         self.refresh_from_state()
 
     def delete_selected(self, *, confirm: bool = True) -> None:
@@ -478,6 +482,7 @@ class ComparePanel(QWidget):
         ) != QMessageBox.StandardButton.Yes:
             return
         self.workspace.delete(snapshot_id)
+        self._edited()
         self._set_status(f"Deleted {name!r}.", kind="success")
         self.refresh_from_state()
 
@@ -502,10 +507,15 @@ class ComparePanel(QWidget):
                 + ", ".join(report.candidates_needing_computation) + "."
             )
         self._set_status(message, kind="success")
+        self._edited()
         self.scenario_loaded.emit()
         self.refresh_from_state()
 
     # ------------------------------------------------------------------
+
+    def _edited(self) -> None:
+        self.state.notify_design_changed()
+        self.edited.emit()
 
     def _set_status(self, text: str | None, *, kind: str = "success") -> None:
         if not text:

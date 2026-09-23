@@ -89,6 +89,8 @@ class AnalysisPage(QWidget):
 
     observability_requested = Signal()
     continue_requested = Signal()
+    # Emitted when saved design work changes (the project becomes dirty).
+    state_changed = Signal()
 
     def __init__(
         self,
@@ -350,6 +352,8 @@ class AnalysisPage(QWidget):
         # The live scenario may change on the Scenario tab.
         self.tabs.currentChanged.connect(self._on_tab_changed)
         self.compare_panel.scenario_loaded.connect(self._on_scenario_loaded)
+        self.scenario_panel.edited.connect(self.state_changed.emit)
+        self.compare_panel.edited.connect(self.state_changed.emit)
         self.readiness.action_requested.connect(self.observability_requested.emit)
         self.continue_button.clicked.connect(self.continue_requested.emit)
         self.analysis_map.viewpoint_selected.connect(self._on_viewpoint_selected)

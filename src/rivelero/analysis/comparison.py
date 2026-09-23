@@ -425,6 +425,13 @@ class ScenarioWorkspace:
         self._remember(snapshot, scenario.exposure.copy())
         return snapshot
 
+    def add_snapshot(self, snapshot: ScenarioSnapshot) -> None:
+        """Add an existing snapshot (e.g. one read from a project file)."""
+        if snapshot.snapshot_id in self._snapshots:
+            raise ValueError(f"Snapshot {snapshot.snapshot_id!r} already exists.")
+        self._require_unique_name(snapshot.name)
+        self._snapshots[snapshot.snapshot_id] = snapshot
+
     def rename(self, snapshot_id: str, name: str) -> ScenarioSnapshot:
         snapshot = self._snapshots[snapshot_id]
         if name.strip() != snapshot.name:

@@ -533,10 +533,17 @@ def visibility_context_fingerprint(
             "scheme": _FINGERPRINT_SCHEME,
             "environment": {
                 "elevation_source": _source_string(elevation.source),
+                # The path alone is not enough: a DEM replaced in place keeps
+                # its path, so the file identity is part of the fingerprint.
+                "elevation_file": _file_identity(elevation.source),
                 "model_type": elevation.model_type,
                 "crs": elevation.crs,
                 "layers": [
-                    [layer.layer_id, _source_string(layer.source)]
+                    [
+                        layer.layer_id,
+                        _source_string(layer.source),
+                        _file_identity(layer.source),
+                    ]
                     for layer in environment.layers
                 ],
             },
@@ -603,6 +610,22 @@ def _sensor_inputs(sensor: Sensor) -> dict[str, Any]:
             "image_height_px",
         )
     }
+
+
+def _file_identity(source: Any) -> list[int] | None:
+    """Size and modification time of a local source file, if it exists.
+
+    A cheap identity (as used by build tools) that changes whenever a file is
+    rewritten; an unchanged copy elsewhere is a different path anyway.
+    """
+
+    if not isinstance(source, (str, Path)):
+        return None
+    try:
+        stat = Path(source).expanduser().stat()
+    except OSError:
+        return None
+    return [int(stat.st_size), int(stat.st_mtime_ns)]
 
 
 def _source_string(source: Any) -> str:

@@ -28,6 +28,9 @@ from rivelero.gui.observation_event_dialog import ObservationEventManagerDialog
 from rivelero.gui.world_page import WorldPage
 from rivelero.gui.observability_page import ObservabilityPage
 from rivelero.gui.analysis_page import AnalysisPage
+from rivelero.gui.project_service import open_state, save_state
+from rivelero.project.io import ProjectSaveError
+from rivelero.project.schema import PROJECT_SUFFIX, ProjectFormatError
 
 from rivelero.gui.theme import (
     SIZES,
@@ -36,8 +39,9 @@ from rivelero.gui.theme import (
 
 try:
     from PySide6.QtCore import Qt, QSize
-    from PySide6.QtGui import QFont, QIcon, QPixmap
+    from PySide6.QtGui import QAction, QFont, QIcon, QKeySequence, QPixmap
     from PySide6.QtWidgets import (
+        QFileDialog,
         QFrame,
         QHBoxLayout,
         QLabel,
@@ -55,8 +59,9 @@ try:
 
 except ImportError:
     from PyQt6.QtCore import Qt, QSize
-    from PyQt6.QtGui import QFont, QIcon, QPixmap
+    from PyQt6.QtGui import QAction, QFont, QIcon, QKeySequence, QPixmap
     from PyQt6.QtWidgets import (
+        QFileDialog,
         QFrame,
         QHBoxLayout,
         QLabel,
@@ -471,6 +476,8 @@ class MainWindow(QMainWindow):
         self._configure_window()
 
         self._build_interface()
+
+        self._build_menu()
 
         self._connect_signals()
 
@@ -1042,6 +1049,7 @@ class MainWindow(QMainWindow):
         self.analysis_page.continue_requested.connect(
             lambda: self.navigate_to(WorkflowPage.OUTPUT)
         )
+        self.analysis_page.state_changed.connect(self.refresh_from_state)
 
         self.survey_page.import_viewpoints_requested.connect(
             self._open_survey_import
@@ -1288,6 +1296,8 @@ class MainWindow(QMainWindow):
             self.state.project.name
         )
 
+        self._update_window_title()
+
         self.dirty_indicator.setText(
             "●"
             if self.state.project.dirty
@@ -1400,6 +1410,164 @@ class MainWindow(QMainWindow):
                 False,
                 "Observability not built",
             )
+
+    # ------------------------------------------------------------------
+    # Project files (P1)
+    # ------------------------------------------------------------------
+
+    def _build_menu(self) -> None:
+        menu = self.menuBar().addMenu("&File")
+        for text, shortcut, slot in (
+            ("&New Project", QKeySequence.StandardKey.New, self.new_project),
+            ("&Open Project…", QKeySequence.StandardKey.Open, self.open_project),
+            ("&Save", QKeySequence.StandardKey.Save, self.save_project),
+            ("Save &As…", QKeySequence.StandardKey.SaveAs, self.save_project_as),
+        ):
+            action = QAction(text, self)
+            action.setShortcut(shortcut)
+            action.triggered.connect(lambda _checked=False, s=slot: s())
+            menu.addAction(action)
+            if text == "&Open Project…":
+                menu.addSeparator()
+
+    def _update_window_title(self) -> None:
+        name = self.state.project.name
+        if name == "Untitled Rivelero project":
+            name = "Untitled"
+        marker = " *" if self.state.project.dirty else ""
+        self.setWindowTitle(f"{APP_TITLE} — {name}{marker}")
+
+    # Hooks: dialogs are isolated so the project logic can be tested
+    # without interacting with modal windows.
+
+    def ask_unsaved_changes(self) -> str:
+        """Return "save", "discard" or "cancel"."""
+        answer = QMessageBox.question(
+            self,
+            "Unsaved changes",
+            f"Save changes to {self.state.project.name!r}?",
+            QMessageBox.StandardButton.Save
+            | QMessageBox.StandardButton.Discard
+            | QMessageBox.StandardButton.Cancel,
+        )
+        return {
+            QMessageBox.StandardButton.Save: "save",
+            QMessageBox.StandardButton.Discard: "discard",
+        }.get(answer, "cancel")
+
+    def choose_save_path(self) -> str | None:
+        current = self.state.project.project_path
+        path, _filter = QFileDialog.getSaveFileName(
+            self, "Save Rivelero project",
+            str(current) if current else f"{self.state.project.name}{PROJECT_SUFFIX}",
+            f"Rivelero project (*{PROJECT_SUFFIX})",
+        )
+        return path or None
+
+    def choose_open_path(self) -> str | None:
+        path, _filter = QFileDialog.getOpenFileName(
+            self, "Open Rivelero project", "",
+            f"Rivelero project (*{PROJECT_SUFFIX})",
+        )
+        return path or None
+
+    def show_message(self, title: str, text: str, *, kind: str = "information") -> None:
+        getattr(QMessageBox, kind)(self, title, text)
+
+    def _confirm_discard(self) -> bool:
+        """Resolve unsaved changes; True when it is safe to continue."""
+        if not self.state.project.dirty:
+            return True
+        choice = self.ask_unsaved_changes()
+        if choice == "save":
+            return self.save_project()
+        return choice == "discard"
+
+    def _refuse_while_busy(self) -> bool:
+        if self.state.busy:
+            self.show_message(
+                "Task running",
+                "Wait for the running task to finish or cancel it first.",
+                kind="warning",
+            )
+            return True
+        return False
+
+    def new_project(self) -> bool:
+        if self._refuse_while_busy() or not self._confirm_discard():
+            return False
+        self.state.new_project()
+        self._rehydrate()
+        self.status_message.setText("New project.")
+        return True
+
+    def open_project(self, path: str | Path | None = None) -> bool:
+        if self._refuse_while_busy() or not self._confirm_discard():
+            return False
+        path = path or self.choose_open_path()
+        if not path:
+            return False
+        try:
+            # Fully built and validated before the current session is touched.
+            result = open_state(path)
+        except FileNotFoundError:
+            self.show_message("Project not found", f"{path} does not exist.", kind="warning")
+            return False
+        except (ProjectFormatError, ValueError, RuntimeError, OSError) as exc:
+            self.show_message("Cannot open project", str(exc), kind="warning")
+            return False
+
+        self.state.adopt(result.state)
+        self._rehydrate()
+        self.status_message.setText(f"Opened {Path(path).name}.")
+        if result.warnings:
+            self.show_message(
+                "Project opened with warnings",
+                "\n\n".join(result.warnings),
+                kind="warning",
+            )
+        return True
+
+    def save_project(self) -> bool:
+        path = self.state.project.project_path
+        if path is None:
+            return self.save_project_as()
+        return self._save_to(path)
+
+    def save_project_as(self, path: str | Path | None = None) -> bool:
+        path = path or self.choose_save_path()
+        if not path:
+            return False
+        return self._save_to(path)
+
+    def _save_to(self, path) -> bool:
+        if self._refuse_while_busy():
+            return False
+        try:
+            saved = save_state(self.state, path)
+        except (ProjectSaveError, OSError, ValueError) as exc:
+            # The project stays dirty and any previous file is unchanged.
+            self.show_message("Project not saved", str(exc), kind="warning")
+            self.refresh_from_state()
+            return False
+        self.status_message.setText(f"Saved {saved.name}.")
+        self.refresh_from_state()
+        return True
+
+    def _rehydrate(self) -> None:
+        """Rebuild every page from the (replaced) ApplicationState."""
+        for page in (
+            self.survey_page, self.world_page, self.observability_page,
+            self.analysis_page,
+        ):
+            page.refresh_from_state()
+        self.navigate_to(self.state.view.active_page)
+
+    def closeEvent(self, event) -> None:  # noqa: N802 - Qt API
+        if self.state.busy or not self._confirm_discard():
+            event.ignore()
+            return
+        event.accept()
 
     # ------------------------------------------------------------------
     # Task display

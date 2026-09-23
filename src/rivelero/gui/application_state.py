@@ -1409,6 +1409,38 @@ class ApplicationState:
             mark_project_dirty=False,
         )
 
+    def notify_design_changed(self) -> None:
+        """Record an edit of the live scenario or of saved snapshots.
+
+        Scenario and snapshot objects are edited in place by the Analysis &
+        Design panels; they are saved with the project, so an edit makes the
+        project dirty without invalidating any scientific result.
+        """
+
+        self._mark_changed(StateChange.OBSERVABILITY, scientific=False)
+
+    def adopt(self, other: "ApplicationState") -> None:
+        """Replace this state with a fully constructed one in a single step.
+
+        Used when opening a project: the loaded state is built and validated
+        separately, so a failure can never leave this state half replaced.
+        """
+
+        if self.task.busy:
+            raise RuntimeError("Cannot replace the project while a task is running.")
+        if not isinstance(other, ApplicationState):
+            raise TypeError("other must be an ApplicationState.")
+
+        self.project = other.project
+        self.survey = other.survey
+        self.analysis = other.analysis
+        self.selection = other.selection
+        self.task = TaskState()
+        self.view = other.view
+        self.optional_context = other.optional_context
+        self.revision += 1
+        self.last_changes = tuple(StateChange)
+
     def clear_observability_result(
         self,
     ) -> None:
@@ -1444,6 +1476,7 @@ class ApplicationState:
         self._mark_changed(
             StateChange.SELECTION,
             scientific=False,
+            mark_project_dirty=False,
         )
 
     def select_observation_event(
@@ -1474,6 +1507,7 @@ class ApplicationState:
         self._mark_changed(
             StateChange.SELECTION,
             scientific=False,
+            mark_project_dirty=False,
         )
 
     def select_visibility_key(
@@ -1506,6 +1540,7 @@ class ApplicationState:
         self._mark_changed(
             StateChange.SELECTION,
             scientific=False,
+            mark_project_dirty=False,
         )
 
     def clear_selection(
@@ -1518,6 +1553,7 @@ class ApplicationState:
         self._mark_changed(
             StateChange.SELECTION,
             scientific=False,
+            mark_project_dirty=False,
         )
 
     # ------------------------------------------------------------------
@@ -1551,6 +1587,7 @@ class ApplicationState:
         self._mark_changed(
             StateChange.VIEW,
             scientific=False,
+            mark_project_dirty=False,
         )
 
     def set_active_layer(
@@ -1580,6 +1617,7 @@ class ApplicationState:
         self._mark_changed(
             StateChange.VIEW,
             scientific=False,
+            mark_project_dirty=False,
         )
 
     def set_map_extent(
@@ -1603,6 +1641,7 @@ class ApplicationState:
         self._mark_changed(
             StateChange.VIEW,
             scientific=False,
+            mark_project_dirty=False,
         )
 
     # ------------------------------------------------------------------
@@ -1662,6 +1701,7 @@ class ApplicationState:
         self._mark_changed(
             StateChange.TASK,
             scientific=False,
+            mark_project_dirty=False,
         )
 
     def update_task_progress(

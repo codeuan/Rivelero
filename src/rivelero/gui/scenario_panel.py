@@ -25,7 +25,7 @@ from __future__ import annotations
 
 try:
     from PySide6.QtCore import (
-        QAbstractTableModel, QModelIndex, QSortFilterProxyModel, Qt,
+        QAbstractTableModel, QModelIndex, QSortFilterProxyModel, Qt, Signal,
     )
     from PySide6.QtWidgets import (
         QAbstractItemView, QComboBox, QDialog, QGridLayout, QHBoxLayout,
@@ -35,6 +35,7 @@ try:
 except ImportError:
     from PyQt6.QtCore import (
         QAbstractTableModel, QModelIndex, QSortFilterProxyModel, Qt,
+        pyqtSignal as Signal,
     )
     from PyQt6.QtWidgets import (
         QAbstractItemView, QComboBox, QDialog, QGridLayout, QHBoxLayout,
@@ -304,6 +305,10 @@ class CandidatesModel(QAbstractTableModel):
 
 class ScenarioPanel(QWidget):
     """Non-destructive what-if design of the current survey."""
+
+    # The live scenario or the saved scenarios changed (saved with the
+    # project, so the project becomes dirty).
+    edited = Signal()
 
     def __init__(
         self,
@@ -613,6 +618,7 @@ class ScenarioPanel(QWidget):
         keys = [key for key in self.selected_keys() if not scenario.is_active(key)]
         if keys:
             scenario.reactivate(keys)
+            self._edited()
             self._set_status(f"Reactivated {_units(len(keys))}.", kind="success")
             self._refresh_scenario_views()
 
@@ -726,6 +732,7 @@ class ScenarioPanel(QWidget):
         except ValueError as exc:
             QMessageBox.warning(self, "Candidate not added", str(exc))
             return
+        self._edited()
         problem = candidate_terrain_problem(viewpoint, self.state.analysis.analysis_grid)
         if problem is not None:
             scenario.set_candidate_status(viewpoint.viewpoint_id, CandidateStatus.FAILED, problem)
@@ -785,6 +792,7 @@ class ScenarioPanel(QWidget):
                 except OverflowError as exc:
                     self._set_status(str(exc), kind="error")
         if changed:
+            self._edited()
             self._refresh_scenario_views()
 
     def _remove_candidates(self) -> None:
@@ -792,6 +800,7 @@ class ScenarioPanel(QWidget):
         for candidate in self.selected_candidates():
             if candidate.status != CandidateStatus.COMPUTING:
                 scenario.remove_candidate(candidate.candidate_id)
+        self._edited()
         self._refresh_scenario_views()
 
     def _candidates_blocked_reason(self) -> str | None:
@@ -825,6 +834,7 @@ class ScenarioPanel(QWidget):
             except (KeyError, ValueError) as exc:
                 self._set_status(str(exc), kind="error")
                 return
+            self._edited()
             self._set_status(f"Deactivated {_units(len(result))}.", kind="success")
             return
 
@@ -923,6 +933,7 @@ class ScenarioPanel(QWidget):
         except ValueError as exc:
             self._set_status(str(exc), kind="error")
             return None
+        self._edited()
         self._set_status(
             f"Saved {snapshot.name!r} for comparison. The Survey is unchanged.",
             kind="success",
@@ -934,11 +945,16 @@ class ScenarioPanel(QWidget):
         if scenario is None or self.busy:
             return
         scenario.reset()
+        self._edited()
         self._set_status("Scenario reset to the baseline.", kind="success")
         self.units_model.set_source(
             scenario, scenario.baseline.active_keys, self.units_model._baseline_unique
         )
         self._refresh_scenario_views()
+
+    def _edited(self) -> None:
+        self.state.notify_design_changed()
+        self.edited.emit()
 
     def _refresh_scenario_views(self) -> None:
         scenario = self.scenario

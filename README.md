@@ -651,8 +651,8 @@ Near-term development priorities include:
 - [x] Exposure and blind-spot analysis
 - [x] Sampling-unit contribution analysis
 - [x] Non-destructive survey-design scenarios
-- [ ] Scenario/configuration comparison
-- [ ] Project save/load
+- [x] Scenario/configuration comparison
+- [x] Project save/load
 - [ ] Raster/table/figure export
 - [ ] Provenance and reproducibility manifests
 - [ ] Candidate-pool generation
