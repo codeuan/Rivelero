@@ -3,15 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Iterable
 
 import numpy as np
 import rasterio
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from pyproj import CRS as PyprojCRS
-from pyproj import Transformer
 from rasterio.crs import CRS
 
 try:
@@ -22,6 +19,8 @@ except ImportError:
     from PyQt6.QtWidgets import QVBoxLayout, QLabel, QWidget
 
 from rivelero.gui.environment_import import RasterMetadata, inspect_elevation_raster
+# Re-exported: moved to the Qt-free visualization layer (P3).
+from rivelero.visualization.maps import project_viewpoints  # noqa: F401
 
 try:
     from shiboken6 import isValid as _qt_object_alive
@@ -47,56 +46,6 @@ class SafeFigureCanvas(FigureCanvasQTAgg):
     def _draw_idle(self):
         if _qt_object_alive(self):
             super()._draw_idle()
-
-
-def project_viewpoints(
-    viewpoints: Iterable[Any],
-    target_crs: CRS,
-) -> tuple[list[str], np.ndarray, np.ndarray]:
-    """Return Viewpoint IDs and coordinates transformed for display.
-
-    Coordinates are transformed into ``target_crs`` for display only; the
-    canonical Viewpoints are never modified. Viewpoints with missing or
-    non-finite coordinates are skipped.
-    """
-
-    ids: list[str] = []
-    xs: list[float] = []
-    ys: list[float] = []
-
-    transformers: dict[str, Transformer] = {}
-
-    for viewpoint in viewpoints:
-        try:
-            viewpoint_id = str(viewpoint.viewpoint_id)
-            x = float(viewpoint.x)
-            y = float(viewpoint.y)
-            source_crs = CRS.from_user_input(viewpoint.crs)
-        except (AttributeError, TypeError, ValueError):
-            continue
-
-        if not (np.isfinite(x) and np.isfinite(y)):
-            continue
-
-        if source_crs != target_crs:
-            key = source_crs.to_string()
-            transformer = transformers.get(key)
-
-            if transformer is None:
-                transformer = Transformer.from_crs(
-                    PyprojCRS.from_user_input(source_crs.to_string()),
-                    PyprojCRS.from_user_input(target_crs.to_string()),
-                    always_xy=True,
-                )
-                transformers[key] = transformer
-
-            x, y = transformer.transform(x, y)
-
-        ids.append(viewpoint_id)
-        xs.append(float(x))
-        ys.append(float(y))
-
-    return ids, np.asarray(xs, dtype=float), np.asarray(ys, dtype=float)
 
 
 class RasterMapWidget(QWidget):

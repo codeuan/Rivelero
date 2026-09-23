@@ -21,7 +21,7 @@ metadata and do not depend on the GUI.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Iterable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,6 +29,8 @@ from affine import Affine
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.patches import Polygon as MplPolygon
+from pyproj import CRS as PyprojCRS
+from pyproj import Transformer
 from rasterio.crs import CRS
 
 
@@ -145,6 +147,56 @@ def raster_extent(
         float(min(ys)),
         float(max(ys)),
     )
+
+
+def project_viewpoints(
+    viewpoints: Iterable[Any],
+    target_crs: CRS,
+) -> tuple[list[str], np.ndarray, np.ndarray]:
+    """Return Viewpoint IDs and coordinates transformed for display.
+
+    Coordinates are transformed into ``target_crs`` for display only; the
+    canonical Viewpoints are never modified. Viewpoints with missing or
+    non-finite coordinates are skipped.
+    """
+
+    ids: list[str] = []
+    xs: list[float] = []
+    ys: list[float] = []
+
+    transformers: dict[str, Transformer] = {}
+
+    for viewpoint in viewpoints:
+        try:
+            viewpoint_id = str(viewpoint.viewpoint_id)
+            x = float(viewpoint.x)
+            y = float(viewpoint.y)
+            source_crs = CRS.from_user_input(viewpoint.crs)
+        except (AttributeError, TypeError, ValueError):
+            continue
+
+        if not (np.isfinite(x) and np.isfinite(y)):
+            continue
+
+        if source_crs != target_crs:
+            key = source_crs.to_string()
+            transformer = transformers.get(key)
+
+            if transformer is None:
+                transformer = Transformer.from_crs(
+                    PyprojCRS.from_user_input(source_crs.to_string()),
+                    PyprojCRS.from_user_input(target_crs.to_string()),
+                    always_xy=True,
+                )
+                transformers[key] = transformer
+
+            x, y = transformer.transform(x, y)
+
+        ids.append(viewpoint_id)
+        xs.append(float(x))
+        ys.append(float(y))
+
+    return ids, np.asarray(xs, dtype=float), np.asarray(ys, dtype=float)
 
 
 # ---------------------------------------------------------------------------

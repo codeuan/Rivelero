@@ -28,6 +28,7 @@ from rivelero.gui.observation_event_dialog import ObservationEventManagerDialog
 from rivelero.gui.world_page import WorldPage
 from rivelero.gui.observability_page import ObservabilityPage
 from rivelero.gui.analysis_page import AnalysisPage
+from rivelero.gui.output_page import OutputPage
 from rivelero.gui.project_service import open_state, save_state
 from rivelero.project.io import ProjectSaveError
 from rivelero.project.schema import PROJECT_SUFFIX, ProjectFormatError
@@ -933,6 +934,11 @@ class MainWindow(QMainWindow):
             task_controller=self.task_controller,
         )
 
+        self.output_page = OutputPage(
+            self.state,
+            task_controller=self.task_controller,
+        )
+
         pages = {
             WorkflowPage.SURVEY: self.survey_page,
 
@@ -942,19 +948,7 @@ class MainWindow(QMainWindow):
 
             WorkflowPage.ANALYSIS_DESIGN: self.analysis_page,
 
-            WorkflowPage.OUTPUT: PlaceholderPage(
-                title="Output",
-                description=(
-                    "Export spatial observability products and analysis "
-                    "provenance for use in GIS, reproducible workflows and "
-                    "downstream inference."
-                ),
-                sections=(
-                    "Scientific raster products",
-                    "Supporting layers",
-                    "Provenance",
-                ),
-            ),
+            WorkflowPage.OUTPUT: self.output_page,
         }
 
         for page in WorkflowPage:
@@ -1429,6 +1423,15 @@ class MainWindow(QMainWindow):
             menu.addAction(action)
             if text == "&Open Project…":
                 menu.addSeparator()
+        menu.addSeparator()
+        self.export_action = QAction("&Export Data…", self)
+        self.export_action.setStatusTip(
+            "Export GeoTIFF rasters and CSV tables (Output page)."
+        )
+        self.export_action.triggered.connect(
+            lambda _checked=False: self.navigate_to(WorkflowPage.OUTPUT)
+        )
+        menu.addAction(self.export_action)
 
     def _update_window_title(self) -> None:
         name = self.state.project.name
@@ -1558,7 +1561,7 @@ class MainWindow(QMainWindow):
         """Rebuild every page from the (replaced) ApplicationState."""
         for page in (
             self.survey_page, self.world_page, self.observability_page,
-            self.analysis_page,
+            self.analysis_page, self.output_page,
         ):
             page.refresh_from_state()
         self.navigate_to(self.state.view.active_page)

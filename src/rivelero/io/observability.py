@@ -21,6 +21,7 @@ from typing import Any
 import numpy as np
 import rasterio
 
+from rivelero.export.files import atomic_output
 from rivelero.observability.masks import ObservabilityState
 from rivelero.observability.survey_field import SurveyObservabilityField
 
@@ -36,6 +37,7 @@ def write_exposure_count(
     *,
     compress: str = "deflate",
     overwrite: bool = False,
+    extra_tags: dict[str, Any] | None = None,
 ) -> Path:
     """Write cumulative exposure count as a GeoTIFF.
 
@@ -58,6 +60,7 @@ def write_exposure_count(
         nodata=_integer_nodata(data.dtype),
         compress=compress,
         overwrite=overwrite,
+        extra_tags=extra_tags,
         tags={
             "rivelero_product": "exposure_count",
             "description": (
@@ -75,6 +78,7 @@ def write_normalized_exposure(
     *,
     compress: str = "deflate",
     overwrite: bool = False,
+    extra_tags: dict[str, Any] | None = None,
 ) -> Path:
     """Write globally normalized exposure as a GeoTIFF.
 
@@ -106,6 +110,7 @@ def write_normalized_exposure(
         nodata=np.nan,
         compress=compress,
         overwrite=overwrite,
+        extra_tags=extra_tags,
         tags={
             "rivelero_product": "normalized_exposure",
             "normalization": (
@@ -122,6 +127,7 @@ def write_observability_state(
     *,
     compress: str = "deflate",
     overwrite: bool = False,
+    extra_tags: dict[str, Any] | None = None,
 ) -> Path:
     """Write categorical observability state as a GeoTIFF.
 
@@ -152,6 +158,7 @@ def write_observability_state(
         nodata=None,
         compress=compress,
         overwrite=overwrite,
+        extra_tags=extra_tags,
         tags={
             "rivelero_product": "observability_state",
             "state_0": "outside_domain",
@@ -169,6 +176,7 @@ def write_blindspot_mask(
     *,
     compress: str = "deflate",
     overwrite: bool = False,
+    extra_tags: dict[str, Any] | None = None,
 ) -> Path:
     """Write the SOF blind-spot mask as a GeoTIFF.
 
@@ -195,6 +203,7 @@ def write_blindspot_mask(
         nodata=255,
         compress=compress,
         overwrite=overwrite,
+        extra_tags=extra_tags,
         tags={
             "rivelero_product": "blindspot_mask",
             "value_0": "not_blind_spot",
@@ -210,6 +219,7 @@ def write_observable_mask(
     *,
     compress: str = "deflate",
     overwrite: bool = False,
+    extra_tags: dict[str, Any] | None = None,
 ) -> Path:
     """Write the observable-space mask as a GeoTIFF."""
 
@@ -228,6 +238,7 @@ def write_observable_mask(
         nodata=255,
         compress=compress,
         overwrite=overwrite,
+        extra_tags=extra_tags,
         tags={
             "rivelero_product": "observable_mask",
             "value_0": "not_observable",
@@ -243,6 +254,7 @@ def write_analysis_mask(
     *,
     compress: str = "deflate",
     overwrite: bool = False,
+    extra_tags: dict[str, Any] | None = None,
 ) -> Path:
     """Write the AnalysisDomain membership mask."""
 
@@ -261,6 +273,7 @@ def write_analysis_mask(
         nodata=None,
         compress=compress,
         overwrite=overwrite,
+        extra_tags=extra_tags,
         tags={
             "rivelero_product": "analysis_mask",
             "value_0": "outside_analysis_domain",
@@ -276,6 +289,7 @@ def write_valid_mask(
     *,
     compress: str = "deflate",
     overwrite: bool = False,
+    extra_tags: dict[str, Any] | None = None,
 ) -> Path:
     """Write the environmental/spatial validity mask."""
 
@@ -294,6 +308,7 @@ def write_valid_mask(
         nodata=None,
         compress=compress,
         overwrite=overwrite,
+        extra_tags=extra_tags,
         tags={
             "rivelero_product": "valid_mask",
             "value_0": "invalid",
@@ -577,6 +592,7 @@ def write_sof_manifest(
                 "visibility_configuration_id": (
                     key.visibility_configuration_id
                 ),
+                "input_fingerprint": key.input_fingerprint,
             }
             for key in sof.active_keys
         ],
@@ -626,8 +642,14 @@ def _write_raster(
     compress: str,
     overwrite: bool,
     tags: dict[str, Any] | None = None,
+    extra_tags: dict[str, Any] | None = None,
 ) -> Path:
-    """Write one two-dimensional SOF product as GeoTIFF."""
+    """Write one two-dimensional SOF product as GeoTIFF.
+
+    The raster is written to a temporary file next to ``path`` and moved into
+    place only after a successful write, so a failure never leaves a
+    truncated GeoTIFF or replaces an existing file.
+    """
 
     if not isinstance(
         data,
@@ -702,27 +724,33 @@ def _write_raster(
     if nodata is not None:
         profile["nodata"] = nodata
 
-    with rasterio.open(
-        output_path,
-        "w",
-        **profile,
-    ) as dataset:
+    all_tags = {**(tags or {}), **(extra_tags or {})}
 
-        dataset.write(
-            output_data,
-            1,
-        )
-
-        if tags:
-            dataset.update_tags(
-                **{
-                    str(key): str(value)
-                    for key, value
-                    in tags.items()
-                }
+    with atomic_output(output_path, overwrite=overwrite) as temporary:
+        with rasterio.open(
+            temporary,
+            "w",
+            **profile,
+        ) as dataset:
+            dataset.write(
+                output_data,
+                1,
             )
 
+            if all_tags:
+                dataset.update_tags(
+                    **{
+                        str(key): str(value)
+                        for key, value
+                        in all_tags.items()
+                    }
+                )
+
     return output_path
+
+
+# Public name for other exporters writing grid-aligned rasters.
+write_raster = _write_raster
 
 
 # ---------------------------------------------------------------------------

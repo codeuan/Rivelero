@@ -305,18 +305,58 @@ survey.
 
 ## 5. Output
 
-Export and project-persistence functionality is under active development.
+Projects are saved as `.rivelero` files (File › Save), the authoritative
+record of an analysis.
 
-Planned outputs include:
+The **Output** page (also File › Export Data…) exports machine-readable
+scientific data for GIS, Python/R, spreadsheets and archiving:
 
-- Survey Observability Field rasters;
-- exposure rasters;
-- blind-spot and analysis-state rasters;
-- contribution tables;
-- scenario comparison tables;
-- publication-ready maps and figures;
-- configuration and provenance manifests;
-- saved Rivelero projects.
+- Survey tables (Viewpoints, Sensors, ObservationEvents) as CSV, using the
+  importer's column names so they can be re-imported;
+- Survey Observability Field GeoTIFFs: exposure count, normalized exposure,
+  categorical observability state, blind-spot, observable, AnalysisDomain and
+  validity masks;
+- coverage-class rasters and sampling-unit contribution tables;
+- the current what-if scenario (exposure and baseline → scenario change),
+  a scenario summary table, and the selected comparison (table, exposure
+  difference **right − left**, and left → right change classes).
+
+Every raster is written on the exact grid of the observability field (same CRS,
+transform and shape). Blind spots are 0, never NoData; NoData marks only cells
+outside the AnalysisDomain or with invalid terrain; categorical rasters keep
+every code. Each file has `RIVELERO_*` GeoTIFF tags or a JSON sidecar
+(`<file>.json`) recording its meaning, units, NoData, codes, direction and the
+SOF, AnalysisDomain and VisibilityConfiguration it comes from. Existing files
+are never replaced unless explicitly allowed.
+
+The **Figures** tab exports standalone PNG (default 300 dpi), SVG or PDF
+figures: analysis-state, exposure, normalized exposure, blind-spot and
+coverage-class maps, the coverage-composition and exposure-distribution
+charts, the sampling-unit contribution distribution, scenario change and
+exposure maps, and the comparison coverage-change and exposure-difference
+(right − left) maps. They use exactly the colours, whole-field scales, masks
+and legends of the application maps.
+
+The **Report** tab writes a self-contained report folder that opens offline in
+any browser:
+
+```
+<project>_report/
+├── report.html
+├── provenance.json
+├── provenance.md
+└── figures/
+```
+
+The provenance manifest records the software version and git commit, the
+Survey, the terrain file and its SHA-256 checksum, the AnalysisDomain, every
+VisibilityConfiguration parameter, the observability build and results, and
+the available design analyses. It keeps what the source data *contained*
+(e.g. Viewpoints without a heading) separate from what the configuration
+*assumed* (e.g. the missing-heading policy, and how many sampling units it was
+applied to). Warnings and limitations are listed only when they apply.
+Sections for results that do not exist yet are omitted, so a Survey-only
+report is possible.
 
 ---
 
@@ -634,7 +674,6 @@ Important current limitations include:
 - scenario changes are non-destructive and cannot yet be committed back to the
   canonical Survey;
 - automated survey optimization is not yet implemented;
-- project persistence and final export workflows are still under development.
 
 ---
 
@@ -653,8 +692,9 @@ Near-term development priorities include:
 - [x] Non-destructive survey-design scenarios
 - [x] Scenario/configuration comparison
 - [x] Project save/load
-- [ ] Raster/table/figure export
-- [ ] Provenance and reproducibility manifests
+- [x] Raster and table data export
+- [x] Figure and report export
+- [x] Provenance and reproducibility manifests
 - [ ] Candidate-pool generation
 - [ ] User-defined survey optimization
 - [ ] DSM support

@@ -23,8 +23,6 @@ from typing import Any, Iterable
 
 import numpy as np
 import rasterio
-from matplotlib.colors import BoundaryNorm, ListedColormap, Normalize
-from matplotlib.patches import Patch
 from matplotlib.ticker import MaxNLocator
 
 try:
@@ -54,26 +52,14 @@ from rivelero.gui.raster_map import RasterMapWidget, project_viewpoints
 from rivelero.gui.theme import COLORS, SPACING
 from rivelero.observability.masks import ObservabilityState
 from rivelero.observability.survey_field import SurveyObservabilityField
-from rivelero.visualization.analysis import (
-    coverage_class_colormap,
-    coverage_class_legend_handles,
-    EXPOSURE_DIFFERENCE_CMAP,
-    comparison_change_legend_handles,
-    scenario_change_colormap,
-    scenario_change_legend_handles,
-    unit_contribution_colormap,
-    unit_contribution_legend_handles,
+from rivelero.visualization.layers import (
+    NOT_ANALYSABLE_LABEL,
+    binary_colormap,
+    linear_unit,
+    map_layer,
 )
 from rivelero.visualization.maps import raster_extent
-from rivelero.visualization.observability import (
-    CONTEXT_COLOR,
-    EXPOSURE_CMAP,
-    OBSERVABILITY_STATE_COLORS,
-    OBSERVABILITY_STATE_LABELS,
-    observability_state_colormap,
-    observability_state_legend_handles,
-)
-
+from rivelero.visualization.observability import OBSERVABILITY_STATE_LABELS
 
 class ObservabilityMapMode(str, Enum):
     """Layers the map can display. Values match VisualizationLayer."""
@@ -125,7 +111,7 @@ CONTINUOUS_MODES = frozenset(
     }
 )
 
-_NOT_ANALYSABLE_HANDLE_LABEL = "Outside domain / invalid (not shown)"
+_NOT_ANALYSABLE_HANDLE_LABEL = NOT_ANALYSABLE_LABEL
 
 # Surveys can hold tens of thousands of Viewpoints; shrink markers for them.
 _DENSE_SURVEY_THRESHOLD = 2_000
@@ -691,227 +677,34 @@ class ObservabilityMapWidget(RasterMapWidget):
         self.axes.set_aspect("equal", adjustable="box")
 
     def _layer_spec(self):
-        """Return (data, cmap, norm, colorbar label, legend handles)."""
+        """Return (data, cmap, norm, colorbar label, legend handles).
 
-        sof = self._sof
+        The semantics live in rivelero.visualization.layers, shared with the
+        exported figures; this widget only supplies its cached inputs.
+        """
 
-        if sof is None:
+        if self._sof is None:
             return None
-
-        analysable = sof.analysable_mask
-        not_analysable = Patch(
-            facecolor="none",
-            edgecolor=COLORS.border_strong,
-            label=_NOT_ANALYSABLE_HANDLE_LABEL,
+        layer = map_layer(
+            self._mode.value,
+            self._sof,
+            state=self._state(),
+            coverage_classes=(
+                self._coverage_classes()
+                if self._mode == ObservabilityMapMode.COVERAGE_CLASS else None
+            ),
+            individual_mask=self._individual_mask,
+            unit_classes=self._unit_classes,
+            scenario_exposure=self._scenario_exposure,
+            scenario_classes=self._scenario_classes,
+            comparison_classes=self._comparison_classes,
+            exposure_difference=self._exposure_difference,
         )
-
-        if self._mode == ObservabilityMapMode.OBSERVABILITY_STATE:
-            cmap, norm = observability_state_colormap()
-            return (
-                self._state(),
-                cmap,
-                norm,
-                None,
-                observability_state_legend_handles(),
-            )
-
-        if self._mode == ObservabilityMapMode.COMPARISON_CHANGE:
-            if self._comparison_classes is None:
-                return None
-            cmap, norm = scenario_change_colormap()
-            return (
-                self._comparison_classes,
-                cmap,
-                norm,
-                None,
-                comparison_change_legend_handles(),
-            )
-
-        if self._mode == ObservabilityMapMode.EXPOSURE_DIFFERENCE:
-            if self._exposure_difference is None:
-                return None
-            data = np.ma.masked_where(
-                ~analysable | np.ma.getmaskarray(self._exposure_difference),
-                np.ma.getdata(self._exposure_difference).astype(np.float32),
-            )
-            # Symmetric about zero so gains and losses of equal size have
-            # equal visual weight.
-            limit = float(max(1, int(np.abs(data).max()) if data.count() else 1))
-            return (
-                data,
-                EXPOSURE_DIFFERENCE_CMAP,
-                Normalize(vmin=-limit, vmax=limit),
-                "Exposure difference (right − left, sampling units)",
-                # Non-analysable cells are hatched so they cannot be read as
-                # the neutral "no difference" colour.
-                [
-                    Patch(
-                        facecolor="white",
-                        edgecolor=COLORS.border_strong,
-                        hatch="////",
-                        label="Outside domain / invalid (not compared)",
-                    )
-                ],
-            )
-
-        if self._mode == ObservabilityMapMode.SCENARIO_CHANGE:
-            if self._scenario_classes is None:
-                return None
-            cmap, norm = scenario_change_colormap()
-            return (
-                self._scenario_classes,
-                cmap,
-                norm,
-                None,
-                scenario_change_legend_handles(),
-            )
-
-        if self._mode == ObservabilityMapMode.SCENARIO_EXPOSURE:
-            if self._scenario_exposure is None:
-                return None
-            data = np.ma.masked_where(
-                ~analysable,
-                self._scenario_exposure.astype(np.float32),
-            )
-            # Shared scale with the baseline so colours compare directly.
-            maximum = max(
-                1,
-                sof.maximum_exposure,
-                int(self._scenario_exposure[analysable].max(initial=0)),
-            )
-            return (
-                data,
-                EXPOSURE_CMAP,
-                Normalize(vmin=0.0, vmax=float(maximum)),
-                "Scenario exposure (number of sampling units)",
-                [],
-            )
-
-        if self._mode == ObservabilityMapMode.UNIT_CONTRIBUTION:
-            if self._unit_classes is None:
-                return None
-            cmap, norm = unit_contribution_colormap()
-            return (
-                self._unit_classes,
-                cmap,
-                norm,
-                None,
-                unit_contribution_legend_handles(),
-            )
-
-        if self._mode == ObservabilityMapMode.COVERAGE_CLASS:
-            cmap, norm = coverage_class_colormap()
-            return (
-                self._coverage_classes(),
-                cmap,
-                norm,
-                None,
-                coverage_class_legend_handles(),
-            )
-
-        if self._mode == ObservabilityMapMode.OBSERVABLE_SPACE:
-            observable_color = OBSERVABILITY_STATE_COLORS[
-                ObservabilityState.OBSERVABLE
-            ]
-            data = np.ma.masked_where(
-                ~analysable,
-                sof.observable_mask.astype(np.uint8),
-            )
-            cmap, norm = _binary_colormap(CONTEXT_COLOR, observable_color)
-            return (
-                data,
-                cmap,
-                norm,
-                None,
-                [
-                    Patch(
-                        facecolor=observable_color,
-                        label="Observable (exposure ≥ 1)",
-                    ),
-                    Patch(
-                        facecolor=CONTEXT_COLOR,
-                        label="Not observable",
-                    ),
-                    not_analysable,
-                ],
-            )
-
-        if self._mode == ObservabilityMapMode.BLIND_SPOTS:
-            blind_color = OBSERVABILITY_STATE_COLORS[
-                ObservabilityState.BLIND_SPOT
-            ]
-            data = np.ma.masked_where(
-                ~analysable,
-                sof.blindspot_mask.astype(np.uint8),
-            )
-            cmap, norm = _binary_colormap(CONTEXT_COLOR, blind_color)
-            return (
-                data,
-                cmap,
-                norm,
-                None,
-                [
-                    Patch(
-                        facecolor=blind_color,
-                        label=OBSERVABILITY_STATE_LABELS[
-                            ObservabilityState.BLIND_SPOT
-                        ],
-                    ),
-                    Patch(facecolor=CONTEXT_COLOR, label="Observable"),
-                    not_analysable,
-                ],
-            )
-
-        if self._mode == ObservabilityMapMode.EXPOSURE:
-            data = np.ma.masked_where(
-                ~analysable,
-                sof.exposure_count.astype(np.float32),
-            )
-            # The scale spans the whole field, so zooming never changes
-            # what a colour means.
-            norm = Normalize(vmin=0.0, vmax=float(max(1, sof.maximum_exposure)))
-            return (
-                data,
-                EXPOSURE_CMAP,
-                norm,
-                "Exposure (number of sampling units)",
-                [],
-            )
-
-        if self._mode == ObservabilityMapMode.NORMALIZED_EXPOSURE:
-            data = np.ma.masked_where(~analysable, sof.normalized_exposure)
-            return (
-                data,
-                EXPOSURE_CMAP,
-                Normalize(vmin=0.0, vmax=1.0),
-                "Normalized exposure (fraction of active sampling units)",
-                [],
-            )
-
-        if self._mode == ObservabilityMapMode.INDIVIDUAL_VISIBILITY:
-            if self._individual_mask is None:
-                return None
-            visible_color = OBSERVABILITY_STATE_COLORS[
-                ObservabilityState.OBSERVABLE
-            ]
-            data = np.ma.masked_where(
-                ~analysable,
-                self._individual_mask.astype(np.uint8),
-            )
-            cmap, norm = _binary_colormap(CONTEXT_COLOR, visible_color)
-            return (
-                data,
-                cmap,
-                norm,
-                None,
-                [
-                    Patch(facecolor=visible_color, label="Visible from unit"),
-                    Patch(facecolor=CONTEXT_COLOR, label="Not visible from unit"),
-                    not_analysable,
-                ],
-            )
-
-        return None
+        if layer is None:
+            return None
+        return (
+            layer.data, layer.cmap, layer.norm, layer.colorbar_label, layer.legend_handles,
+        )
 
     def _empty_message(self) -> str:
         if self._sof is None:
@@ -1144,18 +937,5 @@ class ObservabilityMapWidget(RasterMapWidget):
         )
 
 
-def _binary_colormap(off_color: str, on_color: str):
-    cmap = ListedColormap([off_color, on_color])
-    return cmap, BoundaryNorm([-0.5, 0.5, 1.5], cmap.N)
-
-
-def _linear_unit(crs) -> str | None:
-    try:
-        if crs is None or not crs.is_projected:
-            return None
-        unit = str(crs.linear_units or "").strip()
-    except AttributeError:
-        return None
-    if unit.lower() in {"metre", "meter", "metres", "meters", "m"}:
-        return "m"
-    return unit or None
+_binary_colormap = binary_colormap
+_linear_unit = linear_unit
