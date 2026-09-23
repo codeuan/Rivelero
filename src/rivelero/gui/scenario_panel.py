@@ -29,7 +29,8 @@ try:
     )
     from PySide6.QtWidgets import (
         QAbstractItemView, QComboBox, QDialog, QGridLayout, QHBoxLayout,
-        QHeaderView, QLabel, QMessageBox, QTableView, QVBoxLayout, QWidget,
+        QHeaderView, QInputDialog, QLabel, QMessageBox, QTableView, QVBoxLayout,
+        QWidget,
     )
 except ImportError:
     from PyQt6.QtCore import (
@@ -37,11 +38,13 @@ except ImportError:
     )
     from PyQt6.QtWidgets import (
         QAbstractItemView, QComboBox, QDialog, QGridLayout, QHBoxLayout,
-        QHeaderView, QLabel, QMessageBox, QTableView, QVBoxLayout, QWidget,
+        QHeaderView, QInputDialog, QLabel, QMessageBox, QTableView, QVBoxLayout,
+        QWidget,
     )
 
 from rasterio.warp import transform as transform_coordinates
 
+from rivelero.analysis.comparison import ScenarioWorkspace
 from rivelero.analysis.scenario import (
     CandidateStatus, DesignCandidate, SurveyDesignScenario, suggest_candidate_id,
 )
@@ -439,12 +442,14 @@ class ScenarioPanel(QWidget):
 
         actions = QHBoxLayout()
         self.reset_button = make_secondary_button("Reset scenario")
+        self.save_button = make_primary_button("Save scenario for comparison")
         self.apply_button = make_secondary_button("Apply scenario to Survey — Coming later")
         self.apply_button.setEnabled(False)
         self.apply_button.setToolTip(
             "Committing a design changes Survey identity, provenance and cache "
             "reuse; it will be designed separately."
         )
+        actions.addWidget(self.save_button)
         actions.addWidget(self.reset_button)
         actions.addStretch(1)
         actions.addWidget(self.apply_button)
@@ -557,6 +562,7 @@ class ScenarioPanel(QWidget):
 
     def _connect_signals(self) -> None:
         self.reset_button.clicked.connect(self._reset)
+        self.save_button.clicked.connect(lambda: self.save_snapshot())
         self.filter_combo.currentIndexChanged.connect(
             lambda _i: self.units_proxy.set_mode(self.filter_combo.currentData())
         )
@@ -838,7 +844,10 @@ class ScenarioPanel(QWidget):
                 return
             try:
                 scenario.set_candidate_visibility(
-                    candidate_id, key=result.key, mask=result.stored.visibility_mask
+                    candidate_id,
+                    key=result.key,
+                    mask=result.stored.visibility_mask,
+                    include=scenario.candidate(candidate_id).include_when_ready,
                 )
             except (OverflowError, ValueError) as exc:
                 scenario.set_candidate_status(candidate_id, CandidateStatus.FAILED, str(exc))
@@ -882,6 +891,43 @@ class ScenarioPanel(QWidget):
     # ------------------------------------------------------------------
     # Refresh
     # ------------------------------------------------------------------
+
+    @property
+    def workspace(self):
+        workspace = self.state.analysis.scenario_workspace
+        if workspace is None:
+            workspace = ScenarioWorkspace()
+            self.state.analysis.scenario_workspace = workspace
+        return workspace
+
+    def save_snapshot(self, name: str | None = None, description: str | None = None):
+        """Save the live scenario for comparison (no visibility recomputed)."""
+        scenario = self.scenario
+        if scenario is None or self.busy:
+            return None
+        workspace = self.workspace
+        if name is None:
+            name, accepted = QInputDialog.getText(
+                self, "Save scenario for comparison", "Name",
+                text=workspace.suggest_name(),
+            )
+            if not accepted:
+                return None
+            description, accepted = QInputDialog.getMultiLineText(
+                self, "Save scenario for comparison", "Description (optional)",
+            )
+            if not accepted:
+                return None
+        try:
+            snapshot = workspace.save(scenario, name=name, description=description or "")
+        except ValueError as exc:
+            self._set_status(str(exc), kind="error")
+            return None
+        self._set_status(
+            f"Saved {snapshot.name!r} for comparison. The Survey is unchanged.",
+            kind="success",
+        )
+        return snapshot
 
     def _reset(self) -> None:
         scenario = self.scenario
@@ -973,6 +1019,7 @@ class ScenarioPanel(QWidget):
         self.reactivate_button.setEnabled(
             any(not scenario.is_active(key) for key in selected)
         )
+        self.save_button.setEnabled(scenario is not None and not self.busy)
         self.reset_button.setEnabled(
             scenario is not None and not self.busy
             and not (scenario.summary().is_baseline and not scenario.candidates)

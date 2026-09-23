@@ -64,7 +64,7 @@ def test_contribution_tab_exists_and_needs_sof(app, tmp_path):
     page = _keep(AnalysisPage(state))
 
     assert [page.tabs.tabText(i) for i in range(page.tabs.count())] == [
-        "Overview", "Contribution", "Scenario",
+        "Overview", "Contribution", "Scenario", "Compare",
     ]
     assert not page.tabs.isVisibleTo(page)
     assert not page.contribution_panel.analyse_button.isEnabled()

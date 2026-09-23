@@ -8,7 +8,9 @@ where those patterns are located.
 
 Contribution (A2) attributes that coverage to individual sampling units; see
 rivelero.gui.contribution_panel. Scenario (A3) is a non-destructive what-if
-design environment; see rivelero.gui.scenario_panel.
+design environment; see rivelero.gui.scenario_panel. Compare (A4) reports
+signed differences between the baseline, the current scenario and saved
+snapshots; see rivelero.gui.compare_panel.
 
 The page never holds its own copy of the SOF. It reads the current result
 from ApplicationState on every refresh and only caches the cheap derived
@@ -40,6 +42,7 @@ from rivelero.gui.components import (
     ActionBar, BadgeType, CollapsibleSection, ContentCard, EmptyState,
     LabeledValue, PageHeader, StatusBadge, make_primary_button,
 )
+from rivelero.gui.compare_panel import ComparePanel
 from rivelero.gui.contribution_panel import ContributionPanel
 from rivelero.gui.raster_map import SafeFigureCanvas
 from rivelero.gui.scenario_panel import ScenarioPanel
@@ -71,10 +74,12 @@ DENOMINATOR_NOTE = (
 
 _DESIGN_TOOLS = (
     (
-        "Configuration comparison",
+        "Automated survey design",
         "Coming later",
-        "Compare coverage, blind spots and repeated coverage between survey "
-        "configurations.",
+        "Search for changes that meet a user-defined objective and "
+        "constraints (for example coverage with at most N Viewpoints). "
+        "Comparison and the marginal-effect primitives it will use are "
+        "available now; no design is recommended automatically.",
     ),
 )
 
@@ -148,6 +153,7 @@ class AnalysisPage(QWidget):
         self._refresh_charts()
         self.contribution_panel.refresh_from_state()
         self.scenario_panel.refresh_from_state()
+        self.compare_panel.refresh_from_state()
 
     # ------------------------------------------------------------------
     # Interface
@@ -201,6 +207,9 @@ class AnalysisPage(QWidget):
             self.state, task_controller=self.task_controller
         )
         self.tabs.addTab(self.scenario_panel, "Scenario")
+
+        self.compare_panel = ComparePanel(self.state)
+        self.tabs.addTab(self.compare_panel, "Compare")
         layout.addWidget(self.tabs)
 
         self._build_design_tools(layout)
@@ -317,7 +326,7 @@ class AnalysisPage(QWidget):
     def _build_design_tools(self, layout: QVBoxLayout) -> None:
         section = CollapsibleSection(
             "Survey design tools",
-            description="Configuration comparison.",
+            description="Automated design (not yet available).",
             expanded=False,
         )
         form = QFormLayout()
@@ -338,6 +347,9 @@ class AnalysisPage(QWidget):
         layout.addWidget(section)
 
     def _connect_signals(self) -> None:
+        # The live scenario may change on the Scenario tab.
+        self.tabs.currentChanged.connect(self._on_tab_changed)
+        self.compare_panel.scenario_loaded.connect(self._on_scenario_loaded)
         self.readiness.action_requested.connect(self.observability_requested.emit)
         self.continue_button.clicked.connect(self.continue_requested.emit)
         self.analysis_map.viewpoint_selected.connect(self._on_viewpoint_selected)
@@ -371,6 +383,7 @@ class AnalysisPage(QWidget):
         self.analysis_map.set_field(None)
         self.contribution_panel.refresh_from_state()
         self.scenario_panel.refresh_from_state()
+        self.compare_panel.refresh_from_state()
 
     def _refresh_summary(self, sof) -> None:
         summary = self._summary
@@ -429,6 +442,16 @@ class AnalysisPage(QWidget):
             left=0.04, right=0.96, top=0.95, bottom=0.62
         )
         self.composition_canvas.draw_idle()
+
+    def _on_tab_changed(self, index: int) -> None:
+        if self.tabs.widget(index) is self.compare_panel:
+            self.compare_panel.refresh_from_state()
+
+    def _on_scenario_loaded(self) -> None:
+        self.scenario_panel.refresh_from_state()
+        # Restored candidates without cached visibility are recomputed.
+        self.scenario_panel._start_next_candidate()
+        self.tabs.setCurrentWidget(self.scenario_panel)
 
     def _on_viewpoint_selected(self, viewpoint_id: str) -> None:
         # Same canonical selection as the Survey and Observability pages.

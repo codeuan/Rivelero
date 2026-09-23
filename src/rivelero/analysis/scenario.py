@@ -94,6 +94,9 @@ class DesignCandidate:
     mask: np.ndarray | None = None
     included: bool = False
     message: str | None = None
+    # Inclusion to apply once visibility becomes available (e.g. a candidate
+    # restored from a snapshot whose cached mask must be recomputed).
+    include_when_ready: bool = True
 
     @property
     def candidate_id(self) -> str:
@@ -386,33 +389,11 @@ class SurveyDesignScenario:
 
     def marginal_loss(self, mask: np.ndarray) -> MarginalEffect:
         """Effect of removing a unit that is active in the current scenario."""
-
-        visible = self._prepare_mask(mask)
-        exposure = self._exposure
-        if np.any(exposure[visible] == 0):
-            raise ValueError("The mask is not part of the current scenario.")
-        return MarginalEffect(
-            visible_cells=int(np.count_nonzero(visible)),
-            coverage_cells=int(np.count_nonzero(visible & (exposure == 1))),
-            unique_to_repeated=0,
-            repeated_to_unique=int(np.count_nonzero(visible & (exposure == 2))),
-            other_exposure_cells=int(np.count_nonzero(visible & (exposure >= 3))),
-            analysable_cells=int(np.count_nonzero(self._masks.analysable)),
-        )
+        return marginal_loss(self._exposure, self._prepare_mask(mask), self._masks.analysable)
 
     def marginal_gain(self, mask: np.ndarray) -> MarginalEffect:
         """Effect of adding a mask that is not part of the current scenario."""
-
-        visible = self._prepare_mask(mask)
-        exposure = self._exposure
-        return MarginalEffect(
-            visible_cells=int(np.count_nonzero(visible)),
-            coverage_cells=int(np.count_nonzero(visible & (exposure == 0))),
-            unique_to_repeated=int(np.count_nonzero(visible & (exposure == 1))),
-            repeated_to_unique=0,
-            other_exposure_cells=int(np.count_nonzero(visible & (exposure >= 2))),
-            analysable_cells=int(np.count_nonzero(self._masks.analysable)),
-        )
+        return marginal_gain(self._exposure, self._prepare_mask(mask), self._masks.analysable)
 
     def candidate_marginal_gain(self, candidate_id: str) -> MarginalEffect | None:
         """Gain of a candidate relative to all *other* scenario modifications."""
@@ -426,45 +407,16 @@ class SurveyDesignScenario:
         without = remove_visibility_from_exposure(
             self._exposure, candidate.mask, analysable_mask=self._masks.analysable
         )
-        visible = candidate.mask
-        return MarginalEffect(
-            visible_cells=int(np.count_nonzero(visible)),
-            coverage_cells=int(np.count_nonzero(visible & (without == 0))),
-            unique_to_repeated=int(np.count_nonzero(visible & (without == 1))),
-            repeated_to_unique=0,
-            other_exposure_cells=int(np.count_nonzero(visible & (without >= 2))),
-            analysable_cells=int(np.count_nonzero(self._masks.analysable)),
-        )
+        return marginal_gain(without, candidate.mask, self._masks.analysable)
 
     def change_classes(self) -> np.ndarray:
-        """ScenarioChangeClass raster (uint8) for mapping."""
-
-        baseline_observable = self._masks.observable
-        scenario_observable = self._masks.analysable & (self._exposure > 0)
-
-        classes = np.full(
-            self._masks.analysable.shape,
-            ScenarioChangeClass.OUTSIDE_DOMAIN,
-            dtype=np.uint8,
+        """Baseline -> scenario ScenarioChangeClass raster (uint8)."""
+        return coverage_change_classes(
+            self._baseline.exposure_count,
+            self._exposure,
+            analysis_mask=self._baseline.analysis_mask,
+            valid_mask=self._baseline.valid_mask,
         )
-        classes[invalid_mask(self._baseline.analysis_mask, self._baseline.valid_mask)] = (
-            ScenarioChangeClass.INVALID
-        )
-        analysable = self._masks.analysable
-        classes[analysable & ~baseline_observable & ~scenario_observable] = (
-            ScenarioChangeClass.REMAINS_BLIND
-        )
-        classes[baseline_observable & scenario_observable] = (
-            ScenarioChangeClass.REMAINS_OBSERVABLE
-        )
-        classes[baseline_observable & ~scenario_observable] = (
-            ScenarioChangeClass.LOST_COVERAGE
-        )
-        classes[~baseline_observable & scenario_observable] = (
-            ScenarioChangeClass.GAINED_COVERAGE
-        )
-        classes[~self._baseline.analysis_mask] = ScenarioChangeClass.OUTSIDE_DOMAIN
-        return classes
 
     # ------------------------------------------------------------------
     # Internals
@@ -498,6 +450,95 @@ class SurveyDesignScenario:
             valid_mask=self._baseline.valid_mask,
             active_units=active_units,
         )
+
+
+# ---------------------------------------------------------------------------
+# Stable deterministic primitives (A4 optimisation foundation)
+# ---------------------------------------------------------------------------
+#
+# Pure functions over an exposure raster, a unit/candidate visibility mask and
+# the analysable mask. They neither read nor modify any scenario, survey or
+# store, so search algorithms can evaluate many hypothetical changes against
+# one exposure array. "Deterministic" is explicit: expected-value versions for
+# probabilistic observability can be added alongside, not in place of, them.
+
+
+def marginal_loss(
+    exposure: np.ndarray,
+    mask: np.ndarray,
+    analysable_mask: np.ndarray,
+) -> MarginalEffect:
+    """Deterministic effect of removing a unit that contributes to ``exposure``.
+
+    ``coverage_cells`` counts cells that would become blind (exposure 1).
+    Raises ValueError if the mask marks visible a cell with zero exposure,
+    i.e. the unit is not part of ``exposure``.
+    """
+
+    analysable = np.asarray(analysable_mask, dtype=bool)
+    visible = np.asarray(mask, dtype=bool) & analysable
+    exposure = np.asarray(exposure)
+    if np.any(exposure[visible] == 0):
+        raise ValueError("The mask is not part of the current scenario.")
+    return MarginalEffect(
+        visible_cells=int(np.count_nonzero(visible)),
+        coverage_cells=int(np.count_nonzero(visible & (exposure == 1))),
+        unique_to_repeated=0,
+        repeated_to_unique=int(np.count_nonzero(visible & (exposure == 2))),
+        other_exposure_cells=int(np.count_nonzero(visible & (exposure >= 3))),
+        analysable_cells=int(np.count_nonzero(analysable)),
+    )
+
+
+def marginal_gain(
+    exposure: np.ndarray,
+    mask: np.ndarray,
+    analysable_mask: np.ndarray,
+) -> MarginalEffect:
+    """Deterministic effect of adding a mask that is not part of ``exposure``.
+
+    ``coverage_cells`` counts cells that would become observable (exposure 0).
+    """
+
+    analysable = np.asarray(analysable_mask, dtype=bool)
+    visible = np.asarray(mask, dtype=bool) & analysable
+    exposure = np.asarray(exposure)
+    return MarginalEffect(
+        visible_cells=int(np.count_nonzero(visible)),
+        coverage_cells=int(np.count_nonzero(visible & (exposure == 0))),
+        unique_to_repeated=int(np.count_nonzero(visible & (exposure == 1))),
+        repeated_to_unique=0,
+        other_exposure_cells=int(np.count_nonzero(visible & (exposure >= 2))),
+        analysable_cells=int(np.count_nonzero(analysable)),
+    )
+
+
+def coverage_change_classes(
+    left_exposure: np.ndarray,
+    right_exposure: np.ndarray,
+    *,
+    analysis_mask: np.ndarray,
+    valid_mask: np.ndarray,
+) -> np.ndarray:
+    """ScenarioChangeClass raster for LEFT -> RIGHT over one domain.
+
+    LOST_COVERAGE: observable on the left, blind on the right.
+    GAINED_COVERAGE: blind on the left, observable on the right.
+    """
+
+    analysis = np.asarray(analysis_mask, dtype=bool)
+    analysable = analysis & np.asarray(valid_mask, dtype=bool)
+    left = analysable & (np.asarray(left_exposure) > 0)
+    right = analysable & (np.asarray(right_exposure) > 0)
+
+    classes = np.full(analysable.shape, ScenarioChangeClass.OUTSIDE_DOMAIN, dtype=np.uint8)
+    classes[invalid_mask(analysis_mask, valid_mask)] = ScenarioChangeClass.INVALID
+    classes[analysable & ~left & ~right] = ScenarioChangeClass.REMAINS_BLIND
+    classes[left & right] = ScenarioChangeClass.REMAINS_OBSERVABLE
+    classes[left & ~right] = ScenarioChangeClass.LOST_COVERAGE
+    classes[~left & right] = ScenarioChangeClass.GAINED_COVERAGE
+    classes[~analysis] = ScenarioChangeClass.OUTSIDE_DOMAIN
+    return classes
 
 
 def suggest_candidate_id(reserved_ids, *, prefix: str = "candidate_") -> str:

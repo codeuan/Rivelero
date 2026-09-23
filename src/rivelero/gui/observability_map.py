@@ -57,6 +57,8 @@ from rivelero.observability.survey_field import SurveyObservabilityField
 from rivelero.visualization.analysis import (
     coverage_class_colormap,
     coverage_class_legend_handles,
+    EXPOSURE_DIFFERENCE_CMAP,
+    comparison_change_legend_handles,
     scenario_change_colormap,
     scenario_change_legend_handles,
     unit_contribution_colormap,
@@ -86,6 +88,8 @@ class ObservabilityMapMode(str, Enum):
     UNIT_CONTRIBUTION = VisualizationLayer.UNIT_CONTRIBUTION.value
     SCENARIO_CHANGE = VisualizationLayer.SCENARIO_CHANGE.value
     SCENARIO_EXPOSURE = VisualizationLayer.SCENARIO_EXPOSURE.value
+    COMPARISON_CHANGE = VisualizationLayer.COMPARISON_CHANGE.value
+    EXPOSURE_DIFFERENCE = VisualizationLayer.EXPOSURE_DIFFERENCE.value
 
 
 MODE_LABELS: dict[ObservabilityMapMode, str] = {
@@ -99,6 +103,8 @@ MODE_LABELS: dict[ObservabilityMapMode, str] = {
     ObservabilityMapMode.UNIT_CONTRIBUTION: "Selected unit contribution",
     ObservabilityMapMode.SCENARIO_CHANGE: "Baseline → scenario change",
     ObservabilityMapMode.SCENARIO_EXPOSURE: "Scenario exposure",
+    ObservabilityMapMode.COMPARISON_CHANGE: "Coverage change",
+    ObservabilityMapMode.EXPOSURE_DIFFERENCE: "Exposure difference",
 }
 
 # Layers offered by default (the Observability page). Other pages pass their
@@ -173,6 +179,10 @@ class ObservabilityMapWidget(RasterMapWidget):
         self._scenario_classes: np.ndarray | None = None
 
         self._picking_point = False
+
+        # Derived left -> right comparison layers.
+        self._comparison_classes: np.ndarray | None = None
+        self._exposure_difference: np.ndarray | None = None
 
         self._layer_image = None
 
@@ -252,6 +262,8 @@ class ObservabilityMapWidget(RasterMapWidget):
             self._unit_classes = None
             self._scenario_exposure = None
             self._scenario_classes = None
+            self._comparison_classes = None
+            self._exposure_difference = None
         else:
             extent = raster_extent(
                 shape=sof.exposure_count.shape,
@@ -272,10 +284,12 @@ class ObservabilityMapWidget(RasterMapWidget):
                 and self._individual_mask.shape != sof.exposure_count.shape
             ):
                 self._individual_mask = None
-            # Contribution/scenario layers are relative to one SOF.
+            # Contribution/scenario/comparison layers are relative to one SOF.
             self._unit_classes = None
             self._scenario_exposure = None
             self._scenario_classes = None
+            self._comparison_classes = None
+            self._exposure_difference = None
 
         self._project_viewpoints()
         self.display_combo.setEnabled(sof is not None)
@@ -405,6 +419,20 @@ class ObservabilityMapWidget(RasterMapWidget):
         else:
             self._candidate_artist.set_offsets(xy)
         self._candidate_artist.set_visible(True)
+
+    def set_comparison_layers(
+        self,
+        change_classes: np.ndarray | None,
+        exposure_difference: np.ndarray | None,
+    ) -> None:
+        """Set left -> right change classes and signed exposure difference."""
+        self._comparison_classes = change_classes
+        self._exposure_difference = exposure_difference
+        if self._mode in (
+            ObservabilityMapMode.COMPARISON_CHANGE,
+            ObservabilityMapMode.EXPOSURE_DIFFERENCE,
+        ):
+            self._render()
 
     @property
     def picking_point(self) -> bool:
@@ -551,6 +579,7 @@ class ObservabilityMapWidget(RasterMapWidget):
             self._sof is not None
             and self._terrain_data is not None
             and self.terrain_checkbox.isChecked()
+            and self._mode != ObservabilityMapMode.EXPOSURE_DIFFERENCE
             and self._terrain_data.shape == self._sof.exposure_count.shape
         )
 
@@ -599,6 +628,10 @@ class ObservabilityMapWidget(RasterMapWidget):
         data, cmap, norm, colorbar_label, handles = spec
         self._show_message(None)
 
+        hatched = self._mode == ObservabilityMapMode.EXPOSURE_DIFFERENCE
+        self.axes.patch.set_hatch("////" if hatched else None)
+        self.axes.patch.set_edgecolor(COLORS.border_strong if hatched else "none")
+
         if self._layer_image is None:
             self._layer_image = self.axes.imshow(
                 data,
@@ -622,6 +655,7 @@ class ObservabilityMapWidget(RasterMapWidget):
             if self._mode in (
                 ObservabilityMapMode.EXPOSURE,
                 ObservabilityMapMode.SCENARIO_EXPOSURE,
+                ObservabilityMapMode.EXPOSURE_DIFFERENCE,
             ):
                 self._colorbar.locator = MaxNLocator(integer=True)
                 self._colorbar.update_ticks()
@@ -679,6 +713,45 @@ class ObservabilityMapWidget(RasterMapWidget):
                 norm,
                 None,
                 observability_state_legend_handles(),
+            )
+
+        if self._mode == ObservabilityMapMode.COMPARISON_CHANGE:
+            if self._comparison_classes is None:
+                return None
+            cmap, norm = scenario_change_colormap()
+            return (
+                self._comparison_classes,
+                cmap,
+                norm,
+                None,
+                comparison_change_legend_handles(),
+            )
+
+        if self._mode == ObservabilityMapMode.EXPOSURE_DIFFERENCE:
+            if self._exposure_difference is None:
+                return None
+            data = np.ma.masked_where(
+                ~analysable | np.ma.getmaskarray(self._exposure_difference),
+                np.ma.getdata(self._exposure_difference).astype(np.float32),
+            )
+            # Symmetric about zero so gains and losses of equal size have
+            # equal visual weight.
+            limit = float(max(1, int(np.abs(data).max()) if data.count() else 1))
+            return (
+                data,
+                EXPOSURE_DIFFERENCE_CMAP,
+                Normalize(vmin=-limit, vmax=limit),
+                "Exposure difference (right − left, sampling units)",
+                # Non-analysable cells are hatched so they cannot be read as
+                # the neutral "no difference" colour.
+                [
+                    Patch(
+                        facecolor="white",
+                        edgecolor=COLORS.border_strong,
+                        hatch="////",
+                        label="Outside domain / invalid (not compared)",
+                    )
+                ],
             )
 
         if self._mode == ObservabilityMapMode.SCENARIO_CHANGE:

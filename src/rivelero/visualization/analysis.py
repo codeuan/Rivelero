@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
-from matplotlib.colors import BoundaryNorm, ListedColormap
+from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap, ListedColormap
 from matplotlib.figure import Figure
 from matplotlib.patches import Patch
 
@@ -158,6 +158,37 @@ def scenario_change_legend_handles() -> list[Patch]:
         )
         for value in ScenarioChangeClass
     ]
+
+
+# Left -> right comparison uses the same change colours with neutral wording.
+COMPARISON_CHANGE_LABELS: dict[ScenarioChangeClass, str] = {
+    ScenarioChangeClass.OUTSIDE_DOMAIN: "Outside domain",
+    ScenarioChangeClass.INVALID: "Invalid / unanalysable",
+    ScenarioChangeClass.REMAINS_BLIND: "Blind in both",
+    ScenarioChangeClass.REMAINS_OBSERVABLE: "Observable in both",
+    ScenarioChangeClass.LOST_COVERAGE: "Lost coverage (observable left, blind right)",
+    ScenarioChangeClass.GAINED_COVERAGE: "Gained coverage (blind left, observable right)",
+}
+
+
+def comparison_change_legend_handles() -> list[Patch]:
+    return [
+        Patch(
+            facecolor=SCENARIO_CHANGE_COLORS[value],
+            edgecolor="#8A9297",
+            label=COMPARISON_CHANGE_LABELS[value],
+        )
+        for value in ScenarioChangeClass
+    ]
+
+
+# Signed exposure difference: orange (fewer sampling units than the left)
+# through a neutral grey at zero to blue (more), matching the lost/gained
+# language. Always used with a norm symmetric about zero.
+EXPOSURE_DIFFERENCE_CMAP = LinearSegmentedColormap.from_list(
+    "rivelero_exposure_difference",
+    ["#C4520F", "#E8A170", "#F0EFEC", "#8FB3E3", "#1C5CAB"],
+)
 
 
 # Recessive chart ink.

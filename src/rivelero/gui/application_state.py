@@ -84,6 +84,8 @@ class VisualizationLayer(str, Enum):
     UNIT_CONTRIBUTION = "unit_contribution"
     SCENARIO_CHANGE = "scenario_change"
     SCENARIO_EXPOSURE = "scenario_exposure"
+    COMPARISON_CHANGE = "comparison_change"
+    EXPOSURE_DIFFERENCE = "exposure_difference"
     EXPOSURE = "exposure"
     NORMALIZED_EXPOSURE = "normalized_exposure"
     OBSERVABILITY_STATE = "observability_state"
@@ -350,6 +352,13 @@ class AnalysisState:
     # replaced, so old removal/candidate arithmetic is never applied to a
     # different baseline.
     design_scenario: Any | None = None
+
+    # Saved scenario snapshots and the current comparison selection (A4).
+    # Unlike the live scenario this survives baseline rebuilds so the
+    # session keeps a record of what was explored; snapshots of an earlier
+    # baseline are reported as out of date and are never compared against
+    # or restored into a different SOF.
+    scenario_workspace: Any | None = None
 
     def __post_init__(self) -> None:
         if (
