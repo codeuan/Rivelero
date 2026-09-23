@@ -942,61 +942,35 @@ class TaskController(QObject):
 # ---------------------------------------------------------------------------
 
 
-def make_sof_build_task(
+def make_progress_task(
     *,
-    build_function: Callable[..., Any],
-    build_kwargs: dict[str, Any],
+    function: Callable[..., Any],
+    kwargs: dict[str, Any],
 ) -> Callable[..., Any]:
-    """Create a context-aware SOF build callable.
+    """Create a context-aware task for a ``progress_callback`` function.
 
-    Parameters
-    ----------
-    build_function
-        Normally ``build_survey_observability_field``.
+    ``function`` must accept ``progress_callback(processed, total, unit_id)``,
+    the protocol shared by the SOF builder and contribution analysis. The
+    callback reports progress through TaskContext and raises
+    TaskCancelledError at the next unit boundary once cancellation has been
+    requested.
 
-    build_kwargs
-        Keyword arguments for the SOF builder, excluding
-        ``progress_callback``.
+    The returned callable is suitable for::
 
-    Returns
-    -------
-    Callable
-        Function suitable for::
-
-            TaskController.start(
-                ...,
-                function=task,
-                inject_context=True,
-            )
-
-    Notes
-    -----
-    This wrapper deliberately avoids importing the SOF builder directly,
-    keeping TaskController reusable for future long-running operations.
+        TaskController.start(..., function=task, inject_context=True)
     """
 
-    if not callable(
-        build_function
-    ):
-        raise TypeError(
-            "build_function must be callable."
-        )
+    if not callable(function):
+        raise TypeError("function must be callable.")
 
-    if not isinstance(
-        build_kwargs,
-        dict,
-    ):
-        raise TypeError(
-            "build_kwargs must be a dictionary."
-        )
+    if not isinstance(kwargs, dict):
+        raise TypeError("kwargs must be a dictionary.")
 
-    kwargs_copy = dict(
-        build_kwargs
-    )
+    kwargs_copy = dict(kwargs)
 
     if "progress_callback" in kwargs_copy:
         raise ValueError(
-            "progress_callback is managed by make_sof_build_task."
+            "progress_callback is managed by make_progress_task."
         )
 
     def task(
@@ -1012,7 +986,7 @@ def make_sof_build_task(
             )
         )
 
-        result = build_function(
+        result = function(
             **kwargs_copy,
             progress_callback=progress_callback,
         )
@@ -1022,6 +996,35 @@ def make_sof_build_task(
         return result
 
     return task
+
+
+def make_sof_build_task(
+    *,
+    build_function: Callable[..., Any],
+    build_kwargs: dict[str, Any],
+) -> Callable[..., Any]:
+    """Create a context-aware SOF build callable.
+
+    Thin wrapper around :func:`make_progress_task`, normally used with
+    ``build_survey_observability_field``. This module deliberately does not
+    import the builder, keeping TaskController reusable.
+    """
+
+    if not callable(build_function):
+        raise TypeError("build_function must be callable.")
+
+    if not isinstance(build_kwargs, dict):
+        raise TypeError("build_kwargs must be a dictionary.")
+
+    if "progress_callback" in build_kwargs:
+        raise ValueError(
+            "progress_callback is managed by make_sof_build_task."
+        )
+
+    return make_progress_task(
+        function=build_function,
+        kwargs=build_kwargs,
+    )
 
 
 # ---------------------------------------------------------------------------

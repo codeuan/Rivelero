@@ -48,11 +48,20 @@ except ImportError:
         QWidget,
     )
 
+from rivelero.analysis.coverage import coverage_class_raster
 from rivelero.gui.application_state import VisualizationLayer
 from rivelero.gui.raster_map import RasterMapWidget, project_viewpoints
 from rivelero.gui.theme import COLORS, SPACING
 from rivelero.observability.masks import ObservabilityState
 from rivelero.observability.survey_field import SurveyObservabilityField
+from rivelero.visualization.analysis import (
+    coverage_class_colormap,
+    coverage_class_legend_handles,
+    scenario_change_colormap,
+    scenario_change_legend_handles,
+    unit_contribution_colormap,
+    unit_contribution_legend_handles,
+)
 from rivelero.visualization.maps import raster_extent
 from rivelero.visualization.observability import (
     CONTEXT_COLOR,
@@ -73,6 +82,10 @@ class ObservabilityMapMode(str, Enum):
     NORMALIZED_EXPOSURE = VisualizationLayer.NORMALIZED_EXPOSURE.value
     BLIND_SPOTS = VisualizationLayer.BLIND_SPOTS.value
     INDIVIDUAL_VISIBILITY = VisualizationLayer.EFFECTIVE_VISIBILITY.value
+    COVERAGE_CLASS = VisualizationLayer.COVERAGE_CLASS.value
+    UNIT_CONTRIBUTION = VisualizationLayer.UNIT_CONTRIBUTION.value
+    SCENARIO_CHANGE = VisualizationLayer.SCENARIO_CHANGE.value
+    SCENARIO_EXPOSURE = VisualizationLayer.SCENARIO_EXPOSURE.value
 
 
 MODE_LABELS: dict[ObservabilityMapMode, str] = {
@@ -82,7 +95,22 @@ MODE_LABELS: dict[ObservabilityMapMode, str] = {
     ObservabilityMapMode.NORMALIZED_EXPOSURE: "Normalized exposure",
     ObservabilityMapMode.BLIND_SPOTS: "Blind spots",
     ObservabilityMapMode.INDIVIDUAL_VISIBILITY: "Selected unit visibility",
+    ObservabilityMapMode.COVERAGE_CLASS: "Unique / repeated coverage",
+    ObservabilityMapMode.UNIT_CONTRIBUTION: "Selected unit contribution",
+    ObservabilityMapMode.SCENARIO_CHANGE: "Baseline → scenario change",
+    ObservabilityMapMode.SCENARIO_EXPOSURE: "Scenario exposure",
 }
+
+# Layers offered by default (the Observability page). Other pages pass their
+# own subset, e.g. Analysis & Design adds the coverage-class layer.
+OBSERVABILITY_PAGE_MODES = (
+    ObservabilityMapMode.OBSERVABILITY_STATE,
+    ObservabilityMapMode.OBSERVABLE_SPACE,
+    ObservabilityMapMode.EXPOSURE,
+    ObservabilityMapMode.NORMALIZED_EXPOSURE,
+    ObservabilityMapMode.BLIND_SPOTS,
+    ObservabilityMapMode.INDIVIDUAL_VISIBILITY,
+)
 
 CONTINUOUS_MODES = frozenset(
     {
@@ -102,13 +130,28 @@ class ObservabilityMapWidget(RasterMapWidget):
 
     viewpoint_selected = Signal(str)
 
+    # Emitted once with (x, y) in the SOF CRS after start_point_pick().
+    point_picked = Signal(float, float)
+
     mode_changed = Signal(str)
 
-    def __init__(self, *, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        modes: Iterable[ObservabilityMapMode] = OBSERVABILITY_PAGE_MODES,
+        labels: dict[ObservabilityMapMode, str] | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
+        self._modes = tuple(ObservabilityMapMode(mode) for mode in modes)
+        # Per-page wording, e.g. "Baseline exposure" next to scenario layers.
+        self._labels = {**MODE_LABELS, **(labels or {})}
+        if not self._modes:
+            raise ValueError("At least one map mode is required.")
         self._sof: SurveyObservabilityField | None = None
         # Derived once per SOF: used by the state layer and hover readout.
         self._state_cache: np.ndarray | None = None
-        self._mode = ObservabilityMapMode.OBSERVABILITY_STATE
+        self._coverage_cache: np.ndarray | None = None
+        self._mode = self._modes[0]
 
         self._terrain_path: Path | None = None
         self._terrain_data: np.ndarray | None = None
@@ -121,7 +164,21 @@ class ObservabilityMapWidget(RasterMapWidget):
         self._individual_mask: np.ndarray | None = None
         self._individual_description: str | None = None
 
+        # Derived UnitContributionClass raster of the selected unit.
+        self._unit_classes: np.ndarray | None = None
+        self._unit_description: str | None = None
+
+        # Derived scenario layers (never the baseline arrays themselves).
+        self._scenario_exposure: np.ndarray | None = None
+        self._scenario_classes: np.ndarray | None = None
+
+        self._picking_point = False
+
         self._layer_image = None
+
+        # Temporary design candidates: (id, x, y) in the SOF CRS.
+        self._candidate_points: list[tuple[str, float, float]] = []
+        self._candidate_artist = None
         self._terrain_image = None
         self._viewpoint_artist = None
         self._selected_artist = None
@@ -138,6 +195,7 @@ class ObservabilityMapWidget(RasterMapWidget):
 
         self._build_controls()
         self.canvas.mpl_connect("pick_event", self._on_pick)
+        self.canvas.mpl_connect("button_press_event", self._on_press)
         self.canvas.mpl_connect("motion_notify_event", self._on_motion)
         self._render()
 
@@ -152,6 +210,10 @@ class ObservabilityMapWidget(RasterMapWidget):
     @property
     def mode(self) -> ObservabilityMapMode:
         return self._mode
+
+    @property
+    def modes(self) -> tuple[ObservabilityMapMode, ...]:
+        return self._modes
 
     @property
     def legend_labels(self) -> list[str]:
@@ -183,9 +245,13 @@ class ObservabilityMapWidget(RasterMapWidget):
         previous = self._sof
         self._sof = sof
         self._state_cache = None
+        self._coverage_cache = None
 
         if sof is None:
             self._individual_mask = None
+            self._unit_classes = None
+            self._scenario_exposure = None
+            self._scenario_classes = None
         else:
             extent = raster_extent(
                 shape=sof.exposure_count.shape,
@@ -206,6 +272,10 @@ class ObservabilityMapWidget(RasterMapWidget):
                 and self._individual_mask.shape != sof.exposure_count.shape
             ):
                 self._individual_mask = None
+            # Contribution/scenario layers are relative to one SOF.
+            self._unit_classes = None
+            self._scenario_exposure = None
+            self._scenario_classes = None
 
         self._project_viewpoints()
         self.display_combo.setEnabled(sof is not None)
@@ -263,10 +333,99 @@ class ObservabilityMapWidget(RasterMapWidget):
         if self._mode == ObservabilityMapMode.INDIVIDUAL_VISIBILITY:
             self._render()
 
+    def set_unit_contribution(
+        self,
+        classes: np.ndarray | None,
+        description: str | None = None,
+    ) -> None:
+        """Set the selected unit's UnitContributionClass raster."""
+
+        if classes is not None:
+            classes = np.asarray(classes, dtype=np.uint8)
+            if (
+                self._sof is not None
+                and classes.shape != self._sof.exposure_count.shape
+            ):
+                raise ValueError("Contribution raster shape does not match the SOF.")
+
+        self._unit_classes = classes
+        self._unit_description = description
+
+        if self._mode == ObservabilityMapMode.UNIT_CONTRIBUTION:
+            self._render()
+
+    def set_scenario_layers(
+        self,
+        exposure: np.ndarray | None,
+        change_classes: np.ndarray | None,
+    ) -> None:
+        """Set the scenario exposure and ScenarioChangeClass rasters."""
+
+        for array in (exposure, change_classes):
+            if (
+                array is not None
+                and self._sof is not None
+                and array.shape != self._sof.exposure_count.shape
+            ):
+                raise ValueError("Scenario raster shape does not match the SOF.")
+
+        self._scenario_exposure = exposure
+        self._scenario_classes = change_classes
+
+        if self._mode in (
+            ObservabilityMapMode.SCENARIO_CHANGE,
+            ObservabilityMapMode.SCENARIO_EXPOSURE,
+        ):
+            self._render()
+
+    def set_candidate_points(self, points) -> None:
+        """Show temporary candidates as a separate marker collection."""
+        self._candidate_points = [(str(i), float(x), float(y)) for i, x, y in points]
+        self._draw_candidates()
+        self.canvas.draw_idle()
+
+    def _draw_candidates(self) -> None:
+        show = self._sof is not None and bool(self._candidate_points)
+        if not show:
+            if self._candidate_artist is not None:
+                self._candidate_artist.set_visible(False)
+            return
+        xy = np.array([[x, y] for _i, x, y in self._candidate_points])
+        if self._candidate_artist is None:
+            self._candidate_artist = self.axes.scatter(
+                xy[:, 0],
+                xy[:, 1],
+                s=70,
+                marker="D",
+                facecolors="white",
+                edgecolors=COLORS.text_primary,
+                linewidths=1.6,
+                zorder=6,
+            )
+        else:
+            self._candidate_artist.set_offsets(xy)
+        self._candidate_artist.set_visible(True)
+
+    @property
+    def picking_point(self) -> bool:
+        return self._picking_point
+
+    def start_point_pick(self) -> None:
+        """Emit point_picked for the next click on the map."""
+        self._picking_point = True
+        self._status_label.setText("Click the map to place the candidate.")
+
+    def cancel_point_pick(self) -> None:
+        self._picking_point = False
+        self._update_status()
+
     def set_mode(self, mode: ObservabilityMapMode | str) -> None:
         """Switch the displayed layer."""
 
         mode = ObservabilityMapMode(mode)
+
+        if mode not in self._modes:
+            raise ValueError(f"Map mode {mode.value!r} is not offered here.")
 
         if mode == self._mode:
             return
@@ -313,8 +472,8 @@ class ObservabilityMapWidget(RasterMapWidget):
         layout.addWidget(QLabel("Display"))
 
         self.display_combo = QComboBox()
-        for mode, label in MODE_LABELS.items():
-            self.display_combo.addItem(label, mode.value)
+        for mode in self._modes:
+            self.display_combo.addItem(self._labels[mode], mode.value)
         self.display_combo.setEnabled(False)
         layout.addWidget(self.display_combo)
 
@@ -382,6 +541,7 @@ class ObservabilityMapWidget(RasterMapWidget):
         self._draw_terrain()
         self._draw_layer()
         self._draw_viewpoints()
+        self._draw_candidates()
         self._apply_limits()
         self._update_status()
         self.canvas.draw_idle()
@@ -459,7 +619,10 @@ class ObservabilityMapWidget(RasterMapWidget):
 
         if colorbar_label is not None:
             self.show_colorbar(self._layer_image, colorbar_label)
-            if self._mode == ObservabilityMapMode.EXPOSURE:
+            if self._mode in (
+                ObservabilityMapMode.EXPOSURE,
+                ObservabilityMapMode.SCENARIO_EXPOSURE,
+            ):
                 self._colorbar.locator = MaxNLocator(integer=True)
                 self._colorbar.update_ticks()
         else:
@@ -474,12 +637,17 @@ class ObservabilityMapWidget(RasterMapWidget):
             )
             self._legend.set_zorder(10)
 
-        title = MODE_LABELS[self._mode]
+        title = self._labels[self._mode]
         if (
             self._mode == ObservabilityMapMode.INDIVIDUAL_VISIBILITY
             and self._individual_description
         ):
             title = f"{title} — {self._individual_description}"
+        elif (
+            self._mode == ObservabilityMapMode.UNIT_CONTRIBUTION
+            and self._unit_description
+        ):
+            title = f"{title} — {self._unit_description}"
         self.axes.set_title(title, fontsize=10, color=COLORS.text_primary)
 
         unit = _linear_unit(self._sof.crs)
@@ -511,6 +679,61 @@ class ObservabilityMapWidget(RasterMapWidget):
                 norm,
                 None,
                 observability_state_legend_handles(),
+            )
+
+        if self._mode == ObservabilityMapMode.SCENARIO_CHANGE:
+            if self._scenario_classes is None:
+                return None
+            cmap, norm = scenario_change_colormap()
+            return (
+                self._scenario_classes,
+                cmap,
+                norm,
+                None,
+                scenario_change_legend_handles(),
+            )
+
+        if self._mode == ObservabilityMapMode.SCENARIO_EXPOSURE:
+            if self._scenario_exposure is None:
+                return None
+            data = np.ma.masked_where(
+                ~analysable,
+                self._scenario_exposure.astype(np.float32),
+            )
+            # Shared scale with the baseline so colours compare directly.
+            maximum = max(
+                1,
+                sof.maximum_exposure,
+                int(self._scenario_exposure[analysable].max(initial=0)),
+            )
+            return (
+                data,
+                EXPOSURE_CMAP,
+                Normalize(vmin=0.0, vmax=float(maximum)),
+                "Scenario exposure (number of sampling units)",
+                [],
+            )
+
+        if self._mode == ObservabilityMapMode.UNIT_CONTRIBUTION:
+            if self._unit_classes is None:
+                return None
+            cmap, norm = unit_contribution_colormap()
+            return (
+                self._unit_classes,
+                cmap,
+                norm,
+                None,
+                unit_contribution_legend_handles(),
+            )
+
+        if self._mode == ObservabilityMapMode.COVERAGE_CLASS:
+            cmap, norm = coverage_class_colormap()
+            return (
+                self._coverage_classes(),
+                cmap,
+                norm,
+                None,
+                coverage_class_legend_handles(),
             )
 
         if self._mode == ObservabilityMapMode.OBSERVABLE_SPACE:
@@ -620,6 +843,11 @@ class ObservabilityMapWidget(RasterMapWidget):
     def _empty_message(self) -> str:
         if self._sof is None:
             return "No current observability field.\nBuild one to see results."
+        if self._mode == ObservabilityMapMode.UNIT_CONTRIBUTION:
+            return (
+                "Analyse contributions, then select a sampling unit\n"
+                "in the table to map its contribution."
+            )
         return (
             "Select a Viewpoint on the map or table, then show or compute\n"
             "its visibility in the panel below."
@@ -769,6 +997,19 @@ class ObservabilityMapWidget(RasterMapWidget):
         self.set_selected_viewpoint(viewpoint_id)
         self.viewpoint_selected.emit(viewpoint_id)
 
+    def _on_press(self, event) -> None:
+        if (
+            not self._picking_point
+            or event.inaxes is not self.axes
+            or event.xdata is None
+            or event.button != 1
+            or self._toolbar.mode
+        ):
+            return
+        self._picking_point = False
+        self._update_status()
+        self.point_picked.emit(float(event.xdata), float(event.ydata))
+
     def _on_motion(self, event) -> None:
         if (
             self._sof is None
@@ -798,6 +1039,15 @@ class ObservabilityMapWidget(RasterMapWidget):
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    def _coverage_classes(self) -> np.ndarray:
+        if self._coverage_cache is None:
+            self._coverage_cache = coverage_class_raster(
+                self._sof.exposure_count,
+                analysis_mask=self._sof.analysis_mask,
+                valid_mask=self._sof.valid_mask,
+            )
+        return self._coverage_cache
 
     def _state(self) -> np.ndarray:
         if self._state_cache is None:

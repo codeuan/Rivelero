@@ -45,7 +45,13 @@ from rivelero.visibility.configuration import (
     SamplingUnit,
     VisibilityConfiguration,
 )
-from rivelero.visibility.engine import compute_viewpoint_visibility
+from rivelero.core.domain import AnalysisGrid
+from rasterio.crs import CRS
+from rasterio.warp import transform as transform_coordinates
+from rivelero.visibility.engine import (
+    ViewpointExcludedError,
+    compute_viewpoint_visibility,
+)
 
 
 CACHE_DIRECTORY_ENVIRONMENT_VARIABLE = "RIVELERO_CACHE_DIR"
@@ -336,6 +342,31 @@ class VisibilityKeyResolver:
                     "Viewpoint."
                 )
 
+        return self.resolve_viewpoint(state, viewpoint, event=event)
+
+    def resolve_viewpoint(
+        self,
+        state: ApplicationState,
+        viewpoint: Viewpoint,
+        *,
+        event: ObservationEvent | None = None,
+    ) -> SamplingUnitSelection:
+        """Resolve any canonical Viewpoint, including design candidates.
+
+        Uses the same fingerprinted key construction as SOF builds, so a
+        candidate never reuses a mask computed for different coordinates,
+        orientation, field of view, height or Sensor.
+        """
+
+        environment = state.analysis.environment
+        domain = state.analysis.analysis_domain
+        configuration = state.analysis.visibility_configuration
+
+        if environment is None or domain is None or configuration is None:
+            raise ValueError(
+                "World and a visibility configuration are required."
+            )
+
         sensor = None
 
         if viewpoint.sensor_id is not None:
@@ -394,6 +425,107 @@ def compute_unit_visibility(
             configuration=visibility_configuration,
         ),
     )
+
+
+def candidate_terrain_problem(
+    viewpoint: Viewpoint,
+    grid: AnalysisGrid,
+) -> str | None:
+    """Explain why a candidate cannot be evaluated on the terrain, if so.
+
+    The observer may lie outside the AnalysisDomain (it can look into it),
+    but the GDAL viewshed requires the observer on the elevation raster.
+    """
+
+    source_crs = CRS.from_user_input(viewpoint.crs)
+    if source_crs == grid.crs:
+        xs, ys = [viewpoint.x], [viewpoint.y]
+    else:
+        xs, ys = transform_coordinates(source_crs, grid.crs, [viewpoint.x], [viewpoint.y])
+
+    left, top = grid.transform * (0, 0)
+    right, bottom = grid.transform * (grid.width, grid.height)
+    x, y = float(xs[0]), float(ys[0])
+    if not (min(left, right) <= x <= max(left, right)
+            and min(top, bottom) <= y <= max(top, bottom)):
+        return (
+            "The candidate lies outside the terrain raster. The current "
+            "visibility engine needs the observer on the elevation model "
+            "(it may lie outside the AnalysisDomain)."
+        )
+    return None
+
+
+@dataclass(frozen=True, slots=True)
+class CandidateVisibilityOutcome:
+    """Result of computing one candidate's visibility.
+
+    ``excluded`` means a missing-metadata policy excluded the candidate;
+    computation failures are raised instead, so they cannot be mistaken
+    for a zero-visibility result.
+    """
+
+    key: VisibilityKey
+    stored: StoredVisibility | None
+    excluded: bool = False
+    message: str | None = None
+
+
+def compute_candidate_visibility(
+    *,
+    selection: SamplingUnitSelection,
+    environment: Environment,
+    domain: AnalysisDomain,
+    visibility_configuration: VisibilityConfiguration,
+    store: VisibilityStore,
+) -> CandidateVisibilityOutcome:
+    """Lazy, cached candidate visibility through the canonical engine."""
+
+    try:
+        stored = compute_unit_visibility(
+            selection=selection,
+            environment=environment,
+            domain=domain,
+            visibility_configuration=visibility_configuration,
+            store=store,
+        )
+    except ViewpointExcludedError as exc:
+        return CandidateVisibilityOutcome(
+            key=selection.key, stored=None, excluded=True, message=str(exc)
+        )
+    return CandidateVisibilityOutcome(key=selection.key, stored=stored)
+
+
+def load_cached_masks(
+    *,
+    store: VisibilityStore,
+    keys: list[VisibilityKey],
+    progress_callback=None,
+) -> dict[VisibilityKey, Any]:
+    """Read baseline unit masks from the cache (never computes).
+
+    Raises KeyError naming the units whose masks are missing, so a missing
+    mask can never be treated as an empty one.
+    """
+
+    masks = {}
+    missing = []
+    total = len(keys)
+    for index, key in enumerate(keys, start=1):
+        stored = store.get(key)
+        if stored is None:
+            missing.append(key.sampling_unit_id)
+        else:
+            masks[key] = stored.visibility_mask
+        if progress_callback is not None:
+            progress_callback(index, total, key.sampling_unit_id)
+    if missing:
+        raise KeyError(
+            "No cached visibility for: " + ", ".join(missing[:10])
+            + (" …" if len(missing) > 10 else "")
+            + ". Rebuild the observability field to restore it."
+        )
+    return masks
 
 
 def unit_outcome_in_report(

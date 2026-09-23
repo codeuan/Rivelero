@@ -21,9 +21,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 try:
+    from PySide6.QtCore import Qt
+    from PySide6.QtGui import QColor, QPalette
     from PySide6.QtWidgets import QApplication
 except ImportError:
     try:
+        from PyQt6.QtCore import Qt
+        from PyQt6.QtGui import QColor, QPalette
         from PyQt6.QtWidgets import QApplication
     except ImportError as exc:
         raise ImportError(
@@ -594,6 +598,21 @@ def application_stylesheet() -> str:
 
         selection-background-color: {c.primary_soft};
         selection-color: {c.text_primary};
+        outline: none;
+    }}
+
+    /* Explicit item rules replace the platform's current-cell accent bar
+       (the Windows accent colour) with the Rivelero selection colour. */
+    QTableView::item:selected,
+    QTableWidget::item:selected {{
+        background: {c.primary_soft};
+        color: {c.text_primary};
+    }}
+
+    QTableView::item:focus,
+    QTableWidget::item:focus {{
+        border: none;
+        outline: none;
     }}
 
     QHeaderView::section {{
@@ -720,6 +739,27 @@ def application_stylesheet() -> str:
         background: {c.primary_soft};
     }}
 
+    /* Drop-down lists of combo boxes are separate popup windows; without
+       explicit rules they inherit the operating-system palette, which is
+       dark under Windows dark mode. */
+    QComboBox QAbstractItemView {{
+        background: {c.surface};
+        color: {c.text_primary};
+        border: 1px solid {c.border_strong};
+        outline: none;
+        selection-background-color: {c.primary_soft};
+        selection-color: {c.text_primary};
+    }}
+
+    QComboBox QAbstractItemView::item {{
+        min-height: 26px;
+        padding: 2px 8px;
+    }}
+
+    QComboBox QAbstractItemView::item:hover {{
+        background: {c.surface_hover};
+    }}
+
 
     /* ================================================================
        STATUS BAR
@@ -803,9 +843,59 @@ def apply_theme(
             "application must be a QApplication."
         )
 
+    # Rivelero's design is light-only. Qt otherwise follows the operating
+    # system colour scheme, and under Windows dark mode unstyled surfaces
+    # (combo popups, page backgrounds) turned dark behind dark text.
+    hints = application.styleHints()
+    if hasattr(hints, "setColorScheme"):
+        hints.setColorScheme(Qt.ColorScheme.Light)
+
+    application.setPalette(
+        light_palette()
+    )
+
     application.setStyleSheet(
         application_stylesheet()
     )
+
+
+def light_palette() -> QPalette:
+    """Return a light QPalette matching the Rivelero colour tokens."""
+
+    c = COLORS
+    palette = QPalette()
+
+    roles = {
+        QPalette.ColorRole.Window: c.app_background,
+        QPalette.ColorRole.WindowText: c.text_primary,
+        QPalette.ColorRole.Base: c.surface,
+        QPalette.ColorRole.AlternateBase: c.surface_subtle,
+        QPalette.ColorRole.Text: c.text_primary,
+        QPalette.ColorRole.Button: c.surface,
+        QPalette.ColorRole.ButtonText: c.text_primary,
+        QPalette.ColorRole.Highlight: c.primary,
+        QPalette.ColorRole.HighlightedText: c.surface,
+        QPalette.ColorRole.ToolTipBase: c.sidebar,
+        QPalette.ColorRole.ToolTipText: c.sidebar_text_strong,
+        QPalette.ColorRole.PlaceholderText: c.text_muted,
+        QPalette.ColorRole.Link: c.primary,
+    }
+
+    for role, value in roles.items():
+        palette.setColor(role, QColor(value))
+
+    for role in (
+        QPalette.ColorRole.WindowText,
+        QPalette.ColorRole.Text,
+        QPalette.ColorRole.ButtonText,
+    ):
+        palette.setColor(
+            QPalette.ColorGroup.Disabled,
+            role,
+            QColor(c.text_disabled),
+        )
+
+    return palette
 
 
 # ---------------------------------------------------------------------------

@@ -27,6 +27,7 @@ from rivelero.gui.sensor_dialog import SensorManagerDialog
 from rivelero.gui.observation_event_dialog import ObservationEventManagerDialog
 from rivelero.gui.world_page import WorldPage
 from rivelero.gui.observability_page import ObservabilityPage
+from rivelero.gui.analysis_page import AnalysisPage
 
 from rivelero.gui.theme import (
     SIZES,
@@ -920,6 +921,11 @@ class MainWindow(QMainWindow):
             task_controller=self.task_controller,
         )
 
+        self.analysis_page = AnalysisPage(
+            self.state,
+            task_controller=self.task_controller,
+        )
+
         pages = {
             WorkflowPage.SURVEY: self.survey_page,
 
@@ -927,21 +933,7 @@ class MainWindow(QMainWindow):
 
             WorkflowPage.OBSERVABILITY: self.observability_page,
 
-            WorkflowPage.ANALYSIS_DESIGN: PlaceholderPage(
-                title="Analysis & Design",
-                description=(
-                    "Quantify survey quality and evaluate alternative "
-                    "viewpoint configurations using the same observability "
-                    "engine."
-                ),
-                sections=(
-                    "Coverage",
-                    "Redundancy",
-                    "Viewpoint contribution",
-                    "Survey design",
-                    "Experimental / research",
-                ),
-            ),
+            WorkflowPage.ANALYSIS_DESIGN: self.analysis_page,
 
             WorkflowPage.OUTPUT: PlaceholderPage(
                 title="Output",
@@ -1043,6 +1035,12 @@ class MainWindow(QMainWindow):
         )
         self.observability_page.continue_requested.connect(
             lambda: self.navigate_to(WorkflowPage.ANALYSIS_DESIGN)
+        )
+        self.analysis_page.observability_requested.connect(
+            lambda: self.navigate_to(WorkflowPage.OBSERVABILITY)
+        )
+        self.analysis_page.continue_requested.connect(
+            lambda: self.navigate_to(WorkflowPage.OUTPUT)
         )
 
         self.survey_page.import_viewpoints_requested.connect(

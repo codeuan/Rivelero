@@ -45,10 +45,13 @@ class ViewpointDialog(QDialog):
         *,
         sensors: dict[str, Any] | None = None,
         viewpoint: Viewpoint | None = None,
+        title: str | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Edit Viewpoint" if viewpoint else "Add Viewpoint")
+        self.setWindowTitle(
+            title or ("Edit Viewpoint" if viewpoint else "Add Viewpoint")
+        )
         self.setMinimumWidth(560)
         self.result_viewpoint: Viewpoint | None = None
         self._original = viewpoint

@@ -160,7 +160,7 @@ def test_colorbar_and_legend_are_never_duplicated(app, four_state_sof):
     widget.set_field(sof)
 
     for _ in range(3):
-        for mode in ObservabilityMapMode:
+        for mode in widget.modes:
             widget.set_mode(mode)
 
     # Main axes + the single reusable colourbar axes.

@@ -23,6 +23,31 @@ except ImportError:
 
 from rivelero.gui.environment_import import RasterMetadata, inspect_elevation_raster
 
+try:
+    from shiboken6 import isValid as _qt_object_alive
+except ImportError:  # PyQt6
+    try:
+        from PyQt6 import sip as _sip
+
+        def _qt_object_alive(obj) -> bool:
+            return not _sip.isdeleted(obj)
+    except ImportError:
+        def _qt_object_alive(obj) -> bool:
+            return True
+
+
+class SafeFigureCanvas(FigureCanvasQTAgg):
+    """FigureCanvasQTAgg whose deferred redraw tolerates widget deletion.
+
+    Matplotlib queues ``draw_idle`` with a zero-delay timer. If the widget is
+    destroyed first (a closed dialog or discarded page), the queued callback
+    would touch a deleted Qt object and raise; the redraw is simply skipped.
+    """
+
+    def _draw_idle(self):
+        if _qt_object_alive(self):
+            super()._draw_idle()
+
 
 def project_viewpoints(
     viewpoints: Iterable[Any],
@@ -91,7 +116,7 @@ class RasterMapWidget(QWidget):
         self._colorbar_axes = None
 
         self.figure = Figure(figsize=(8, 6), dpi=100)
-        self.canvas = FigureCanvasQTAgg(self.figure)
+        self.canvas = SafeFigureCanvas(self.figure)
         self.axes = self.figure.add_subplot(111)
         self.ax = self.axes
         self._toolbar = NavigationToolbar2QT(self.canvas, self)

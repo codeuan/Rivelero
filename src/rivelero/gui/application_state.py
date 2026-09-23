@@ -80,6 +80,10 @@ class VisualizationLayer(str, Enum):
 
     # Survey observability
     OBSERVABLE_SPACE = "observable_space"
+    COVERAGE_CLASS = "coverage_class"
+    UNIT_CONTRIBUTION = "unit_contribution"
+    SCENARIO_CHANGE = "scenario_change"
+    SCENARIO_EXPOSURE = "scenario_exposure"
     EXPOSURE = "exposure"
     NORMALIZED_EXPOSURE = "normalized_exposure"
     OBSERVABILITY_STATE = "observability_state"
@@ -336,6 +340,16 @@ class AnalysisState:
     # Why the most recent SOF was discarded, if it was discarded because an
     # upstream dependency changed. Cleared when a new SOF is installed.
     invalidation_reason: str | None = None
+
+    # Sampling-unit contribution analysis (A2) of the current SOF. It is a
+    # derived product: cleared whenever the SOF is invalidated or replaced.
+    contribution_analysis: Any | None = None
+
+    # Temporary what-if design scenario (A3) relative to the current SOF.
+    # Also a derived product: cleared whenever the SOF is invalidated or
+    # replaced, so old removal/candidate arithmetic is never applied to a
+    # different baseline.
+    design_scenario: Any | None = None
 
     def __post_init__(self) -> None:
         if (
@@ -1313,9 +1327,77 @@ class ApplicationState:
         self.analysis.survey_observability_field = sof
         self.analysis.build_report = build_report
         self.analysis.invalidation_reason = None
+        # Contributions and scenarios describe a specific SOF; a new SOF
+        # needs new ones.
+        self.analysis.contribution_analysis = None
+        self.analysis.design_scenario = None
 
         self._mark_changed(
             StateChange.OBSERVABILITY,
+        )
+
+    def set_contribution_analysis(
+        self,
+        analysis: Any,
+        *,
+        inputs_revision: int,
+    ) -> None:
+        """Install a contribution analysis of the current SOF.
+
+        ``inputs_revision`` is the value observed when the analysis started.
+        The result is rejected with StaleObservabilityResultError if any SOF
+        input changed since, or if it describes a different SOF than the
+        current one (for example after a rebuild).
+        """
+
+        sof = self.analysis.survey_observability_field
+
+        if (
+            sof is None
+            or inputs_revision != self.analysis.inputs_revision
+            or getattr(analysis, "sof_id", None) != sof.sof_id
+        ):
+            raise StaleObservabilityResultError(
+                "The observability field changed while contributions were "
+                "being analysed; the result no longer describes the current "
+                "field."
+            )
+
+        self.analysis.contribution_analysis = analysis
+
+        self._mark_changed(
+            StateChange.OBSERVABILITY,
+            scientific=False,
+            mark_project_dirty=False,
+        )
+
+    def set_design_scenario(
+        self,
+        scenario: Any | None,
+    ) -> None:
+        """Install (or clear) the what-if scenario of the current SOF.
+
+        A scenario is accepted only if its baseline is the current SOF
+        object; this never modifies the Survey or the SOF itself.
+        """
+
+        if scenario is not None:
+            baseline = getattr(scenario, "baseline", None)
+            if (
+                baseline is None
+                or baseline is not self.analysis.survey_observability_field
+            ):
+                raise StaleObservabilityResultError(
+                    "The scenario was created for a different observability "
+                    "field."
+                )
+
+        self.analysis.design_scenario = scenario
+
+        self._mark_changed(
+            StateChange.OBSERVABILITY,
+            scientific=False,
+            mark_project_dirty=False,
         )
 
     def clear_observability_result(
@@ -1885,6 +1967,8 @@ class ApplicationState:
 
         self.analysis.survey_observability_field = None
         self.analysis.build_report = None
+        self.analysis.contribution_analysis = None
+        self.analysis.design_scenario = None
 
         self.selection.visibility_key = None
 
