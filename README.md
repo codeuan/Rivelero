@@ -432,54 +432,50 @@ settings do not silently reuse incompatible viewsheds.
 
 # Installation
 
-> [!NOTE]
-> Installation instructions are still being consolidated while Rivelero is
-> under active development.
-
-Rivelero is currently developed and tested using a Conda environment.
-
-Clone the repository:
+Rivelero is developed and tested with Python 3.11 in a Conda environment.
+GDAL (used for the viewshed computation) is most reliably installed from
+conda-forge.
 
 ```bash
 git clone https://github.com/codeuan/Rivelero.git
 cd Rivelero
-```
-
-Create the environment:
-
-```bash
 conda env create -f environment.yml
-```
-
-Activate it:
-
-```bash
 conda activate vista
+pip install -e ".[gui,test]"
 ```
 
-Alternatively, dependencies are listed in:
+`pip install -e .` installs the package from `src/` in editable mode and adds
+the `rivelero` command. The optional extras are `gui` (PySide6) and `test`
+(pytest). Without Conda, install GDAL's Python bindings for your platform
+first, then `pip install -e ".[gui,test]"`.
 
-```text
-requirements.txt
-```
-
-The current stack includes geospatial/scientific packages such as NumPy,
-Rasterio, GDAL, GeoPandas, Shapely, PyProj, Matplotlib, and PySide6. Earlier
-repository validation also identified these as core dependencies. :contentReference[oaicite:1]{index=1}
+The scientific packages (`rivelero.core`, `observability`, `visibility`,
+`analysis`, `export`, `project`) need no display and can be used headlessly
+from scripts and notebooks.
 
 ---
 
 # Running Rivelero
 
-During the current development stage, launch the new GUI from the repository
-root with:
-
 ```bash
-python tests/launch_new_gui.py
+rivelero                              # start with an empty project
+rivelero "Sicily Survey.rivelero"     # open a saved project
+python -m rivelero                    # equivalent, without the installed command
+rivelero --version
 ```
 
-The permanent application entry point will be documented here once packaging
-is finalised.
+For development without installing the package, `python tests/launch_new_gui.py`
+starts the same application from the source tree.
+
+---
+
+## Interface
+
+<!-- Add Survey screenshot -->
+<!-- Add World screenshot -->
+<!-- Add Observability screenshot -->
+<!-- Add Analysis & Design screenshot -->
+<!-- Add Output screenshot -->
 
 ---
 
@@ -541,7 +537,13 @@ sampling-unit contribution
 ### 7. Explore alternative designs
 
 Temporarily remove observations or add candidate Viewpoints and inspect how
-the survey's observability changes.
+the survey's observability changes; save scenarios and compare them
+(differences are always right − left).
+
+### 8. Save and export
+
+Save the project (File › Save). On the Output page, export GeoTIFF/CSV data,
+standalone figures, or an offline HTML report with its provenance manifest.
 
 ---
 
@@ -583,45 +585,27 @@ configurations.
 
 # Repository structure
 
-The current source tree is organised approximately as:
-
 ```text
 src/rivelero/
-├── core/
-│   ├── viewpoint.py
-│   ├── sensor.py
-│   ├── observation.py
-│   ├── configuration.py
-│   ├── environment.py
-│   └── domain.py
-│
-├── visibility/
-│   ├── configuration.py
-│   ├── directional.py
-│   └── engine.py
-│
-├── observability/
-│   ├── builder.py
-│   ├── storage.py
-│   ├── survey_field.py
-│   ├── exposure.py
-│   └── masks.py
-│
-├── analysis/
-│   ├── coverage.py
-│   ├── contribution.py
-│   └── scenario.py
-│
-├── visualization/
-│
-├── io/
-│
-└── gui/
+├── core/            canonical models: Viewpoint, Sensor, ObservationEvent,
+│                    ViewpointConfiguration, Environment, AnalysisDomain
+├── visibility/      VisibilityConfiguration and the single-viewpoint engine
+├── observability/   builder, VisibilityStore cache, SurveyObservabilityField
+├── analysis/        coverage, contribution, scenarios, comparison
+├── project/         .rivelero project files (schema, codec, linked resources)
+├── export/          GeoTIFF/CSV data, figures, provenance, HTML report
+├── visualization/   Qt-free colour/legend semantics and Matplotlib plotting
+├── io/              DEM download/reading, SOF raster writers
+└── gui/             PySide6 application (ApplicationState, pages, TaskController)
 ```
 
-The repository still contains some legacy modules from earlier Rivelero
-architectures. These are being progressively replaced or isolated rather than
-removed before their remaining dependencies are understood.
+Older code from earlier Rivelero architectures (`src/GUI`, `src/soe`,
+`src/Drone`, `src/admin`, and `rivelero.design`, `rivelero.suitability`,
+`rivelero.applications`, `rivelero.observability.potential_field`,
+`rivelero.visibility.field` / `obstacles`) is **not used by the current
+application**. It is kept for reference while its remaining ideas (e.g.
+environmental obstacles) are re-implemented on the canonical models, and it is
+not part of the supported workflow.
 
 ---
 
@@ -652,28 +636,27 @@ This distinction is particularly important in ecological and biodiversity
 applications, where habitat suitability and observability are related but
 different processes. The original Rivelero research motivation explicitly
 highlighted the risk of conflating target suitability with the opportunity to
-observe it. :contentReference[oaicite:2]{index=2}
+observe it.
 
 ---
 
 # Current limitations
 
-Rivelero is actively evolving.
-
-Important current limitations include:
-
-- vertical field-of-view filtering is not yet supported by the current
-  visibility engine;
-- environmental obstacle layers are not yet integrated into the new visibility
-  engine;
+- only terrain (DEM) occludes sight lines: vegetation, buildings and other
+  environmental obstacle layers are not modelled;
+- vertical field of view (pitch / vertical FOV) is not modelled;
 - DSM-based visibility remains future work;
-- sight lines crossing DEM NoData regions may be unreliable depending on GDAL
-  behaviour;
-- candidate addition is currently limited under ObservationEvent-based
-  sampling;
+- sight lines crossing DEM NoData regions may be unreliable under the current
+  GDAL backend;
+- observability is deterministic modelled observation opportunity, not a
+  detection probability;
+- candidate addition is limited under ObservationEvent-based sampling;
 - scenario changes are non-destructive and cannot yet be committed back to the
   canonical Survey;
-- automated survey optimization is not yet implemented;
+- saved scenarios become "out of date" after the observability field is
+  rebuilt, even with identical inputs;
+- automated survey optimization, candidate generation and Bayesian /
+  probabilistic observability are not implemented.
 
 ---
 
@@ -736,28 +719,52 @@ and modelling assumptions separately to support this direction.
 
 # Development
 
-Run the complete test suite from the repository root:
+## Tests
 
 ```bash
-python -m pytest tests -v
+pytest                   # complete suite: the authoritative check
+pytest -m "not slow"     # fast development loop
+pytest -m unit           # Qt-free unit tests only
+pytest -m "not gui"      # everything that needs no Qt widgets
 ```
 
-The project has an expanding automated suite covering:
+Tests are classified in `tests/conftest.py` with the markers `unit`,
+`integration`, `gui` and `slow` (registered in `pyproject.toml`; an
+unclassified test module is an error). GUI tests run offscreen by default
+(`QT_QPA_PLATFORM=offscreen`); set the variable yourself to watch them. Tests
+never touch the real visibility cache: `RIVELERO_CACHE_DIR` points to a
+temporary directory.
 
-- canonical scientific models;
-- survey import;
-- visibility;
-- observability;
-- caching;
-- World/domain construction;
-- GUI state transitions;
-- asynchronous computation;
-- coverage analysis;
-- contribution analysis;
-- design scenarios.
+Prefer tests of scientific and state logic over pixel comparisons; figure
+tests inspect the Matplotlib objects (source arrays, norms, legends).
 
-When adding functionality, prefer tests of scientific/state logic over
-pixel-perfect GUI screenshot tests.
+## Architecture for contributors
+
+- **Canonical models** (`rivelero.core`) are the only representation of
+  Survey, Sensors, Environment and AnalysisDomain; the GUI never keeps copies.
+- **Scientific services** (`observability`, `analysis`, `export`, `project`)
+  are Qt-free functions and dataclasses; they can run in a worker thread or a
+  notebook.
+- **`ApplicationState`** (`gui/application_state.py`, Qt-free) owns the
+  current project: inputs, the current Survey Observability Field, derived
+  analyses, selection and view state. Changing an input invalidates every
+  derived result; results computed for superseded inputs are refused
+  (`StaleObservabilityResultError`). Selection, view and task changes never
+  mark the project modified.
+- **`TaskController`** (`gui/task_controller.py`) runs one long operation at a
+  time on a thread pool, with progress, cancellation and error signals.
+  Results are installed on the GUI thread only if still current.
+- **Pages** (`gui/*_page.py`) read ApplicationState in `refresh_from_state()`
+  and call services; expensive Analysis panels are built when first opened.
+  Every Matplotlib canvas is `gui.canvas.SafeFigureCanvas`.
+- **`visualization.layers.map_layer`** defines each map layer's colours,
+  scales and legend once, for both the GUI maps and exported figures.
+
+## Versioning
+
+The version is defined once, in `rivelero/__init__.py` (`__version__`), read by
+`pyproject.toml` and recorded in projects, exports and provenance. Rivelero
+uses development versions (`0.x.devN`) until a first public release.
 
 ---
 

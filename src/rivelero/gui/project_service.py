@@ -96,7 +96,7 @@ def save_state(state: ApplicationState, path: Path | str) -> Path:
     if state.project.name == ProjectState().name:
         state.rename_project(target.stem)
     saved = save_project(project_data_from_state(state), target)
-    state.project.mark_saved(saved)
+    state.mark_project_saved(saved)
     return saved
 
 

@@ -1,17 +1,31 @@
+# Prefer `conda env create -f environment.yml` and then `pip install -e ".[gui,test]"`.
+# GDAL's Python bindings (osgeo) are also required for viewsheds; install them
+# for your platform (conda-forge recommended) - they are not listed here.
+
+# Core scientific stack used by the current application
 numpy
 rasterio
-matplotlib
-pyproj
 affine
-requests
-python-dateutil
-pandas
+pyproj
 shapely
-scikit-learn
+matplotlib
+requests
+
+# Graphical application
+PySide6
+
+# Tests
+pytest
+pillow
+
+# Used only by legacy modules; not needed by the current application
 geopandas
 osmnx
-lark
-pillow
-PySide6
-psutil
 OpenEXR
+psutil
+python-dateutil
+
+# Not imported anywhere in the repository (candidates for removal)
+pandas
+scikit-learn
+lark

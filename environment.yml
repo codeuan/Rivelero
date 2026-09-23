@@ -3,19 +3,28 @@ channels:
   - conda-forge
 dependencies:
   - python=3.11
-  - gdal
+  # Core scientific stack used by the current application
+  - gdal          # osgeo bindings for the viewshed engine
   - rasterio
+  - affine
   - pyproj
+  - shapely
   - numpy
   - matplotlib
-  - requests
-  - python-dateutil
-  - shapely
-  - scikit-learn
+  - requests      # OpenTopography DEM download
+  # Graphical application
+  - PySide6
+  # Tests
+  - pytest
+  - pillow
+  # Used only by legacy modules (src/GUI, src/soe, rivelero.design,
+  # rivelero.suitability, rivelero.visibility.obstacles, io/osm.py);
+  # not needed by the current application.
   - geopandas
   - osmnx
-  - lark
-  - pillow
-  - PySide6
-  - psutil
   - OpenEXR
+  - psutil
+  - python-dateutil
+  # Not imported anywhere in the repository (candidates for removal).
+  - scikit-learn
+  - lark

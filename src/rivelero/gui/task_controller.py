@@ -65,6 +65,31 @@ from rivelero.gui.application_state import (
 # ---------------------------------------------------------------------------
 
 
+# Exceptions whose message is already written for users.
+_PLAIN_MESSAGE_TYPES = (ValueError, RuntimeError, NotImplementedError, KeyError, OSError)
+
+
+def describe_error(exc: BaseException) -> str:
+    """User-facing message for a failed task (the traceback goes to details).
+
+    Rivelero's own exceptions and ordinary value/OS errors carry messages
+    written for users and are shown as they are; permission problems get a
+    suggestion; only unexpected exception types keep their type name.
+    """
+
+    text = str(exc).strip()
+    if isinstance(exc, KeyError) and text.startswith(("'", '"')):
+        text = text.strip("'\"")
+    if isinstance(exc, PermissionError):
+        target = exc.filename or "the destination"
+        return f"Permission denied for {target}. Choose a location you can write to."
+    if not text:
+        return f"{type(exc).__name__} (no message; see the error details)."
+    if type(exc).__module__.startswith("rivelero") or isinstance(exc, _PLAIN_MESSAGE_TYPES):
+        return text
+    return f"{type(exc).__name__}: {text}"
+
+
 class TaskCancelledError(RuntimeError):
     """Raised when a cooperative Rivelero task acknowledges cancellation."""
 
@@ -334,7 +359,7 @@ class TaskWorker(QRunnable):
         except Exception as exc:
             self.signals.error.emit(
                 self.task_id,
-                f"{type(exc).__name__}: {exc}",
+                describe_error(exc),
                 traceback.format_exc(),
             )
 

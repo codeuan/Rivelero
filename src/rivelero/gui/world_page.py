@@ -12,6 +12,8 @@ Scientific operations are delegated to tested services.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from uuid import uuid4
 
 try:
@@ -799,8 +801,11 @@ class WorldPage(QWidget):
             self.terrain_resolution.set_value("—")
             self.terrain_size.set_value("—")
             self.world_map.set_domain(None)
+            if self.world_map.raster_path is not None:
+                # Never keep showing the terrain of a previous project.
+                self.world_map.clear_raster()
         else:
-            source = environment.elevation_model.source
+            source = Path(environment.elevation_model.source).expanduser().resolve()
             if self.world_map.raster_path != source:
                 self.world_map.set_raster(source)
             self.terrain_name.set_value(environment.name)

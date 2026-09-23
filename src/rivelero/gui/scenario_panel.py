@@ -198,7 +198,15 @@ class ScenarioUnitsFilter(QSortFilterProxyModel):
 
     def set_mode(self, mode: str) -> None:
         self.mode = mode
-        self.invalidateFilter()
+        self.refilter()
+
+    def refilter(self) -> None:
+        """Re-apply the filter (Qt >= 6.10 API, fallback for older Qt)."""
+        if hasattr(self, "beginFilterChange"):
+            self.beginFilterChange()
+            self.endFilterChange()
+        else:
+            self.invalidateFilter()
 
     def filterAcceptsRow(self, row, parent) -> bool:
         model = self.sourceModel()
@@ -960,7 +968,7 @@ class ScenarioPanel(QWidget):
         scenario = self.scenario
         self.candidates_model.set_scenario(scenario)
         self.units_model.refresh_states()
-        self.units_proxy.invalidateFilter()
+        self.units_proxy.refilter()
         if scenario is None:
             for label in self.summary_values.values():
                 label.setText("—")

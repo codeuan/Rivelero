@@ -17,6 +17,7 @@ Scientific calculations must never be implemented here.
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 from rivelero.gui.survey_page import SurveyPage
 from rivelero.gui.survey_import_dialog import (
@@ -42,6 +43,7 @@ try:
     from PySide6.QtCore import Qt, QSize
     from PySide6.QtGui import QAction, QFont, QIcon, QKeySequence, QPixmap
     from PySide6.QtWidgets import (
+        QApplication,
         QFileDialog,
         QFrame,
         QHBoxLayout,
@@ -62,6 +64,7 @@ except ImportError:
     from PyQt6.QtCore import Qt, QSize
     from PyQt6.QtGui import QAction, QFont, QIcon, QKeySequence, QPixmap
     from PyQt6.QtWidgets import (
+        QApplication,
         QFileDialog,
         QFrame,
         QHBoxLayout,
@@ -81,6 +84,7 @@ except ImportError:
 
 from rivelero.gui.application_state import (
     ApplicationState,
+    StateChange,
     WorkflowPage,
 )
 from rivelero.gui.task_controller import (
@@ -1291,6 +1295,7 @@ class MainWindow(QMainWindow):
         )
 
         self._update_window_title()
+        self._follow_project_change()
 
         self.dirty_indicator.setText(
             "●"
@@ -1433,6 +1438,28 @@ class MainWindow(QMainWindow):
         )
         menu.addAction(self.export_action)
 
+    # Revision of the last PROJECT change the visible page was refreshed for.
+    _project_revision_seen = -1
+
+    def _follow_project_change(self) -> None:
+        """Refresh the visible page after a project rename/save/new/open.
+
+        Pages derive names from the project (e.g. Output's default file and
+        report names); they must not wait for the user to navigate away.
+        """
+
+        state = self.state
+        if (
+            StateChange.PROJECT not in state.last_changes
+            or state.revision == self._project_revision_seen
+            or not hasattr(self, "page_stack")
+        ):
+            return
+        self._project_revision_seen = state.revision
+        refresh = getattr(self.page_stack.currentWidget(), "refresh_from_state", None)
+        if callable(refresh):
+            refresh()
+
     def _update_window_title(self) -> None:
         name = self.state.project.name
         if name == "Untitled Rivelero project":
@@ -1566,8 +1593,51 @@ class MainWindow(QMainWindow):
             page.refresh_from_state()
         self.navigate_to(self.state.view.active_page)
 
+    def ask_stop_running_task(self) -> bool:
+        """Dialog hook: True to stop the running task and continue closing."""
+        answer = QMessageBox.question(
+            self,
+            "Task running",
+            f"{self.state.task.task_name or 'A task'} is still running. Stop it "
+            "and close Rivelero? Its partial result is discarded; files already "
+            "written by an export are kept.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        return answer == QMessageBox.StandardButton.Yes
+
+    def stop_running_task(self, *, timeout_s: float = 30.0) -> bool:
+        """Request cancellation and wait (events flowing) until it stops.
+
+        Returns False if the worker did not stop in time; the window then
+        stays open so no completion can reach destroyed widgets.
+        """
+
+        controller = self.task_controller
+        if not controller.busy:
+            return True
+        controller.cancel()
+        deadline = time.monotonic() + timeout_s
+        while controller.busy and time.monotonic() < deadline:
+            QApplication.processEvents()
+            time.sleep(0.01)
+        QApplication.processEvents()
+        return not controller.busy
+
     def closeEvent(self, event) -> None:  # noqa: N802 - Qt API
-        if self.state.busy or not self._confirm_discard():
+        if self.state.busy:
+            if not self.ask_stop_running_task():
+                event.ignore()
+                return
+            if not self.stop_running_task():
+                self.show_message(
+                    "Task still running",
+                    "The running task could not be stopped yet. Try closing "
+                    "again in a moment.",
+                    kind="warning",
+                )
+                event.ignore()
+                return
+        if not self._confirm_discard():
             event.ignore()
             return
         event.accept()

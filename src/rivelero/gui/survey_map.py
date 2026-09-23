@@ -3,9 +3,7 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
-from matplotlib import pyplot as plt
 from matplotlib.backend_bases import MouseEvent
 from matplotlib.colors import to_hex
 from matplotlib.patches import FancyArrow
@@ -37,6 +35,7 @@ except ImportError:
     )
 
 from rivelero.core.configuration import ViewpointConfiguration
+from rivelero.gui.canvas import SafeFigureCanvas
 from rivelero.gui.survey_qc import SurveySpatialQC
 
 
@@ -116,7 +115,7 @@ class SurveyMapWidget(QWidget):
 
         self.figure = Figure(figsize=(7, 5), dpi=100)
         self.ax = self.figure.add_subplot(111)
-        self.canvas = FigureCanvasQTAgg(self.figure)
+        self.canvas = SafeFigureCanvas(self.figure)
         self.canvas.setMinimumHeight(360)
         self.canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.canvas.mpl_connect("pick_event", self._on_pick_event)

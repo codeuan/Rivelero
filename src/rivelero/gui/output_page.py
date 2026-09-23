@@ -92,6 +92,7 @@ class OutputPage(QWidget):
         controller.task_error.connect(self._on_task_error)
         controller.task_cancelled.connect(self._on_task_cancelled)
         controller.task_finished.connect(self._on_task_finished)
+        controller.task_started.connect(lambda _id, _name: self._refresh_controls())
         self.refresh_from_state()
 
     # ------------------------------------------------------------------

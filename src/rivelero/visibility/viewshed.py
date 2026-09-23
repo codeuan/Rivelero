@@ -19,6 +19,9 @@ except ImportError as error:
     _GDAL_IMPORT_ERROR = error
 else:
     _GDAL_IMPORT_ERROR = None
+    # The viewshed code checks GDAL return values itself; state that mode
+    # explicitly (GDAL 4 will otherwise switch the default to exceptions).
+    gdal.DontUseExceptions()
 
 __all__ = ["open_viewshed_dem", "run_viewshed", "accumulate_viewshed"]
 

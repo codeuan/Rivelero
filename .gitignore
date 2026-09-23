@@ -25,3 +25,7 @@ GeoTiff/
 GSV/
 
 legacy/
+# Packaging artefacts
+*.egg-info/
+build/
+dist/

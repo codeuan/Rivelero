@@ -1,4 +1,7 @@
-"""Development launcher for the new Rivelero GUI."""
+"""Development launcher for the Rivelero GUI (without installing the package).
+
+Installed users run ``rivelero`` or ``python -m rivelero`` instead.
+"""
 
 from __future__ import annotations
 
@@ -9,46 +12,7 @@ SRC_ROOT = Path(__file__).resolve().parents[1] / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-try:
-    from PySide6.QtWidgets import QApplication
-except ImportError:
-    from PyQt6.QtWidgets import QApplication
-
-from rivelero.gui.application_state import ApplicationState
-from rivelero.gui.main_window import MainWindow
-from rivelero.gui.theme import apply_theme
-
-
-def main() -> int:
-
-    app = QApplication(
-        sys.argv
-    )
-
-    app.setApplicationName(
-        "Rivelero"
-    )
-    apply_theme(
-        app
-    )
-
-    state = ApplicationState()
-
-    window = MainWindow(
-        state=state
-    )
-
-    window.resize(
-        1380,
-        860,
-    )
-
-    window.show()
-
-    return app.exec()
-
+from rivelero.gui.app import main  # noqa: E402
 
 if __name__ == "__main__":
-    raise SystemExit(
-        main()
-    )
+    raise SystemExit(main())

@@ -148,6 +148,8 @@ class _TaskPanel(QWidget):
         controller.task_error.connect(self._on_task_error)
         controller.task_cancelled.connect(self._on_task_cancelled)
         controller.task_finished.connect(self._on_task_finished)
+        # Any task (on any page) disables starting another one.
+        controller.task_started.connect(lambda _id, _name: self._refresh_controls())
 
     def _browse(self) -> None:
         path = self.choose_directory()
@@ -232,6 +234,8 @@ class _TaskPanel(QWidget):
         if task_id == self._task_id:
             self._task_id = None
             self.refresh()
+        else:
+            self._refresh_controls()
 
     def _set_status(self, text: str | None, *, kind: str = "success") -> None:
         if not text:

@@ -1559,10 +1559,8 @@ class SurveyPage(QWidget):
                         5,
                     ):
                         item.setTextAlignment(
-                            int(
-                                Qt.AlignmentFlag.AlignRight
-                                | Qt.AlignmentFlag.AlignVCenter
-                            )
+                            Qt.AlignmentFlag.AlignRight
+                            | Qt.AlignmentFlag.AlignVCenter
                         )
 
                     self.table.setItem(

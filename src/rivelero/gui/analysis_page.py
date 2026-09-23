@@ -44,7 +44,7 @@ from rivelero.gui.components import (
 )
 from rivelero.gui.compare_panel import ComparePanel
 from rivelero.gui.contribution_panel import ContributionPanel
-from rivelero.gui.raster_map import SafeFigureCanvas
+from rivelero.gui.canvas import SafeFigureCanvas
 from rivelero.gui.scenario_panel import ScenarioPanel
 from rivelero.gui.task_controller import TaskController
 from rivelero.gui.observability_map import (
@@ -84,6 +84,13 @@ _DESIGN_TOOLS = (
 )
 
 
+_DESIGN_TABS = (
+    ("contribution", "Contribution"),
+    ("scenario", "Scenario"),
+    ("compare", "Compare"),
+)
+
+
 class AnalysisPage(QWidget):
     """Descriptive analysis of the current Survey Observability Field."""
 
@@ -114,6 +121,11 @@ class AnalysisPage(QWidget):
         self._summary_source = None
         self._summary: CoverageSummary | None = None
 
+        # Design panels (each owns a Matplotlib map) are built the first time
+        # their tab is opened or they are accessed, then kept alive.
+        self._panels: dict[str, QWidget] = {}
+        self._panel_containers: dict[str, QWidget] = {}
+
         self._build_interface()
         self._connect_signals()
         self.refresh_from_state()
@@ -130,6 +142,59 @@ class AnalysisPage(QWidget):
     @property
     def analysis_available(self) -> bool:
         return self._summary is not None
+
+    @property
+    def contribution_panel(self) -> ContributionPanel:
+        return self._panel("contribution")
+
+    @property
+    def scenario_panel(self) -> ScenarioPanel:
+        return self._panel("scenario")
+
+    @property
+    def compare_panel(self) -> ComparePanel:
+        return self._panel("compare")
+
+    @property
+    def constructed_panels(self) -> tuple[str, ...]:
+        """Names of the design panels built so far (lazy construction)."""
+        return tuple(self._panels)
+
+    def _panel(self, name: str) -> QWidget:
+        panel = self._panels.get(name)
+        if panel is not None:
+            return panel
+        if name == "contribution":
+            panel = ContributionPanel(self.state, task_controller=self.task_controller)
+        elif name == "scenario":
+            panel = ScenarioPanel(self.state, task_controller=self.task_controller)
+            panel.edited.connect(self.state_changed.emit)
+        elif name == "compare":
+            panel = ComparePanel(self.state)
+            panel.scenario_loaded.connect(self._on_scenario_loaded)
+            panel.edited.connect(self.state_changed.emit)
+        else:
+            raise KeyError(name)
+        self._panels[name] = panel
+        # Replace the placeholder tab by the panel itself, keeping position,
+        # label and the current tab.
+        placeholder = self._panel_containers.pop(name)
+        index = self.tabs.indexOf(placeholder)
+        current = self.tabs.currentIndex()
+        blocked = self.tabs.blockSignals(True)
+        try:
+            self.tabs.removeTab(index)
+            self.tabs.insertTab(index, panel, dict(_DESIGN_TABS)[name])
+            self.tabs.setCurrentIndex(current)
+        finally:
+            self.tabs.blockSignals(blocked)
+        placeholder.deleteLater()
+        panel.refresh_from_state()
+        return panel
+
+    def _refresh_panels(self) -> None:
+        for panel in self._panels.values():
+            panel.refresh_from_state()
 
     def refresh_from_state(self) -> None:
         """Rehydrate from ApplicationState; never analyse a stale SOF."""
@@ -153,9 +218,7 @@ class AnalysisPage(QWidget):
         self._refresh_summary(sof)
         self._refresh_map(sof)
         self._refresh_charts()
-        self.contribution_panel.refresh_from_state()
-        self.scenario_panel.refresh_from_state()
-        self.compare_panel.refresh_from_state()
+        self._refresh_panels()
 
     # ------------------------------------------------------------------
     # Interface
@@ -200,18 +263,10 @@ class AnalysisPage(QWidget):
         self._build_chart_row(content_layout)
         self.tabs.addTab(self.analysis_content, "Overview")
 
-        self.contribution_panel = ContributionPanel(
-            self.state, task_controller=self.task_controller
-        )
-        self.tabs.addTab(self.contribution_panel, "Contribution")
-
-        self.scenario_panel = ScenarioPanel(
-            self.state, task_controller=self.task_controller
-        )
-        self.tabs.addTab(self.scenario_panel, "Scenario")
-
-        self.compare_panel = ComparePanel(self.state)
-        self.tabs.addTab(self.compare_panel, "Compare")
+        for name, label in _DESIGN_TABS:
+            placeholder = QWidget()
+            self._panel_containers[name] = placeholder
+            self.tabs.addTab(placeholder, label)
         layout.addWidget(self.tabs)
 
         self._build_design_tools(layout)
@@ -351,9 +406,6 @@ class AnalysisPage(QWidget):
     def _connect_signals(self) -> None:
         # The live scenario may change on the Scenario tab.
         self.tabs.currentChanged.connect(self._on_tab_changed)
-        self.compare_panel.scenario_loaded.connect(self._on_scenario_loaded)
-        self.scenario_panel.edited.connect(self.state_changed.emit)
-        self.compare_panel.edited.connect(self.state_changed.emit)
         self.readiness.action_requested.connect(self.observability_requested.emit)
         self.continue_button.clicked.connect(self.continue_requested.emit)
         self.analysis_map.viewpoint_selected.connect(self._on_viewpoint_selected)
@@ -385,9 +437,7 @@ class AnalysisPage(QWidget):
         self.tabs.setVisible(False)
         self.continue_button.setEnabled(False)
         self.analysis_map.set_field(None)
-        self.contribution_panel.refresh_from_state()
-        self.scenario_panel.refresh_from_state()
-        self.compare_panel.refresh_from_state()
+        self._refresh_panels()
 
     def _refresh_summary(self, sof) -> None:
         summary = self._summary
@@ -448,8 +498,14 @@ class AnalysisPage(QWidget):
         self.composition_canvas.draw_idle()
 
     def _on_tab_changed(self, index: int) -> None:
-        if self.tabs.widget(index) is self.compare_panel:
-            self.compare_panel.refresh_from_state()
+        widget = self.tabs.widget(index)
+        for name, placeholder in self._panel_containers.items():
+            if widget is placeholder:
+                self._panel(name)  # built (and refreshed) on first open
+                return
+        if widget is self._panels.get("compare"):
+            # The live scenario may have changed on the Scenario tab.
+            widget.refresh_from_state()
 
     def _on_scenario_loaded(self) -> None:
         self.scenario_panel.refresh_from_state()

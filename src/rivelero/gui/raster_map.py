@@ -6,7 +6,6 @@ from pathlib import Path
 
 import numpy as np
 import rasterio
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from rasterio.crs import CRS
@@ -19,33 +18,10 @@ except ImportError:
     from PyQt6.QtWidgets import QVBoxLayout, QLabel, QWidget
 
 from rivelero.gui.environment_import import RasterMetadata, inspect_elevation_raster
+from rivelero.gui.canvas import SafeFigureCanvas  # noqa: F401  (re-exported)
+from matplotlib.backends.backend_qtagg import NavigationToolbar2QT  # noqa: E402
 # Re-exported: moved to the Qt-free visualization layer (P3).
 from rivelero.visualization.maps import project_viewpoints  # noqa: F401
-
-try:
-    from shiboken6 import isValid as _qt_object_alive
-except ImportError:  # PyQt6
-    try:
-        from PyQt6 import sip as _sip
-
-        def _qt_object_alive(obj) -> bool:
-            return not _sip.isdeleted(obj)
-    except ImportError:
-        def _qt_object_alive(obj) -> bool:
-            return True
-
-
-class SafeFigureCanvas(FigureCanvasQTAgg):
-    """FigureCanvasQTAgg whose deferred redraw tolerates widget deletion.
-
-    Matplotlib queues ``draw_idle`` with a zero-delay timer. If the widget is
-    destroyed first (a closed dialog or discarded page), the queued callback
-    would touch a deleted Qt object and raise; the redraw is simply skipped.
-    """
-
-    def _draw_idle(self):
-        if _qt_object_alive(self):
-            super()._draw_idle()
 
 
 class RasterMapWidget(QWidget):
@@ -93,6 +69,18 @@ class RasterMapWidget(QWidget):
         )
         self.current_extent = self.full_extent
         self._draw_raster()
+        self.redraw_overlays()
+
+    def clear_raster(self) -> None:
+        """Remove the raster (e.g. after New Project); the map shows nothing."""
+        self.metadata = None
+        self.raster_path = None
+        self.full_extent = None
+        self.current_extent = None
+        self._raster_artist = None
+        self.axes.clear()
+        self.hide_colorbar()
+        self._status_label.setText("")
         self.redraw_overlays()
 
     def set_view_extent(

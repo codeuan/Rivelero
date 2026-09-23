@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from importlib import metadata as importlib_metadata
 from pathlib import Path
 from typing import Any, Callable
 
@@ -70,14 +69,11 @@ def migrate(documents: dict[str, Any], version: int) -> dict[str, Any]:
 def software_metadata() -> dict[str, Any]:
     """Best-effort software identity recorded in each saved project."""
 
-    try:
-        version = importlib_metadata.version("rivelero")
-    except importlib_metadata.PackageNotFoundError:
-        version = None
+    from rivelero import __version__
 
     return {
         "name": "rivelero",
-        "version": version,
+        "version": __version__,
         "git_commit": _git_commit(),
     }
 

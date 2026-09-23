@@ -864,6 +864,20 @@ class ApplicationState:
             scientific=False,
         )
 
+    def mark_project_saved(self, path: str | Path) -> None:
+        """Record a successful save to ``path`` (the project becomes clean).
+
+        Recorded as a PROJECT change so views showing project-derived names
+        (window title, default output names) can follow a Save As.
+        """
+
+        self._mark_changed(
+            StateChange.PROJECT,
+            scientific=False,
+            mark_project_dirty=False,
+        )
+        self.project.mark_saved(path)
+
     def set_project_description(
         self,
         description: str | None,
