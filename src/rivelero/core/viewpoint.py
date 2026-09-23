@@ -1,4 +1,4 @@
-"""Canonical viewpoint and viewpoint-region data structures for Rivelero.
+"""Canonical Viewpoint data structure for Rivelero.
 
 This module defines the spatial representation of an observer in Rivelero.
 
@@ -6,9 +6,6 @@ A Viewpoint describes where and how visual observation can potentially occur.
 It is independent of whether an observation actually occurred at that
 location. Temporal occurrences of viewpoints are represented separately by
 ObservationEvent.
-
-The module also retains the legacy ViewpointRegion and ViewpointOPFResult
-structures used by Rivelero's prospective viewpoint-design workflow.
 """
 
 from __future__ import annotations
@@ -17,7 +14,6 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
-from affine import Affine
 from rasterio.crs import CRS
 
 
@@ -334,53 +330,3 @@ class Viewpoint:
         """Return the horizontal position as ``(x, y)``."""
 
         return self.x, self.y
-
-
-# ---------------------------------------------------------------------------
-# Existing prospective survey-design structures
-# ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True, slots=True)
-class ViewpointRegion:
-    """One circular or rectangular local OPF region.
-
-    This structure belongs to Rivelero's existing prospective survey-design
-    workflow. It describes a local region around a candidate viewpoint and is
-    distinct from the canonical Viewpoint representation above.
-    """
-
-    identifier: str
-    x: float
-    y: float
-    radius_m: float | None = None
-    bounds: tuple[float, float, float, float] | None = None
-
-
-@dataclass(slots=True)
-class ViewpointOPFResult:
-    """The portion of an Observability Potential Field available to a viewpoint.
-
-    This structure is retained for compatibility with Rivelero's existing
-    prospective viewpoint-generation and ranking workflow.
-    """
-
-    viewpoint: ViewpointRegion
-    field: np.ndarray
-    valid_mask: np.ndarray
-    transform: Affine
-    crs: CRS
-
-    def as_display_mapping(self) -> dict[str, Any]:
-        """Return metadata used by the existing raster visualization system."""
-
-        return {
-            "data": self.field,
-            "transform": self.transform,
-            "crs": self.crs,
-            "title": f"OPF around {self.viewpoint.identifier}",
-            "colour_map": "viridis",
-            "colourbar_label": "Observability potential",
-            "vmin": -0.5,
-            "vmax": 0.8,
-        }

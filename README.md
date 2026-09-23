@@ -445,8 +445,18 @@ pip install -e ".[gui,test]"
 ```
 
 `pip install -e .` installs the package from `src/` in editable mode and adds
-the `rivelero` command. The optional extras are `gui` (PySide6) and `test`
-(pytest). Without Conda, install GDAL's Python bindings for your platform
+the `rivelero` command.
+
+Dependencies (`pyproject.toml` is authoritative):
+
+| Group | Packages |
+|---|---|
+| Scientific core | numpy, rasterio, affine, shapely, pyproj, matplotlib, requests, and GDAL's Python bindings (`osgeo`, from conda-forge) |
+| `gui` extra | PySide6 |
+| `test` extra | pytest, pillow |
+
+The optional extras are `gui` (PySide6) and `test`
+(pytest, pillow). Without Conda, install GDAL's Python bindings for your platform
 first, then `pip install -e ".[gui,test]"`.
 
 The scientific packages (`rivelero.core`, `observability`, `visibility`,
@@ -597,15 +607,17 @@ src/rivelero/
 ├── visualization/   Qt-free colour/legend semantics and Matplotlib plotting
 ├── io/              DEM download/reading, SOF raster writers
 └── gui/             PySide6 application (ApplicationState, pages, TaskController)
+
+tests/               pytest suite (markers in tests/conftest.py; fixtures in tests/data)
+docs/                design notes, including the removed legacy architecture
+contrib/             unsupported data-source adapters (Street View, Sentinel-2);
+                     not installed with the package
+rivelero_synthetic_observability/   synthetic DEMs and surveys used by tests and demos
 ```
 
-Older code from earlier Rivelero architectures (`src/GUI`, `src/soe`,
-`src/Drone`, `src/admin`, and `rivelero.design`, `rivelero.suitability`,
-`rivelero.applications`, `rivelero.observability.potential_field`,
-`rivelero.visibility.field` / `obstacles`) is **not used by the current
-application**. It is kept for reference while its remaining ideas (e.g.
-environmental obstacles) are re-implemented on the canonical models, and it is
-not part of the supported workflow.
+The earlier generation of the application (a previous GUI and a weighted
+"observability potential" design workflow) was removed; see `CHANGELOG.md`
+and `docs/legacy-architecture.md`.
 
 ---
 
@@ -830,7 +842,7 @@ Rivelero is being developed as a research framework for understanding and
 designing spatial observation systems.
 
 The project builds on the wider open-source geospatial Python ecosystem,
-including GDAL, Rasterio, GeoPandas, Shapely, PyProj, NumPy, Matplotlib and Qt.
+including GDAL, Rasterio, Shapely, PyProj, NumPy, Matplotlib and Qt.
 
 OpenTopography is supported as a source of elevation data.
 

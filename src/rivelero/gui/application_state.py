@@ -128,7 +128,6 @@ class StateChange(str, Enum):
     SELECTION = "selection"
     VIEW = "view"
     TASK = "task"
-    LEGACY_CONTEXT = "legacy_context"
 
 
 class StaleObservabilityResultError(ValueError):
@@ -645,29 +644,6 @@ class ViewState:
 
 
 # ---------------------------------------------------------------------------
-# Optional legacy/context state
-# ---------------------------------------------------------------------------
-
-
-@dataclass(slots=True)
-class OptionalContextState:
-    """Optional products that are not part of the core SOF definition.
-
-    These fields preserve a clean location for Connor's existing suitability,
-    obstacle, and OPF functionality while keeping them outside the canonical
-    Stage-3 observability state.
-    """
-
-    botanical_field: Any | None = None
-    obstacle_field: Any | None = None
-    legacy_opf: Any | None = None
-
-    extra_products: dict[str, Any] = field(
-        default_factory=dict
-    )
-
-
-# ---------------------------------------------------------------------------
 # Application state
 # ---------------------------------------------------------------------------
 
@@ -725,10 +701,6 @@ class ApplicationState:
 
     view: ViewState = field(
         default_factory=ViewState
-    )
-
-    optional_context: OptionalContextState = field(
-        default_factory=OptionalContextState
     )
 
     # Monotonically increasing state revision.
@@ -1451,7 +1423,6 @@ class ApplicationState:
         self.selection = other.selection
         self.task = TaskState()
         self.view = other.view
-        self.optional_context = other.optional_context
         self.revision += 1
         self.last_changes = tuple(StateChange)
 
@@ -2000,7 +1971,6 @@ class ApplicationState:
         self.selection = SelectionState()
         self.task = TaskState()
         self.view = ViewState()
-        self.optional_context = OptionalContextState()
 
         self.revision += 1
 

@@ -1,8 +1,9 @@
 # Prefer `conda env create -f environment.yml` and then `pip install -e ".[gui,test]"`.
 # GDAL's Python bindings (osgeo) are also required for viewsheds; install them
 # for your platform (conda-forge recommended) - they are not listed here.
+# pyproject.toml is the authoritative list; this file mirrors it for pip users.
 
-# Core scientific stack used by the current application
+# Scientific core
 numpy
 rasterio
 affine
@@ -17,15 +18,3 @@ PySide6
 # Tests
 pytest
 pillow
-
-# Used only by legacy modules; not needed by the current application
-geopandas
-osmnx
-OpenEXR
-psutil
-python-dateutil
-
-# Not imported anywhere in the repository (candidates for removal)
-pandas
-scikit-learn
-lark

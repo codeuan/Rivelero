@@ -32,7 +32,8 @@ def test_scientific_imports_are_headless():
     """Scientific modules never import Qt (no display server needed)."""
     result = _run(
         "import sys\n"
-        "import rivelero, rivelero.observability, rivelero.analysis.coverage\n"
+        "import rivelero, rivelero.core, rivelero.visibility, rivelero.observability\n"
+        "import rivelero.analysis, rivelero.analysis.coverage, rivelero.visibility.engine\n"
         "import rivelero.analysis.comparison, rivelero.project.io\n"
         "import rivelero.export.catalog, rivelero.export.provenance\n"
         "import rivelero.export.figures, rivelero.export.report\n"
@@ -78,3 +79,67 @@ def test_matplotlib_uses_the_same_qt_binding_as_rivelero():
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "PySide6 False"
+
+
+ACTIVE_PACKAGES = {
+    "rivelero", "rivelero.analysis", "rivelero.core", "rivelero.export", "rivelero.gui",
+    "rivelero.io", "rivelero.observability", "rivelero.project", "rivelero.visibility",
+    "rivelero.visualization",
+}
+
+REMOVED_MODULES = (
+    "rivelero.design", "rivelero.suitability", "rivelero.applications", "rivelero.metrics",
+    "rivelero.observability.potential_field", "rivelero.visibility.field",
+    "rivelero.visibility.obstacles", "rivelero.io.osm", "rivelero.io.sentinel",
+    "rivelero.io.gsv", "rivelero.core.config", "rivelero.visualization.survey",
+    "rivelero.visualization.visibility",
+)
+
+
+def test_package_discovery_finds_only_the_canonical_packages():
+    from setuptools import find_packages
+
+    assert set(find_packages(where=str(SRC), include=["rivelero*"])) == ACTIVE_PACKAGES
+    # No other top-level code under src/ (the old GUI, soe, Drone, admin).
+    top_level = {
+        p.name for p in SRC.iterdir()
+        if p.is_dir() and p.name != "__pycache__" and not p.name.endswith(".egg-info")
+    }
+    assert top_level == {"rivelero"}
+
+
+def test_legacy_modules_are_gone():
+    import importlib.util
+
+    for name in REMOVED_MODULES:
+        assert importlib.util.find_spec(name) is None, name
+
+
+def test_legacy_structures_are_not_in_the_canonical_api():
+    import rivelero.core.viewpoint as viewpoint
+    from rivelero.gui import application_state
+
+    assert not hasattr(viewpoint, "ViewpointRegion")
+    assert not hasattr(viewpoint, "ViewpointOPFResult")
+    assert not hasattr(application_state, "OptionalContextState")
+    assert not hasattr(application_state.ApplicationState(), "optional_context")
+
+
+def test_gui_entry_point_reports_the_real_qt_import_error(monkeypatch, capsys):
+    """An installed-but-broken PySide6 is not reported as 'not installed'."""
+    import builtins
+
+    from rivelero.gui import app
+
+    real_import = builtins.__import__
+
+    def broken(name, *args, **kwargs):
+        if name.startswith("PySide6"):
+            raise ImportError("DLL load failed while importing QtWidgets")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", broken)
+    assert app.main([]) == 1
+    message = capsys.readouterr().err
+    assert "installed but could not be loaded" in message
+    assert "DLL load failed while importing QtWidgets" in message

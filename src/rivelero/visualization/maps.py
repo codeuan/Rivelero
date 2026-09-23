@@ -6,14 +6,9 @@ Rivelero's scientific visualization modules.
 It deliberately contains no scientific concepts such as visibility,
 observability, exposure, blind spots, redundancy, or survey quality.
 
-Higher-level modules such as:
-
-    visualization.visibility
-    visualization.observability
-    visualization.survey
-
-should use these helpers rather than implementing duplicate spatial plotting
-logic.
+Higher-level modules (visualization.observability, visualization.layers
+and the exported figures) use these helpers rather than implementing
+duplicate spatial plotting logic.
 
 The functions operate on ordinary Matplotlib Axes and Rivelero spatial
 metadata and do not depend on the GUI.

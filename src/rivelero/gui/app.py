@@ -34,16 +34,27 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         from PySide6.QtWidgets import QApplication
-    except ImportError:
+    except ModuleNotFoundError:
         try:
             from PyQt6.QtWidgets import QApplication
-        except ImportError:
+        except ModuleNotFoundError:
             print(
                 "Rivelero's graphical interface needs PySide6. Install it with "
                 "'pip install PySide6' (or the project environment.yml).",
                 file=sys.stderr,
             )
             return 1
+    except ImportError as error:
+        # Installed but not loadable (e.g. mixed Qt libraries from conda and
+        # pip): report the real cause instead of claiming it is missing.
+        print(
+            f"PySide6 is installed but could not be loaded: {error}\n"
+            "This usually means Qt libraries from different installations are "
+            "mixed (for example a pip PySide6 inside a conda environment). "
+            "Install PySide6 from a single source.",
+            file=sys.stderr,
+        )
+        return 1
 
     from rivelero.gui.application_state import ApplicationState
     from rivelero.gui.main_window import MainWindow

@@ -1,8 +1,8 @@
 """
 Low-level terrain line-of-sight engine for Rivelero.
 
-Owns GDAL viewshed execution only. Pass 1 preserves the GDAL configuration
-and raster-placement behaviour formerly embedded in visibility_field.py.
+Owns GDAL viewshed execution only. It preserves the GDAL configuration and
+raster-placement behaviour of Rivelero's original visibility field.
 """
 from __future__ import annotations
 

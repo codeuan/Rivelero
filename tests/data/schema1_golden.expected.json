@@ -1,0 +1,28 @@
+{
+  "project_name": "Schema 1 golden",
+  "viewpoints": 4,
+  "events": 1,
+  "sensors": 3,
+  "environment_id": "dem_nodata-environment",
+  "domain_id": "dem_nodata-survey-domain",
+  "visibility_configuration_id": "visibility-1",
+  "max_distance_m": 250.0,
+  "active_units": 4,
+  "observable_cells": 1841,
+  "state_counts": {
+    "0": 8084,
+    "1": 31,
+    "2": 44,
+    "3": 1841
+  },
+  "snapshots": [
+    "Golden snapshot"
+  ],
+  "snapshot_observable": 1841,
+  "live_deactivated": [
+    "vp_center_360"
+  ],
+  "live_candidates": [
+    "candidate_001"
+  ]
+}

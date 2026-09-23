@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - python=3.11
-  # Core scientific stack used by the current application
+  # Scientific core
   - gdal          # osgeo bindings for the viewshed engine
   - rasterio
   - affine
@@ -17,14 +17,3 @@ dependencies:
   # Tests
   - pytest
   - pillow
-  # Used only by legacy modules (src/GUI, src/soe, rivelero.design,
-  # rivelero.suitability, rivelero.visibility.obstacles, io/osm.py);
-  # not needed by the current application.
-  - geopandas
-  - osmnx
-  - OpenEXR
-  - psutil
-  - python-dateutil
-  # Not imported anywhere in the repository (candidates for removal).
-  - scikit-learn
-  - lark
