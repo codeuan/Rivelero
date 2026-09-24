@@ -29,6 +29,11 @@ application. Highlights:
   offline HTML report.
 - Package metadata (`pyproject.toml`), the `rivelero` command and
   `python -m rivelero`.
+- **OpenStreetMap background** for the Survey, World and observability maps:
+  an "OpenStreetMap" toggle draws OSM tiles beneath the map, reprojected into
+  the map's CRS for display only, so a survey or terrain can be checked
+  against its real-world location. Tiles load in the background, are cached
+  per user and carry the OpenStreetMap attribution; off by default.
 
 ### Removed
 - The earlier generation of the application, superseded by the above and not

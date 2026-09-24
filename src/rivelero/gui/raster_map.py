@@ -17,11 +17,16 @@ except ImportError:
     from PyQt6.QtCore import Qt
     from PyQt6.QtWidgets import QVBoxLayout, QLabel, QWidget
 
+from rivelero.gui.basemap import BasemapLayer
 from rivelero.gui.environment_import import RasterMetadata, inspect_elevation_raster
 from rivelero.gui.canvas import SafeFigureCanvas  # noqa: F401  (re-exported)
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT  # noqa: E402
 # Re-exported: moved to the Qt-free visualization layer (P3).
 from rivelero.visualization.maps import project_viewpoints  # noqa: F401
+
+# Opacity of the elevation raster over the OpenStreetMap background: lighter
+# than analysis layers, since elevation is itself only context.
+ELEVATION_ALPHA_OVER_BASEMAP = 0.4
 
 
 class RasterMapWidget(QWidget):
@@ -55,6 +60,12 @@ class RasterMapWidget(QWidget):
         layout.addWidget(self._status_label)
         self.canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
+        # Optional OpenStreetMap background, switched on from the toolbar.
+        self.basemap = BasemapLayer(self.axes, self.canvas, parent=self)
+        self._toolbar.addSeparator()
+        self._toolbar.addWidget(self.basemap.toggle)
+        self.basemap.toggled.connect(self._on_basemap_toggled)
+
     def set_raster(self, path: str | Path) -> None:
         """Load raster metadata and draw the complete raster."""
         source = Path(path).expanduser().resolve()
@@ -68,6 +79,7 @@ class RasterMapWidget(QWidget):
             float(bounds.top),
         )
         self.current_extent = self.full_extent
+        self.basemap.set_crs(self.metadata.crs)
         self._draw_raster()
         self.redraw_overlays()
 
@@ -79,6 +91,7 @@ class RasterMapWidget(QWidget):
         self.current_extent = None
         self._raster_artist = None
         self.axes.clear()
+        self.basemap.set_crs(None)
         self.hide_colorbar()
         self._status_label.setText("")
         self.redraw_overlays()
@@ -112,6 +125,15 @@ class RasterMapWidget(QWidget):
     def redraw_overlays(self) -> None:
         """Hook for semantic subclasses such as WorldMapWidget."""
         self.canvas.draw_idle()
+
+    def _on_basemap_toggled(self, _enabled: bool) -> None:
+        """Let the background show through the elevation raster."""
+        if self._raster_artist is not None and self._raster_artist.axes is self.axes:
+            self._raster_artist.set_alpha(self._elevation_alpha())
+            self.canvas.draw_idle()
+
+    def _elevation_alpha(self) -> float | None:
+        return ELEVATION_ALPHA_OVER_BASEMAP if self.basemap.enabled else None
 
     # ------------------------------------------------------------------
     # Colourbar lifecycle
@@ -165,8 +187,10 @@ class RasterMapWidget(QWidget):
             origin="upper",
             cmap="terrain",
             interpolation="nearest",
+            alpha=self._elevation_alpha(),
             zorder=0,
         )
+        self.basemap.refresh()
         self.show_colorbar(self._raster_artist, "Elevation")
         self.axes.set_xlabel("X")
         self.axes.set_ylabel("Y")

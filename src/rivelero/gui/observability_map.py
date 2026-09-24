@@ -279,6 +279,7 @@ class ObservabilityMapWidget(RasterMapWidget):
 
         self._project_viewpoints()
         self.display_combo.setEnabled(sof is not None)
+        self.basemap.set_crs(None if sof is None else sof.crs)
         self._render()
 
     def set_terrain(self, path: str | Path | None) -> None:
@@ -539,6 +540,9 @@ class ObservabilityMapWidget(RasterMapWidget):
     def redraw_overlays(self) -> None:
         self.canvas.draw_idle()
 
+    def _on_basemap_toggled(self, _enabled: bool) -> None:
+        self._render()
+
     # ------------------------------------------------------------------
     # Rendering
     # ------------------------------------------------------------------
@@ -565,6 +569,8 @@ class ObservabilityMapWidget(RasterMapWidget):
             self._sof is not None
             and self._terrain_data is not None
             and self.terrain_checkbox.isChecked()
+            # OpenStreetMap replaces the terrain as context beneath the layer.
+            and not self.basemap.enabled
             and self._mode != ObservabilityMapMode.EXPOSURE_DIFFERENCE
             and self._terrain_data.shape == self._sof.exposure_count.shape
         )
@@ -634,6 +640,7 @@ class ObservabilityMapWidget(RasterMapWidget):
             self._layer_image.set_norm(norm)
             self._layer_image.set_extent(self.full_extent)
 
+        self._layer_image.set_alpha(self.basemap.overlay_alpha)
         self._layer_image.set_visible(True)
 
         if colorbar_label is not None:

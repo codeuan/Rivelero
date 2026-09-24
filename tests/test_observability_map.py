@@ -341,3 +341,30 @@ def test_map_mode_is_restored_from_state(app, tmp_path):
 
     second = _keep(ObservabilityPage(state))
     assert second.observability_map.mode == ObservabilityMapMode.EXPOSURE
+
+
+def test_openstreetmap_background_shows_through_layer(app, four_state_sof):
+    from test_basemap import FakeFetcher
+
+    from rivelero.gui.basemap import BASEMAP_LABEL, OVERLAY_ALPHA
+
+    _state, sof = four_state_sof
+    widget = _keep(ObservabilityMapWidget())
+    widget.basemap.fetch_tile = FakeFetcher()
+    widget.basemap.synchronous = True
+    widget.set_field(sof)
+    widget.canvas.draw()
+    assert widget.basemap.toggle.isEnabled()
+    assert widget._layer_image.get_alpha() is None
+
+    widget.basemap.set_enabled(True)
+    widget.basemap.update_now()
+    widget.canvas.draw()
+
+    assert widget._layer_image.get_alpha() == OVERLAY_ALPHA
+    assert [i for i in widget.axes.images if i.get_label() == BASEMAP_LABEL]
+    # OpenStreetMap replaces the grey terrain underlay as context.
+    assert widget._terrain_image is None or not widget._terrain_image.get_visible()
+
+    widget.set_field(None)
+    assert not widget.basemap.enabled

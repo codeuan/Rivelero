@@ -35,6 +35,7 @@ except ImportError:
     )
 
 from rivelero.core.configuration import ViewpointConfiguration
+from rivelero.gui.basemap import BasemapLayer
 from rivelero.gui.canvas import SafeFigureCanvas
 from rivelero.gui.survey_qc import SurveySpatialQC
 
@@ -108,17 +109,21 @@ class SurveyMapWidget(QWidget):
         controls.addWidget(self.ids_toggle)
         controls.addWidget(self.orientation_toggle)
 
-        self.reset_button = QPushButton("Reset")
-        controls.addWidget(self.reset_button)
-
-        layout.addLayout(controls)
-
         self.figure = Figure(figsize=(7, 5), dpi=100)
         self.ax = self.figure.add_subplot(111)
         self.canvas = SafeFigureCanvas(self.figure)
         self.canvas.setMinimumHeight(360)
         self.canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.canvas.mpl_connect("pick_event", self._on_pick_event)
+
+        # Optional OpenStreetMap background, to check the survey's location.
+        self.basemap = BasemapLayer(self.ax, self.canvas, parent=self)
+        controls.addWidget(self.basemap.toggle)
+
+        self.reset_button = QPushButton("Reset")
+        controls.addWidget(self.reset_button)
+
+        layout.addLayout(controls)
         layout.addWidget(self.canvas, 1)
 
         self.qc_label = QLabel()
@@ -202,9 +207,9 @@ class SurveyMapWidget(QWidget):
         self.show_orientation = enabled
 
     def _reset_view(self) -> None:
-        self.ax.relim()
-        self.ax.autoscale_view()
-        self.canvas.draw_idle()
+        # A fresh redraw fits the Viewpoints (relim() ignores the scatter
+        # collection, and the background image must never be fitted).
+        self._redraw()
 
     def _on_pick_event(self, event: MouseEvent) -> None:
         if not hasattr(event, "artist") or event.artist is None:
@@ -228,6 +233,7 @@ class SurveyMapWidget(QWidget):
         if self.configuration is None or not self.configuration.viewpoints:
             self.ax.text(0.5, 0.5, "No Viewpoints", ha="center", va="center")
             self.ax.set_axis_off()
+            self.basemap.set_crs(None)
             self.qc_label.setText("This survey contains no Viewpoints.")
             self.canvas.draw_idle()
             return
@@ -244,6 +250,7 @@ class SurveyMapWidget(QWidget):
                 transform=self.ax.transAxes,
             )
             self.ax.set_axis_off()
+            self.basemap.set_crs(None)
             self.qc_label.setText(
                 "CRS mismatch: Viewpoints do not share a single coordinate reference system."
             )
@@ -303,6 +310,8 @@ class SurveyMapWidget(QWidget):
         self.ax.set_ylabel(self._axis_label("y"))
         self.ax.set_title("Survey map")
 
+        self.basemap.set_crs(self.qc.crs)
+        self.basemap.refresh()
         self._update_qc_label()
         self.canvas.draw_idle()
 
