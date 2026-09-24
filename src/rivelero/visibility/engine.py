@@ -29,7 +29,7 @@ from rivelero.core.domain import AnalysisDomain
 from rivelero.core.environment import Environment
 from rivelero.core.observation import ObservationEvent
 from rivelero.core.sensor import Sensor
-from rivelero.core.viewpoint import Viewpoint
+from rivelero.core.viewpoint import Viewpoint, geographic_coordinate_problem
 from rivelero.visibility.configuration import (
     MissingMetadataPolicy,
     VisibilityBackend,
@@ -517,14 +517,39 @@ def _viewpoint_in_analysis_crs(
     if viewpoint.crs == target_crs:
         return viewpoint.x, viewpoint.y
 
-    xs, ys = transform_coordinates(
-        viewpoint.crs,
-        target_crs,
-        [viewpoint.x],
-        [viewpoint.y],
+    advice = (
+        "The Survey was probably imported with the wrong source CRS; "
+        "re-import it with the CRS its coordinates were recorded in."
     )
+    problem = geographic_coordinate_problem(viewpoint.x, viewpoint.y, viewpoint.crs)
+    if problem is not None:
+        raise ValueError(
+            f"Viewpoint {viewpoint.viewpoint_id!r} cannot be placed on the terrain: "
+            f"{problem} {advice}"
+        )
 
-    return float(xs[0]), float(ys[0])
+    try:
+        xs, ys = transform_coordinates(
+            viewpoint.crs,
+            target_crs,
+            [viewpoint.x],
+            [viewpoint.y],
+        )
+    except Exception as error:
+        raise ValueError(
+            f"Viewpoint {viewpoint.viewpoint_id!r}: coordinates ({viewpoint.x:g}, "
+            f"{viewpoint.y:g}) in {viewpoint.crs.to_string()} could not be "
+            f"transformed to {target_crs.to_string()} ({error}). {advice}"
+        ) from error
+
+    x, y = float(xs[0]), float(ys[0])
+    if not (np.isfinite(x) and np.isfinite(y)):
+        raise ValueError(
+            f"Viewpoint {viewpoint.viewpoint_id!r}: coordinates ({viewpoint.x:g}, "
+            f"{viewpoint.y:g}) in {viewpoint.crs.to_string()} have no position in "
+            f"{target_crs.to_string()}. {advice}"
+        )
+    return x, y
 
 
 def _validate_relationships(

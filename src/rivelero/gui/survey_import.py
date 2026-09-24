@@ -44,7 +44,7 @@ from rivelero.core.configuration import (
 )
 from rivelero.core.observation import ObservationEvent
 from rivelero.core.sensor import Sensor
-from rivelero.core.viewpoint import Viewpoint
+from rivelero.core.viewpoint import Viewpoint, geographic_coordinate_problem
 
 
 # ---------------------------------------------------------------------------
@@ -74,6 +74,62 @@ class SurveyImportRowError(SurveyImportError):
         super().__init__(
             f"{table} row {row_number}: {message}"
         )
+
+
+# ---------------------------------------------------------------------------
+# CRS declared in the file
+# ---------------------------------------------------------------------------
+
+# Optional column naming each row's coordinate reference system.
+CRS_COLUMN = "crs"
+
+
+@dataclass(frozen=True, slots=True)
+class CrsColumnDetection:
+    """What a Viewpoints table's ``crs`` column declares.
+
+    ``crs`` is set only when every non-empty value names the same valid CRS;
+    otherwise ``message`` explains why no single Source CRS can be taken
+    from the file. A table without the column gives ``present=False``.
+    """
+
+    present: bool
+    crs: str | None = None
+    values: tuple[str, ...] = ()
+    message: str | None = None
+
+
+def detect_crs_column(path: str | Path, *, column: str = CRS_COLUMN) -> CrsColumnDetection:
+    """Read the Source CRS declared by a Viewpoints table, if unambiguous."""
+
+    rows, fieldnames = _read_csv(path)
+    if column not in fieldnames:
+        return CrsColumnDetection(present=False)
+    values = tuple(dict.fromkeys(
+        value.strip() for row in rows if (value := (row.get(column) or "").strip())
+    ))
+    if not values:
+        return CrsColumnDetection(present=True, message=f"The {column!r} column is empty.")
+    parsed = {}
+    for value in values:
+        try:
+            parsed[value] = CRS.from_user_input(value).to_string()
+        except Exception:
+            return CrsColumnDetection(
+                present=True, values=values,
+                message=f"The {column!r} column contains {value!r}, which is not a valid CRS.",
+            )
+    distinct = tuple(dict.fromkeys(parsed.values()))
+    if len(distinct) > 1:
+        return CrsColumnDetection(
+            present=True, values=values,
+            message=(
+                f"The {column!r} column mixes several CRSs ({', '.join(distinct)}). "
+                "All Viewpoints are imported with one Source CRS: split the file "
+                "or choose the Source CRS explicitly."
+            ),
+        )
+    return CrsColumnDetection(present=True, crs=distinct[0], values=values)
 
 
 # ---------------------------------------------------------------------------
@@ -589,6 +645,25 @@ def import_viewpoints_csv(
                 y = _required_float_cell(
                     row,
                     mapping.latitude,
+                )
+
+            problem = geographic_coordinate_problem(x, y, source_crs)
+            if problem is not None:
+                declared = _optional_cell(row, CRS_COLUMN, trim=True)
+                hint = (
+                    f" The file's {CRS_COLUMN!r} column says {declared}; use it "
+                    "as the Source CRS."
+                    if declared else
+                    " Set the Source CRS to the CRS the coordinates were "
+                    "recorded in."
+                )
+                raise SurveyImportRowError(
+                    table="Viewpoints",
+                    row_number=source_index,
+                    message=(
+                        f"coordinates ({x:g}, {y:g}) are not valid in the "
+                        f"Source CRS: {problem}{hint}"
+                    ),
                 )
 
             if transformer is not None:

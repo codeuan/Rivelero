@@ -330,3 +330,28 @@ class Viewpoint:
         """Return the horizontal position as ``(x, y)``."""
 
         return self.x, self.y
+
+
+def geographic_coordinate_problem(x: float, y: float, crs: CRS | str) -> str | None:
+    """Describe coordinates impossible in a geographic CRS, else None.
+
+    Rivelero stores geographic coordinates as x = longitude, y = latitude.
+    Values outside [-180, 180] / [-90, 90] cannot be degrees: they are almost
+    always projected coordinates (e.g. metres) imported with the wrong CRS.
+    """
+
+    crs = CRS.from_user_input(crs)
+    if not crs.is_geographic:
+        return None
+    problems = []
+    if not -180.0 <= float(x) <= 180.0:
+        problems.append(f"longitude {x:g}")
+    if not -90.0 <= float(y) <= 90.0:
+        problems.append(f"latitude {y:g}")
+    if not problems:
+        return None
+    return (
+        f"{' and '.join(problems)} out of range for {crs.to_string()} "
+        "(longitude must be within ±180°, latitude within ±90°). These look like "
+        "projected coordinates (e.g. metres), not degrees."
+    )

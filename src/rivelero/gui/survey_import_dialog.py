@@ -102,16 +102,21 @@ from rivelero.gui.survey_import import (
     SurveyImportOptions,
     SurveyImportResult,
     ViewpointColumnMapping,
+    detect_crs_column,
     import_survey_csv,
 )
 from rivelero.gui.theme import (
     SPACING,
+    refresh_style,
 )
 
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
+
+# Used only when the Viewpoints file does not declare its CRS.
+DEFAULT_SOURCE_CRS = "EPSG:4326"
 
 
 NONE_COLUMN = "— Not mapped —"
@@ -612,6 +617,11 @@ class SurveyImportDialog(QDialog):
 
         self._validation_current = False
 
+        # Source CRS taken from the Viewpoints file's 'crs' column (so a
+        # later file can replace it), and the note explaining it.
+        self._auto_source_crs: str | None = None
+        self._crs_note: tuple[str, str] | None = None
+
         self._configure_dialog()
 
         self._build_interface()
@@ -964,7 +974,7 @@ class SurveyImportDialog(QDialog):
         )
 
         self.source_crs_edit = QLineEdit(
-            "EPSG:4326"
+            DEFAULT_SOURCE_CRS
         )
 
         self.source_crs_edit.setPlaceholderText(
@@ -1674,6 +1684,8 @@ class SurveyImportDialog(QDialog):
             rows,
         )
 
+        self._apply_crs_column(path)
+
         self._set_mapping_columns(
             columns
         )
@@ -1781,6 +1793,10 @@ class SurveyImportDialog(QDialog):
             )
             return False
 
+        if self._crs_note is not None and self._crs_note[0] == "warning":
+            # A contradiction with the file is shown, never silently kept.
+            self._show_crs_status(self._crs_note[1], warning=True)
+
         if self.transform_coordinates.isChecked():
 
             target_text = (
@@ -1802,19 +1818,65 @@ class SurveyImportDialog(QDialog):
                 )
                 return False
 
-            self.crs_status.setText(
+            status = (
                 f"Coordinates will be transformed from "
                 f"{source_crs.to_string()} to "
                 f"{target_crs.to_string()}."
             )
 
         else:
-            self.crs_status.setText(
+            status = (
                 f"Coordinates will remain in "
                 f"{source_crs.to_string()}."
             )
 
+        self._show_crs_status(status)
         return True
+
+    def _apply_crs_column(self, path: Path) -> None:
+        """Use the file's 'crs' column as Source CRS when unambiguous.
+
+        The file's own declaration replaces the default (or a value this
+        dialog set earlier from another file), never a CRS the user typed;
+        a disagreement or an ambiguous column is reported instead.
+        """
+
+        try:
+            detection = detect_crs_column(path)
+        except Exception:
+            detection = None
+        self._crs_note = None
+        if detection is None or not detection.present:
+            self._show_crs_status("")
+            return
+        if detection.crs is None:
+            self._crs_note = ("warning", detection.message or "")
+        else:
+            current = self.source_crs_edit.text().strip()
+            if current in ("", DEFAULT_SOURCE_CRS, self._auto_source_crs or ""):
+                self._auto_source_crs = detection.crs
+                self.source_crs_edit.setText(detection.crs)
+                self._crs_note = (
+                    "info",
+                    f"Source CRS set from the file's 'crs' column ({detection.crs}).",
+                )
+            elif not _same_crs(current, detection.crs):
+                self._crs_note = (
+                    "warning",
+                    f"The file's 'crs' column says {detection.crs}, but the Source "
+                    f"CRS is {current}. Check which one the coordinates use.",
+                )
+        self._show_crs_status("")
+
+    def _show_crs_status(self, text: str, *, warning: bool = False) -> None:
+        note = self._crs_note
+        parts = [note[1]] if note is not None else []
+        if text and (not parts or text != parts[0]):
+            parts.append(text)
+        self.crs_status.setText(" ".join(parts))
+        is_warning = warning or (note is not None and note[0] == "warning")
+        self.crs_status.setProperty("statusWarning", is_warning)
+        refresh_style(self.crs_status)
 
     # ------------------------------------------------------------------
     # Mapping
@@ -2484,3 +2546,10 @@ def _suggest_column(
             ]
 
     return None
+
+
+def _same_crs(first: str, second: str) -> bool:
+    try:
+        return CRS.from_user_input(first) == CRS.from_user_input(second)
+    except Exception:
+        return False
