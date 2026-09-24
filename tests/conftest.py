@@ -64,6 +64,8 @@ TEST_CATEGORIES: dict[str, tuple[str, ...]] = {
     "test_observability_configuration_gui.py": ("gui",),
     "test_observability_integration.py": ("gui", "integration", "slow"),
     "test_observability_map.py": ("gui", "integration"),
+    "test_opentopography.py": ("unit",),
+    "test_opentopography_dialog.py": ("gui",),
     "test_output_page.py": ("gui", "integration", "slow"),
     "test_packaging.py": ("unit",),
     "test_project_gui.py": ("gui", "integration", "slow"),

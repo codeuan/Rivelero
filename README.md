@@ -152,12 +152,23 @@ from scripts and notebooks.
 
 ### Optional: OpenTopography API key
 
-To download elevation models from OpenTopography inside the application, set
-the environment variable `OPENTOPO_API_KEY` to your
-[OpenTopography API key](https://opentopography.org/) before starting
-Rivelero. There is no field for the key in the GUI; without it the download
-button stays disabled. (See the limitation on downloaded DEMs under
-[World](#2-world).)
+Downloading elevation models from OpenTopography needs a free API key:
+request one at <https://portal.opentopography.org/myopentopo> (My OpenTopo ›
+Request API key). The key is **32 hexadecimal characters** (0–9, a–f), for
+example `0123456789abcdef0123456789abcdef`.
+
+Either paste it into the **API key** field of the OpenTopography tab
+(World › Add terrain), or set it before starting Rivelero:
+
+```bash
+export OPENTOPO_API_KEY=0123456789abcdef0123456789abcdef   # macOS / Linux
+setx OPENTOPO_API_KEY 0123456789abcdef0123456789abcdef     # Windows (new terminals)
+```
+
+The field accepts a pasted `OPENTOPO_API_KEY=…` or `API_Key=…` line too. The
+key is sent only to OpenTopography and never written to projects, exports or
+reports; it is remembered between sessions only if you tick *Remember this key
+on this computer* (stored unencrypted in the Rivelero user settings).
 
 ### Network use
 
@@ -309,15 +320,59 @@ Define the physical environment and analysis area.
 - **Local DEM / DTM**: a GeoTIFF or any raster rasterio can read. It must
   have a CRS, and the visibility engine requires a **projected CRS in metres**.
   Only metadata (CRS, size, resolution, NoData, driver) is read at import.
-- **OpenTopography download**: Copernicus 30 m (`COP30`) or SRTM GL1
-  (`SRTMGL1`) for the survey extent plus a buffer (default 500 m). Requires a
-  loaded Survey and `OPENTOPO_API_KEY`.
+- **OpenTopography download** (the *OpenTopography* tab of *Add terrain*):
+  download a global dataset for an area of interest, ready for visibility.
+  Needs an [API key](#optional-opentopography-api-key).
 
-> [!WARNING]
-> OpenTopography returns geographic (WGS84) rasters and Rivelero does not
-> reproject them, so a **downloaded DEM cannot yet be used to compute
-> visibility**. Reproject it to a projected CRS (e.g. the survey's UTM zone,
-> with `gdalwarp`) and import the result as a local DEM.
+#### Downloading terrain from OpenTopography
+
+1. **API key**: paste your key (masked; *Show* reveals it). Its format is
+   checked as you type; OpenTopography itself confirms it is active when you
+   download.
+2. **Dataset and resolution**: every dataset is listed with its native
+   resolution:
+
+   | Dataset | Code | Native resolution | Surface | Coverage |
+   |---|---|---|---|---|
+   | Copernicus GLO-30 | `COP30` | 1 arc-second (≈ 30 m) | surface model (buildings, canopy) | global |
+   | Copernicus GLO-90 | `COP90` | 3 arc-seconds (≈ 90 m) | surface model (buildings, canopy) | global |
+   | NASADEM | `NASADEM` | 1 arc-second (≈ 30 m) | radar surface model | 60°N – 56°S |
+   | SRTM GL1 | `SRTMGL1` | 1 arc-second (≈ 30 m) | radar surface model | 60°N – 56°S |
+   | SRTM GL3 | `SRTMGL3` | 3 arc-seconds (≈ 90 m) | radar surface model | 60°N – 56°S |
+   | ALOS World 3D | `AW3D30` | 1 arc-second (≈ 30 m) | photogrammetric surface model | 82°N – 82°S |
+   | EU DTM | `EU_DTM` | 1 arc-second (≈ 30 m) | bare-earth terrain (recorded as DTM) | Europe |
+
+   These datasets are on a longitude/latitude grid, so a native cell is
+   ≈ 30.9 m north–south but narrower east–west away from the equator (e.g.
+   ≈ 24.5 m at 37.5°N); the dialog shows both values for your area. Rivelero
+   then **reprojects** the download to a projected CRS in metres with
+   **square cells of an explicit size**:
+
+   - **Terrain CRS**: the survey's CRS when it is projected in metres,
+     otherwise the UTM zone of the area (editable, e.g. `EPSG:32633`);
+   - **Terrain cell size**: defaults to the dataset's native resolution (30 or
+     90 m). This is the resolution of the analysis grid and of every result.
+     A smaller value is allowed but flagged, since it adds cells, not detail;
+   - **Resampling**: bilinear (recommended for elevation), cubic or nearest.
+
+   A summary states the result explicitly, e.g. *"30 m × 30 m cells in
+   EPSG:32633, ≈ 148 × 186 cells"*, and warns about very large grids.
+3. **Area of interest**: the survey extent plus a buffer (default 500 m; use
+   at least the maximum visibility distance), or a custom WGS84 bounding box
+   (south, north, west, east). Its size and area are shown; requests above
+   OpenTopography's limit (450,000 km² for 30 m datasets) are refused before
+   downloading.
+4. **Download**: choose where to save the terrain. Rivelero saves the
+   projected terrain there and keeps the original geographic download next to
+   it as `<name>_<dataset>_wgs84.tif`.
+
+The dataset, its native resolution, the bounding box, the output CRS, cell
+size and resampling are recorded in the terrain's provenance (never the API
+key). Errors are explained: a rejected key, a used-up daily request limit,
+no data for the area, or no connection.
+
+Copernicus, SRTM, NASADEM and ALOS are *surface* models: buildings and
+forest canopy can occlude sight lines. EU DTM is a bare-earth model.
 
 DSM support is represented in the architecture but is disabled ("coming soon").
 
@@ -724,8 +779,8 @@ observe it.
 - only terrain (DEM/DTM) occludes sight lines: vegetation, buildings and other
   obstacle layers are not modelled; DSM-based visibility is future work;
 - vertical field of view and pitch are not modelled;
-- the terrain must be in a projected CRS in metres; OpenTopography downloads
-  (geographic WGS84) are not reprojected and must be reprojected externally;
+- the terrain must be in a projected CRS in metres (OpenTopography downloads
+  are reprojected automatically; local rasters must already be projected);
 - the analysis grid is the terrain grid (no resampling);
 - target height is a single value for the whole analysis;
 - sight lines crossing DEM NoData regions may be unreliable under the GDAL
@@ -762,7 +817,7 @@ observe it.
 - [x] Figure and report export
 - [x] Provenance and reproducibility manifests
 - [x] OpenStreetMap map background
-- [ ] Reprojection of downloaded DEMs
+- [x] OpenTopography download with API key entry and explicit resolution
 - [ ] Comparison of visibility configurations
 - [ ] Candidate-pool generation
 - [ ] User-defined survey optimization (measurable objective components exist in `rivelero.analysis.objectives`)
@@ -827,7 +882,7 @@ src/rivelero/
 ├── project/         .rivelero project files (schema, codec, linked resources)
 ├── export/          GeoTIFF/CSV data, figures, provenance, HTML report
 ├── visualization/   Qt-free map layers, colours, legends, plotting, OSM basemap
-├── io/              DEM download/reading, SOF raster writers
+├── io/              DEM reading, OpenTopography download and reprojection, SOF raster writers
 └── gui/             PySide6 application (ApplicationState, pages, maps, TaskController)
 
 tests/               pytest suite (markers in tests/conftest.py), shared fixtures,

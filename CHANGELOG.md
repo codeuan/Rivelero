@@ -34,6 +34,22 @@ application. Highlights:
   the map's CRS for display only, so a survey or terrain can be checked
   against its real-world location. Tiles load in the background, are cached
   per user and carry the OpenStreetMap attribution; off by default.
+- **OpenTopography download usable for visibility**: the OpenTopography tab
+  of *Add terrain* has an API key field (32 hexadecimal characters, checked as
+  typed, masked, optionally remembered; `OPENTOPO_API_KEY` still works), seven
+  datasets listed with their native resolution (COP30, COP90, NASADEM,
+  SRTMGL1, SRTMGL3, AW3D30, EU_DTM), an area of interest (survey + buffer or a
+  custom WGS84 box, with area and OpenTopography's size limit), and an
+  explicit terrain CRS and cell size. The geographic download is reprojected
+  to square metre cells (bilinear by default) so the visibility engine can
+  use it; the original is kept, and dataset, resolutions and bounding box are
+  recorded in provenance.
+
+### Fixed
+- OpenTopography errors no longer include the request URL (which contained
+  the API key), and report a rejected key, a used-up request limit, missing
+  data or a connection failure explicitly.
+- The Survey map's *Reset* button now fits the Viewpoints again after zooming.
 
 ### Removed
 - The earlier generation of the application, superseded by the above and not

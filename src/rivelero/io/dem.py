@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import math
 import os
+import re
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 from typing import (
     Any,
@@ -432,7 +434,7 @@ def download_dem_from_opentopo(
     )
 
     key = (
-        api_key
+        normalize_opentopo_api_key(api_key or "")
         or os.getenv(
             "OPENTOPO_API_KEY"
         )
@@ -440,9 +442,8 @@ def download_dem_from_opentopo(
     )
 
     if not key:
-        raise RuntimeError(
-            "OPENTOPO_API_KEY is not set and no api_key "
-            "was supplied."
+        raise OpenTopographyError(
+            "No OpenTopography API key: enter one or set OPENTOPO_API_KEY."
         )
 
     demtype = str(
@@ -474,48 +475,35 @@ def download_dem_from_opentopo(
         else session
     )
 
-    response = client.get(
-        OPENTOPO_GLOBALDEM_URL,
-        params={
-            "demtype": demtype,
-            "south": south,
-            "north": north,
-            "west": west,
-            "east": east,
-            "outputFormat": "GTiff",
-            "API_Key": key,
-        },
-        timeout=timeout,
-    )
-
-    response.raise_for_status()
-
-    content_type = (
-        response.headers
-        .get(
-            "Content-Type",
-            "",
+    try:
+        response = client.get(
+            OPENTOPO_GLOBALDEM_URL,
+            params={
+                "demtype": demtype,
+                "south": south,
+                "north": north,
+                "west": west,
+                "east": east,
+                "outputFormat": "GTiff",
+                "API_Key": key,
+            },
+            timeout=timeout,
         )
-        .lower()
-    )
+    except requests.RequestException as exc:
+        # Messages of requests exceptions can contain the request URL, and
+        # therefore the API key: report only the kind of failure.
+        raise OpenTopographyError(
+            "Could not reach OpenTopography "
+            f"({type(exc).__name__}). Check the internet connection."
+        ) from None
 
-    if (
-        "html" in content_type
-        or "json" in content_type
-    ):
-        raise RuntimeError(
-            "OpenTopography did not return a GeoTIFF. "
-            "Check dataset, bounds and API credentials."
-        )
+    _raise_for_opentopo_response(response)
 
-    if not response.content:
-        raise RuntimeError(
-            "OpenTopography returned an empty response."
-        )
+    content = response.content
 
     if output_path is None:
         return _download_binary_to_tempfile(
-            response.content,
+            content,
             suffix=".tif",
         )
 
@@ -529,12 +517,103 @@ def download_dem_from_opentopo(
     )
 
     destination.write_bytes(
-        response.content
+        content
     )
 
     return str(
         destination
     )
+
+
+class OpenTopographyError(RuntimeError):
+    """OpenTopography refused or failed a request (message is key-free)."""
+
+
+_API_KEY_PREFIX = re.compile(
+    r"^(?:export\s+|set\s+)?(?:OPENTOPO_API_KEY|API_Key)\s*[=:]\s*", re.I
+)
+
+
+def normalize_opentopo_api_key(text: str | None) -> str:
+    """Return the key from pasted text.
+
+    Surrounding whitespace and quotes are removed, and a pasted assignment
+    such as ``OPENTOPO_API_KEY=…`` or ``API_Key=…`` is reduced to its value.
+    """
+
+    value = str(text or "").strip()
+    value = _API_KEY_PREFIX.sub("", value).strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        value = value[1:-1].strip()
+    return value
+
+
+def _opentopo_message(response) -> str:
+    """Server-provided error text, without markup."""
+
+    try:
+        text = response.text or ""
+    except Exception:  # noqa: BLE001 - binary or undecodable body
+        return ""
+    match = re.search(r"<error>(.*?)</error>", text, flags=re.S | re.I)
+    if match:
+        text = match.group(1)
+    text = re.sub(r"<[^>]+>", " ", text)
+    return " ".join(text.split())[:300]
+
+
+def _raise_for_opentopo_response(response) -> None:
+    status = int(getattr(response, "status_code", 200) or 200)
+    message = _opentopo_message(response) if status >= 400 else ""
+    detail = f" OpenTopography says: {message}" if message else ""
+
+    if status in (401, 403, 429) and "rate limit" in message.lower():
+        # OpenTopography answers 401 when a key's daily quota is used up.
+        raise OpenTopographyError(
+            f"OpenTopography's request limit for this API key was reached "
+            f"(HTTP {status}); try again later." + detail
+        )
+    if status in (401, 403):
+        raise OpenTopographyError(
+            "OpenTopography rejected the API key "
+            f"(HTTP {status}). Check that the key is complete and active in "
+            "your OpenTopography account." + detail
+        )
+    if status == 204:
+        raise OpenTopographyError(
+            "OpenTopography has no data for this dataset in the requested area."
+        )
+    if status >= 400:
+        raise OpenTopographyError(
+            f"OpenTopography request failed (HTTP {status})." + detail
+        )
+
+    content_type = (
+        response.headers
+        .get(
+            "Content-Type",
+            "",
+        )
+        .lower()
+    )
+
+    if (
+        "html" in content_type
+        or "json" in content_type
+        or "xml" in content_type
+        or "text" in content_type
+    ):
+        message = _opentopo_message(response)
+        raise OpenTopographyError(
+            "OpenTopography did not return a GeoTIFF. "
+            "Check dataset, area and API key."
+            + (f" OpenTopography says: {message}" if message else "")
+        )
+
+    if not response.content:
+        raise OpenTopographyError(
+            "OpenTopography returned an empty response."
+        )
 
 
 def download_dem_for_samples(
