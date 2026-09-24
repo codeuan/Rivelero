@@ -41,6 +41,12 @@
 
 ---
 
+## Documentation
+
+- [Scientific and Technical Architecture](docs/Rivelero_Scientific_Technical_Architecture.md) — canonical description of Rivelero's scientific model, engine architecture, implementation status, and development roadmap.
+- [Legacy Architecture Notes](docs/legacy-architecture.md) — historical implementation notes retained for reference only.
+
+
 ## What is Rivelero?
 
 Spatial datasets rarely sample the world uniformly.
