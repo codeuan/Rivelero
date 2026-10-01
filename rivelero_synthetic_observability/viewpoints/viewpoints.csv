@@ -1,0 +1,11 @@
+viewpoint_id,x,y,crs,observer_height_m,heading_deg,horizontal_fov_deg,sensor_id,platform,source,purpose
+vp_center_360,500500,4099500,EPSG:32633,1.75,,360,sensor_rgb_90,synthetic,synthetic,Flat omnidirectional baseline
+vp_center_east,500500,4099500,EPSG:32633,1.75,90,90,sensor_rgb_90,synthetic,synthetic,Directional FOV test
+vp_west_ridge,500250,4099500,EPSG:32633,1.75,90,120,sensor_rgb_120,synthetic,synthetic,Ridge occlusion test
+vp_overlap_west,500350,4099500,EPSG:32633,1.75,,360,sensor_rgb_90,synthetic,synthetic,Overlap west
+vp_overlap_east,500650,4099500,EPSG:32633,1.75,,360,sensor_rgb_90,synthetic,synthetic,Overlap east
+vp_redundant_a,500300,4099300,EPSG:32633,1.75,45,90,sensor_rgb_90,synthetic,synthetic,Redundancy A
+vp_redundant_b,500310,4099300,EPSG:32633,1.75,45,90,sensor_rgb_90,synthetic,synthetic,Redundancy B
+vp_complementary,500760,4099700,EPSG:32633,1.75,225,90,sensor_rgb_90,synthetic,synthetic,Marginal contribution
+vp_missing_heading,500400,4099700,EPSG:32633,1.75,,,sensor_rgb_70,synthetic,synthetic,Missing heading
+vp_missing_height,500600,4099300,EPSG:32633,,270,90,sensor_rgb_90,synthetic,synthetic,Missing height

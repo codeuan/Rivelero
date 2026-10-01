@@ -1,0 +1,73 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "domain_id": "synthetic_domain",
+        "role": "analysis_domain"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              500000.0,
+              4099000.0
+            ],
+            [
+              501000.0,
+              4099000.0
+            ],
+            [
+              501000.0,
+              4100000.0
+            ],
+            [
+              500000.0,
+              4100000.0
+            ],
+            [
+              500000.0,
+              4099000.0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "domain_id": "synthetic_domain",
+        "role": "target_region"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              500200.0,
+              4099200.0
+            ],
+            [
+              500800.0,
+              4099200.0
+            ],
+            [
+              500800.0,
+              4099800.0
+            ],
+            [
+              500200.0,
+              4099800.0
+            ],
+            [
+              500200.0,
+              4099200.0
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

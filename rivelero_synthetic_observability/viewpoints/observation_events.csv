@@ -1,0 +1,5 @@
+event_id,viewpoint_id,timestamp,sequence_id,sequence_index,image_id,heading_deg,horizontal_fov_deg,purpose
+event_001,vp_redundant_a,2026-01-01T10:00:00+00:00,flight_01,0,img_001,,,First A
+event_002,vp_overlap_east,2026-01-01T10:00:10+00:00,flight_01,1,img_002,,,East
+event_003,vp_redundant_a,2026-01-01T10:00:25+00:00,flight_01,2,img_003,180,90,Repeated A with event override
+event_004,vp_complementary,2026-01-01T10:00:40+00:00,flight_01,3,img_004,,,Complementary

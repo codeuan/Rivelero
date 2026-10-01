@@ -3,18 +3,17 @@ channels:
   - conda-forge
 dependencies:
   - python=3.11
-  - gdal
+  # Scientific core
+  - gdal          # osgeo bindings for the viewshed engine
   - rasterio
+  - affine
   - pyproj
+  - shapely
   - numpy
   - matplotlib
-  - requests
-  - shapely
-  - scikit-learn
-  - geopandas
-  - osmnx
-  - lark
-  - pillow
+  - requests      # OpenTopography DEM download
+  # Graphical application
   - PySide6
-  - psutil
-  - OpenEXR
+  # Tests
+  - pytest
+  - pillow

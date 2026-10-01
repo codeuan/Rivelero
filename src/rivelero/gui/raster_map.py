@@ -1,0 +1,204 @@
+"""Reusable raster map infrastructure for Rivelero GUI maps."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import numpy as np
+import rasterio
+from matplotlib.figure import Figure
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from rasterio.crs import CRS
+
+try:
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QVBoxLayout, QLabel, QWidget
+except ImportError:
+    from PyQt6.QtCore import Qt
+    from PyQt6.QtWidgets import QVBoxLayout, QLabel, QWidget
+
+from rivelero.gui.basemap import BasemapLayer
+from rivelero.gui.environment_import import RasterMetadata, inspect_elevation_raster
+from rivelero.gui.canvas import SafeFigureCanvas  # noqa: F401  (re-exported)
+from matplotlib.backends.backend_qtagg import NavigationToolbar2QT  # noqa: E402
+# Re-exported: moved to the Qt-free visualization layer (P3).
+from rivelero.visualization.maps import project_viewpoints  # noqa: F401
+
+# Opacity of the elevation raster over the OpenStreetMap background: lighter
+# than analysis layers, since elevation is itself only context.
+ELEVATION_ALPHA_OVER_BASEMAP = 0.4
+
+
+class RasterMapWidget(QWidget):
+    """Display a georeferenced raster with navigation and extent control."""
+
+    def __init__(self, *, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.metadata: RasterMetadata | None = None
+        self.raster_path: Path | None = None
+        self.full_extent: tuple[float, float, float, float] | None = None
+        self.current_extent: tuple[float, float, float, float] | None = None
+        self._raster_artist = None
+
+        # One colourbar axis is reused for the widget's lifetime so that
+        # layer changes never stack additional colourbars.
+        self._colorbar = None
+        self._colorbar_axes = None
+
+        self.figure = Figure(figsize=(8, 6), dpi=100)
+        self.canvas = SafeFigureCanvas(self.figure)
+        self.axes = self.figure.add_subplot(111)
+        self.ax = self.axes
+        self._toolbar = NavigationToolbar2QT(self.canvas, self)
+        self._status_label = QLabel()
+        self._status_label.setProperty("secondaryText", True)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._toolbar)
+        layout.addWidget(self.canvas, 1)
+        layout.addWidget(self._status_label)
+        self.canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+        # Optional OpenStreetMap background, switched on from the toolbar.
+        self.basemap = BasemapLayer(self.axes, self.canvas, parent=self)
+        self._toolbar.addSeparator()
+        self._toolbar.addWidget(self.basemap.toggle)
+        self.basemap.toggled.connect(self._on_basemap_toggled)
+
+    def set_raster(self, path: str | Path) -> None:
+        """Load raster metadata and draw the complete raster."""
+        source = Path(path).expanduser().resolve()
+        self.metadata = inspect_elevation_raster(source)
+        self.raster_path = source
+        bounds = self.metadata.bounds
+        self.full_extent = (
+            float(bounds.left),
+            float(bounds.right),
+            float(bounds.bottom),
+            float(bounds.top),
+        )
+        self.current_extent = self.full_extent
+        self.basemap.set_crs(self.metadata.crs)
+        self._draw_raster()
+        self.redraw_overlays()
+
+    def clear_raster(self) -> None:
+        """Remove the raster (e.g. after New Project); the map shows nothing."""
+        self.metadata = None
+        self.raster_path = None
+        self.full_extent = None
+        self.current_extent = None
+        self._raster_artist = None
+        self.axes.clear()
+        self.basemap.set_crs(None)
+        self.hide_colorbar()
+        self._status_label.setText("")
+        self.redraw_overlays()
+
+    def set_view_extent(
+        self,
+        extent: tuple[float, float, float, float],
+        *,
+        reload: bool = True,
+    ) -> None:
+        """Set the visible map extent, optionally reloading the raster window."""
+        if len(extent) != 4:
+            raise ValueError("extent must contain left, right, bottom, top.")
+        left, right, bottom, top = (float(value) for value in extent)
+        if not left < right or not bottom < top:
+            raise ValueError("extent bounds must be increasing.")
+        self.current_extent = (left, right, bottom, top)
+        if reload:
+            self._draw_raster()
+            self.redraw_overlays()
+        else:
+            self.axes.set_xlim(left, right)
+            self.axes.set_ylim(bottom, top)
+            self.canvas.draw_idle()
+
+    def reset_view(self) -> None:
+        """Return to the complete raster extent."""
+        if self.full_extent is not None:
+            self.set_view_extent(self.full_extent)
+
+    def redraw_overlays(self) -> None:
+        """Hook for semantic subclasses such as WorldMapWidget."""
+        self.canvas.draw_idle()
+
+    def _on_basemap_toggled(self, _enabled: bool) -> None:
+        """Let the background show through the elevation raster."""
+        if self._raster_artist is not None and self._raster_artist.axes is self.axes:
+            self._raster_artist.set_alpha(self._elevation_alpha())
+            self.canvas.draw_idle()
+
+    def _elevation_alpha(self) -> float | None:
+        return ELEVATION_ALPHA_OVER_BASEMAP if self.basemap.enabled else None
+
+    # ------------------------------------------------------------------
+    # Colourbar lifecycle
+    # ------------------------------------------------------------------
+
+    @property
+    def colorbar_visible(self) -> bool:
+        """Whether a continuous colourbar is currently shown."""
+        return (
+            self._colorbar is not None
+            and self._colorbar_axes is not None
+            and self._colorbar_axes.get_visible()
+        )
+
+    @property
+    def colorbar_label(self) -> str | None:
+        if self._colorbar is None:
+            return None
+        return self._colorbar.ax.get_ylabel()
+
+    def show_colorbar(self, mappable, label: str) -> None:
+        """Show the single colourbar for ``mappable`` with ``label``."""
+        if self._colorbar_axes is None:
+            divider = make_axes_locatable(self.axes)
+            self._colorbar_axes = divider.append_axes(
+                "right", size="3.5%", pad=0.12
+            )
+        if self._colorbar is None:
+            self._colorbar = self.figure.colorbar(
+                mappable, cax=self._colorbar_axes
+            )
+        else:
+            self._colorbar.update_normal(mappable)
+        self._colorbar.set_label(label)
+        self._colorbar_axes.set_visible(True)
+
+    def hide_colorbar(self) -> None:
+        """Hide the colourbar, e.g. for categorical layers with a legend."""
+        if self._colorbar_axes is not None:
+            self._colorbar_axes.set_visible(False)
+
+    def _draw_raster(self) -> None:
+        if self.metadata is None or self.raster_path is None:
+            return
+        with rasterio.open(self.raster_path) as dataset:
+            data = dataset.read(1, masked=True)
+        self.axes.clear()
+        self._raster_artist = self.axes.imshow(
+            data,
+            extent=self.full_extent,
+            origin="upper",
+            cmap="terrain",
+            interpolation="nearest",
+            alpha=self._elevation_alpha(),
+            zorder=0,
+        )
+        self.basemap.refresh()
+        self.show_colorbar(self._raster_artist, "Elevation")
+        self.axes.set_xlabel("X")
+        self.axes.set_ylabel("Y")
+        self.axes.set_aspect("equal", adjustable="box")
+        if self.current_extent is not None:
+            self.axes.set_xlim(self.current_extent[0], self.current_extent[1])
+            self.axes.set_ylim(self.current_extent[2], self.current_extent[3])
+        self._status_label.setText(
+            f"CRS: {self.metadata.crs} | Size: {self.metadata.width:,} x {self.metadata.height:,}"
+        )
+        self.canvas.draw_idle()

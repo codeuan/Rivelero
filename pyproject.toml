@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rivelero"
+dynamic = ["version"]
+description = "Spatial observability of field surveys: what a survey could observe, where, and how often."
+readme = "README.md"
+requires-python = ">=3.11"
+# Core scientific dependencies (headless). GDAL's Python bindings ('osgeo')
+# are also required to compute viewsheds; install GDAL with conda
+# (environment.yml) because pip wheels for GDAL are platform-dependent.
+dependencies = [
+    "numpy",
+    "rasterio",
+    "affine",
+    "shapely",
+    "pyproj",
+    "matplotlib",
+    "requests",
+]
+
+[project.optional-dependencies]
+gui = ["PySide6"]
+test = ["pytest", "pillow"]
+
+[project.scripts]
+rivelero = "rivelero.gui.app:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "rivelero.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["rivelero*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers"
+markers = [
+    "unit: Qt-free, fast tests of models, analysis and export writers",
+    "integration: runs real viewsheds, observability builds or file round-trips",
+    "gui: needs Qt widgets (use QT_QPA_PLATFORM=offscreen headless)",
+    "slow: the modules dominating full-suite time; skip with -m 'not slow'",
+]
