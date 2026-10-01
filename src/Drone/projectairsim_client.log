@@ -1,82 +1,186 @@
-14:18:27:774 [INFO] Connecting to simulation server at 127.0.0.1
-14:18:27:780 [INFO] Connection opened.
-14:18:27:781 [INFO] Started the pub-sub topic receiving thread.
-14:18:27:781 [INFO] Loading scene config: scene_basic_drone.jsonc
-14:18:28:622 [INFO] Getting the list of available topic info from the sim server...
-14:18:28:632 [INFO] Successfully received topic info list.
-14:18:30:634 [INFO] World object updated for the loaded scene '/Sim/SceneBasicDrone'. Note: Any previous Drone object instances may no longer be valid.
-14:18:30:637 [INFO] Trajectory 'null_trajectory' imported successfully.
-14:18:30:638 [INFO] Initalizing Drone 'Drone1'...
-14:18:30:638 [INFO] -------------------------------------------------
-14:18:30:638 [INFO] The following topics can be subscribed to for robot 'Drone1':
-14:18:30:638 [INFO]     sensors["Chase"]["scene_camera"]
-14:18:30:639 [INFO]     sensors["Chase"]["scene_camera_info"]
-14:18:30:639 [INFO]     sensors["DownCamera"]["scene_camera"]
-14:18:30:639 [INFO]     sensors["DownCamera"]["scene_camera_info"]
-14:18:30:639 [INFO]     sensors["DownCamera"]["depth_camera"]
-14:18:30:639 [INFO]     sensors["DownCamera"]["depth_camera_info"]
-14:18:30:640 [INFO]     sensors["DownCamera"]["segmentation_camera"]
-14:18:30:640 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
-14:18:30:640 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
-14:18:30:640 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
-14:18:30:641 [INFO]     sensors["IMU1"]["imu_kinematics"]
-14:18:30:641 [INFO]     sensors["GPS"]["gps"]
-14:18:30:641 [INFO]     sensors["Barometer"]["barometer"]
-14:18:30:641 [INFO]     sensors["Magnetometer"]["magnetometer"]
-14:18:30:642 [INFO]     robot_info["actual_pose"]
-14:18:30:642 [INFO]     robot_info["collision_info"]
-14:18:30:642 [INFO]     robot_info["rotor_info"]
-14:18:30:643 [INFO] -------------------------------------------------
-14:18:30:644 [INFO] Drone 'Drone1' initialized for World scene '/Sim/SceneBasicDrone'
-14:18:30:648 [INFO] Loaded complete 30-plant Othonna catalogue
-14:18:30:649 [INFO] Resetting scene segmentation IDs to 0
-14:18:30:972 [INFO] Segmentation: Othonna_001 -> ID 1 | found=True
-14:18:30:976 [INFO] Segmentation: Othonna_002 -> ID 2 | found=True
-14:18:31:302 [INFO] Segmentation: Othonna_003 -> ID 3 | found=True
-14:18:31:308 [INFO] Segmentation: Othonna_004 -> ID 4 | found=True
-14:18:31:333 [INFO] Segmentation: Othonna_005 -> ID 5 | found=True
-14:18:31:638 [INFO] Segmentation: Othonna_006 -> ID 6 | found=True
-14:18:31:642 [INFO] Segmentation: Othonna_007 -> ID 7 | found=True
-14:18:31:657 [INFO] Segmentation: Othonna_008 -> ID 8 | found=True
-14:18:31:971 [INFO] Segmentation: Othonna_009 -> ID 9 | found=True
-14:18:31:975 [INFO] Segmentation: Othonna_010 -> ID 10 | found=True
-14:18:31:989 [INFO] Segmentation: Othonna_011 -> ID 11 | found=True
-14:18:32:305 [INFO] Segmentation: Othonna_012 -> ID 12 | found=True
-14:18:32:312 [INFO] Segmentation: Othonna_013 -> ID 13 | found=True
-14:18:32:642 [INFO] Segmentation: Othonna_014 -> ID 14 | found=True
-14:18:32:663 [INFO] Segmentation: Othonna_015 -> ID 15 | found=True
-14:18:32:973 [INFO] Segmentation: Othonna_016 -> ID 16 | found=True
-14:18:32:977 [INFO] Segmentation: Othonna_017 -> ID 17 | found=True
-14:18:33:303 [INFO] Segmentation: Othonna_018 -> ID 18 | found=True
-14:18:33:306 [INFO] Segmentation: Othonna_019 -> ID 19 | found=True
-14:18:33:310 [INFO] Segmentation: Othonna_020 -> ID 20 | found=True
-14:18:33:636 [INFO] Segmentation: Othonna_021 -> ID 21 | found=True
-14:18:33:639 [INFO] Segmentation: Othonna_022 -> ID 22 | found=True
-14:18:33:642 [INFO] Segmentation: Othonna_023 -> ID 23 | found=True
-14:18:33:970 [INFO] Segmentation: Othonna_024 -> ID 24 | found=True
-14:18:33:973 [INFO] Segmentation: Othonna_025 -> ID 25 | found=True
-14:18:33:985 [INFO] Segmentation: Othonna_026 -> ID 26 | found=True
-14:18:34:304 [INFO] Segmentation: Othonna_027 -> ID 27 | found=True
-14:18:34:307 [INFO] Segmentation: Othonna_028 -> ID 28 | found=True
-14:18:34:320 [INFO] Segmentation: Othonna_029 -> ID 29 | found=True
-14:18:34:639 [INFO] Segmentation: Othonna_030 -> ID 30 | found=True
-14:18:34:639 [INFO] Taking off
-14:18:34:641 [INFO] Climbing vertically to 30.0 m before horizontal flight
-14:18:51:306 [INFO] Reached flight altitude 30.0 m
-14:18:51:307 [INFO] Loaded 3 sweep waypoints
-14:18:51:307 [INFO] Moving to sweep start A at X=-28.500, Y=30.500
-14:18:51:308 [INFO] Moving continuously to A at 7.0 m/s | waypoint NED=(-28.500, 30.500, -30.000) | distance=572.1 m | timeout=132.6 s | target yaw=0.0 deg | attempt=1/2
-14:20:17:337 [INFO] Reached A | actual=(-29.148, 31.202, -31.269) | horizontal error=0.96 m vertical error=1.27 m | yaw error=+1.40 deg
-14:20:17:337 [INFO] Correcting drone orientation to survey yaw 0.0 deg
-14:20:19:685 [INFO] Reached survey start A - starting cameras
-14:20:20:687 [INFO] Sweeping to waypoint B at X=-8.500, Y=-18.500
-14:20:20:688 [INFO] Moving continuously to B at 7.0 m/s | waypoint NED=(-8.500, -18.500, -30.000) | distance=53.5 m | timeout=21.5 s | target yaw=0.0 deg | attempt=1/2
-14:20:30:666 [INFO] Reached B | actual=(-7.770, -20.474, -31.381) | horizontal error=2.10 m vertical error=1.38 m | yaw error=+3.76 deg
-14:20:30:666 [INFO] Sweeping to waypoint C at X=29.500, Y=26.500
-14:20:30:667 [INFO] Moving continuously to C at 7.0 m/s | waypoint NED=(29.500, 26.500, -30.000) | distance=60.0 m | timeout=22.9 s | target yaw=0.0 deg | attempt=1/2
-14:20:41:325 [INFO] Reached C | actual=(30.674, 28.099, -31.387) | horizontal error=1.98 m vertical error=1.39 m | yaw error=-4.76 deg
-14:20:41:326 [INFO] SURVEY METRICS | recall=0.000000 | survey_time=21.640 s | efficiency=0.000000000 recall/s
-14:20:41:328 [INFO] Exported per-Othonna survey results to C:\Users\cmdp7\OneDrive\Desktop\VISTA\src\Drone\survey_results.csv
-14:20:41:394 [INFO] Survey cameras stopped
-14:20:41:395 [INFO] Disconnecting from simulation server...
-14:20:41:427 [INFO] Disconnected.
+09:57:11:665 [INFO] Connecting to simulation server at 127.0.0.1
+09:57:11:671 [INFO] Connection opened.
+09:57:11:672 [INFO] Started the pub-sub topic receiving thread.
+09:57:11:672 [INFO] Loading scene config: scene_basic_drone.jsonc
+09:57:12:382 [INFO] Getting the list of available topic info from the sim server...
+09:57:12:393 [INFO] Successfully received topic info list.
+09:57:14:393 [INFO] World object updated for the loaded scene '/Sim/SceneBasicDrone'. Note: Any previous Drone object instances may no longer be valid.
+09:57:14:395 [INFO] Trajectory 'null_trajectory' imported successfully.
+09:57:14:396 [INFO] Initalizing Drone 'Drone1'...
+09:57:14:396 [INFO] -------------------------------------------------
+09:57:14:396 [INFO] The following topics can be subscribed to for robot 'Drone1':
+09:57:14:397 [INFO]     sensors["Chase"]["scene_camera"]
+09:57:14:397 [INFO]     sensors["Chase"]["scene_camera_info"]
+09:57:14:397 [INFO]     sensors["DownCamera"]["scene_camera"]
+09:57:14:397 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+09:57:14:397 [INFO]     sensors["DownCamera"]["depth_camera"]
+09:57:14:397 [INFO]     sensors["DownCamera"]["depth_camera_info"]
+09:57:14:397 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+09:57:14:397 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+09:57:14:397 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+09:57:14:397 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+09:57:14:397 [INFO]     sensors["IMU1"]["imu_kinematics"]
+09:57:14:398 [INFO]     sensors["GPS"]["gps"]
+09:57:14:398 [INFO]     sensors["Barometer"]["barometer"]
+09:57:14:398 [INFO]     sensors["Magnetometer"]["magnetometer"]
+09:57:14:398 [INFO]     robot_info["actual_pose"]
+09:57:14:398 [INFO]     robot_info["collision_info"]
+09:57:14:398 [INFO]     robot_info["rotor_info"]
+09:57:14:398 [INFO] -------------------------------------------------
+09:57:14:398 [INFO] Drone 'Drone1' initialized for World scene '/Sim/SceneBasicDrone'
+09:57:14:400 [INFO] Loaded complete 30-plant Othonna catalogue
+09:57:14:400 [INFO] Resetting scene segmentation IDs to 0
+09:57:14:417 [INFO] Segmentation: Othonna_001 -> ID 1 | found=True
+09:57:14:421 [INFO] Segmentation: Othonna_002 -> ID 2 | found=True
+09:57:14:426 [INFO] Segmentation: Othonna_003 -> ID 3 | found=True
+09:57:14:431 [INFO] Segmentation: Othonna_004 -> ID 4 | found=True
+09:57:14:435 [INFO] Segmentation: Othonna_005 -> ID 5 | found=True
+09:57:14:440 [INFO] Segmentation: Othonna_006 -> ID 6 | found=True
+09:57:14:444 [INFO] Segmentation: Othonna_007 -> ID 7 | found=True
+09:57:14:449 [INFO] Segmentation: Othonna_008 -> ID 8 | found=True
+09:57:14:455 [INFO] Segmentation: Othonna_009 -> ID 9 | found=True
+09:57:14:459 [INFO] Segmentation: Othonna_010 -> ID 10 | found=True
+09:57:14:463 [INFO] Segmentation: Othonna_011 -> ID 11 | found=True
+09:57:14:469 [INFO] Segmentation: Othonna_012 -> ID 12 | found=True
+09:57:14:473 [INFO] Segmentation: Othonna_013 -> ID 13 | found=True
+09:57:14:478 [INFO] Segmentation: Othonna_014 -> ID 14 | found=True
+09:57:14:485 [INFO] Segmentation: Othonna_015 -> ID 15 | found=True
+09:57:14:491 [INFO] Segmentation: Othonna_016 -> ID 16 | found=True
+09:57:14:498 [INFO] Segmentation: Othonna_017 -> ID 17 | found=True
+09:57:14:502 [INFO] Segmentation: Othonna_018 -> ID 18 | found=True
+09:57:14:506 [INFO] Segmentation: Othonna_019 -> ID 19 | found=True
+09:57:14:510 [INFO] Segmentation: Othonna_020 -> ID 20 | found=True
+09:57:14:516 [INFO] Segmentation: Othonna_021 -> ID 21 | found=True
+09:57:14:520 [INFO] Segmentation: Othonna_022 -> ID 22 | found=True
+09:57:14:524 [INFO] Segmentation: Othonna_023 -> ID 23 | found=True
+09:57:14:528 [INFO] Segmentation: Othonna_024 -> ID 24 | found=True
+09:57:14:533 [INFO] Segmentation: Othonna_025 -> ID 25 | found=True
+09:57:14:538 [INFO] Segmentation: Othonna_026 -> ID 26 | found=True
+09:57:14:542 [INFO] Segmentation: Othonna_027 -> ID 27 | found=True
+09:57:14:548 [INFO] Segmentation: Othonna_028 -> ID 28 | found=True
+09:57:14:552 [INFO] Segmentation: Othonna_029 -> ID 29 | found=True
+09:57:14:556 [INFO] Segmentation: Othonna_030 -> ID 30 | found=True
+09:57:14:556 [INFO] Taking off
+09:57:14:558 [INFO] Climbing vertically to 30.0 m before horizontal flight
+09:57:23:940 [INFO] Reached flight altitude 30.0 m
+09:57:23:941 [INFO] Loaded 32 sweep waypoints
+09:57:23:941 [INFO] Moving to sweep start A at X=455.000, Y=-460.000
+09:57:23:942 [INFO] Moving continuously to A at 7.0 m/s | waypoint NED=(455.000, -460.000, -30.000) | distance=116.7 m | timeout=35.0 s | target yaw=0.0 deg | attempt=1/2
+09:57:42:652 [INFO] Reached A | actual=(455.663, -460.647, -31.274) | horizontal error=0.93 m vertical error=1.27 m | yaw error=+1.17 deg
+09:57:42:652 [INFO] Correcting drone orientation to survey yaw 0.0 deg
+09:57:45:006 [INFO] Reached survey start A - starting cameras
+09:57:45:744 [INFO] Sweeping to waypoint B at X=455.000, Y=455.000
+09:57:45:745 [INFO] Moving continuously to B at 7.0 m/s | waypoint NED=(455.000, 455.000, -30.000) | distance=915.4 m | timeout=206.2 s | target yaw=0.0 deg | attempt=1/2
+09:58:38:376 [INFO] OBSERVED Othonna_007 for the first time (visible fraction=1.000 >= 0.900, 60/60 pixels, distance=32.73 m <= 50.00 m)
+10:00:03:498 [INFO] Reached B | actual=(455.002, 457.184, -31.355) | horizontal error=2.18 m vertical error=1.36 m | yaw error=+0.00 deg
+10:00:03:498 [INFO] Sweeping to waypoint C at X=399.667, Y=455.000
+10:00:03:499 [INFO] Moving continuously to C at 7.0 m/s | waypoint NED=(399.667, 455.000, -30.000) | distance=55.4 m | timeout=21.9 s | target yaw=0.0 deg | attempt=1/2
+10:00:13:827 [INFO] Reached C | actual=(397.496, 454.921, -31.375) | horizontal error=2.17 m vertical error=1.38 m | yaw error=-0.54 deg
+10:00:13:828 [INFO] Sweeping to waypoint D at X=399.667, Y=-460.000
+10:00:13:828 [INFO] Moving continuously to D at 7.0 m/s | waypoint NED=(399.667, -460.000, -30.000) | distance=914.9 m | timeout=206.1 s | target yaw=0.0 deg | attempt=1/2
+10:01:34:257 [INFO] OBSERVED Othonna_003 for the first time (visible fraction=1.000 >= 0.900, 30/30 pixels, distance=12.64 m <= 50.00 m)
+10:02:31:186 [INFO] Reached D | actual=(399.671, -462.040, -31.601) | horizontal error=2.04 m vertical error=1.60 m | yaw error=+0.03 deg
+10:02:31:186 [INFO] Sweeping to waypoint E at X=344.333, Y=-460.000
+10:02:31:186 [INFO] Moving continuously to E at 7.0 m/s | waypoint NED=(344.333, -460.000, -30.000) | distance=55.4 m | timeout=21.9 s | target yaw=0.0 deg | attempt=1/2
+10:02:41:851 [INFO] Reached E | actual=(342.283, -459.936, -31.207) | horizontal error=2.05 m vertical error=1.21 m | yaw error=+0.61 deg
+10:02:41:851 [INFO] Sweeping to waypoint F at X=344.333, Y=455.000
+10:02:41:852 [INFO] Moving continuously to F at 7.0 m/s | waypoint NED=(344.333, 455.000, -30.000) | distance=914.9 m | timeout=206.1 s | target yaw=0.0 deg | attempt=1/2
+10:04:59:648 [INFO] Reached F | actual=(344.335, 457.145, -31.384) | horizontal error=2.14 m vertical error=1.38 m | yaw error=-0.02 deg
+10:04:59:649 [INFO] Sweeping to waypoint G at X=289.000, Y=455.000
+10:04:59:649 [INFO] Moving continuously to G at 7.0 m/s | waypoint NED=(289.000, 455.000, -30.000) | distance=55.4 m | timeout=21.9 s | target yaw=0.0 deg | attempt=1/2
+10:05:09:560 [INFO] Reached G | actual=(287.091, 454.931, -31.599) | horizontal error=1.91 m vertical error=1.60 m | yaw error=-0.37 deg
+10:05:09:560 [INFO] Sweeping to waypoint H at X=289.000, Y=-460.000
+10:05:09:561 [INFO] Moving continuously to H at 7.0 m/s | waypoint NED=(289.000, -460.000, -30.000) | distance=914.9 m | timeout=206.1 s | target yaw=0.0 deg | attempt=1/2
+10:06:07:662 [INFO] OBSERVED Othonna_008 for the first time (visible fraction=1.000 >= 0.900, 40/40 pixels, distance=18.73 m <= 50.00 m)
+10:06:45:682 [INFO] OBSERVED Othonna_029 for the first time (visible fraction=1.000 >= 0.900, 56/56 pixels, distance=22.88 m <= 50.00 m)
+10:07:21:019 [INFO] OBSERVED Othonna_027 for the first time (visible fraction=1.000 >= 0.900, 57/57 pixels, distance=25.07 m <= 50.00 m)
+10:07:27:592 [INFO] Reached H | actual=(289.004, -462.165, -31.338) | horizontal error=2.17 m vertical error=1.34 m | yaw error=+0.03 deg
+10:07:27:593 [INFO] Sweeping to waypoint I at X=233.667, Y=-460.000
+10:07:27:594 [INFO] Moving continuously to I at 7.0 m/s | waypoint NED=(233.667, -460.000, -30.000) | distance=55.4 m | timeout=21.9 s | target yaw=0.0 deg | attempt=1/2
+10:07:37:620 [INFO] Reached I | actual=(231.624, -459.925, -31.538) | horizontal error=2.04 m vertical error=1.54 m | yaw error=+0.42 deg
+10:07:37:620 [INFO] Sweeping to waypoint J at X=233.667, Y=455.000
+10:07:37:621 [INFO] Moving continuously to J at 7.0 m/s | waypoint NED=(233.667, 455.000, -30.000) | distance=914.9 m | timeout=206.1 s | target yaw=0.0 deg | attempt=1/2
+10:09:33:043 [INFO] OBSERVED Othonna_001 for the first time (visible fraction=1.000 >= 0.900, 2/2 pixels, distance=17.06 m <= 50.00 m)
+10:09:48:365 [INFO] OBSERVED Othonna_021 for the first time (visible fraction=1.000 >= 0.900, 58/58 pixels, distance=25.43 m <= 50.00 m)
+10:09:55:275 [INFO] Reached J | actual=(233.671, 457.153, -31.485) | horizontal error=2.15 m vertical error=1.48 m | yaw error=-0.03 deg
+10:09:55:275 [INFO] Sweeping to waypoint K at X=178.333, Y=455.000
+10:09:55:276 [INFO] Moving continuously to K at 7.0 m/s | waypoint NED=(178.333, 455.000, -30.000) | distance=55.4 m | timeout=21.9 s | target yaw=0.0 deg | attempt=1/2
+10:10:05:275 [INFO] Reached K | actual=(176.273, 454.924, -31.537) | horizontal error=2.06 m vertical error=1.54 m | yaw error=-0.44 deg
+10:10:05:275 [INFO] Sweeping to waypoint L at X=178.333, Y=-460.000
+10:10:05:276 [INFO] Moving continuously to L at 7.0 m/s | waypoint NED=(178.333, -460.000, -30.000) | distance=914.9 m | timeout=206.1 s | target yaw=0.0 deg | attempt=1/2
+10:11:43:769 [INFO] OBSERVED Othonna_005 for the first time (visible fraction=1.000 >= 0.900, 67/67 pixels, distance=24.82 m <= 50.00 m)
+10:12:22:657 [INFO] Reached L | actual=(178.337, -462.094, -31.559) | horizontal error=2.09 m vertical error=1.56 m | yaw error=+0.02 deg
+10:12:22:657 [INFO] Sweeping to waypoint M at X=123.000, Y=-460.000
+10:12:22:658 [INFO] Moving continuously to M at 7.0 m/s | waypoint NED=(123.000, -460.000, -30.000) | distance=55.4 m | timeout=21.9 s | target yaw=0.0 deg | attempt=1/2
+10:12:28:396 [INFO] OBSERVED Othonna_004 for the first time (visible fraction=1.000 >= 0.900, 61/61 pixels, distance=31.27 m <= 50.00 m)
+10:12:32:642 [INFO] Reached M | actual=(120.857, -459.923, -31.539) | horizontal error=2.14 m vertical error=1.54 m | yaw error=+0.40 deg
+10:12:32:643 [INFO] Sweeping to waypoint N at X=123.000, Y=455.000
+10:12:32:643 [INFO] Moving continuously to N at 7.0 m/s | waypoint NED=(123.000, 455.000, -30.000) | distance=914.9 m | timeout=206.1 s | target yaw=0.0 deg | attempt=1/2
+10:14:19:741 [INFO] OBSERVED Othonna_020 for the first time (visible fraction=0.946 >= 0.900, 35/37 pixels, distance=11.83 m <= 50.00 m)
+10:14:50:001 [INFO] Reached N | actual=(123.004, 456.868, -31.632) | horizontal error=1.87 m vertical error=1.63 m | yaw error=-0.02 deg
+10:14:50:002 [INFO] Sweeping to waypoint O at X=67.667, Y=455.000
+10:14:50:002 [INFO] Moving continuously to O at 7.0 m/s | waypoint NED=(67.667, 455.000, -30.000) | distance=55.4 m | timeout=21.9 s | target yaw=0.0 deg | attempt=1/2
+10:14:59:752 [INFO] OBSERVED Othonna_012 for the first time (visible fraction=1.000 >= 0.900, 22/22 pixels, distance=30.47 m <= 50.00 m)
+10:14:59:995 [INFO] Reached O | actual=(65.634, 454.936, -31.546) | horizontal error=2.03 m vertical error=1.55 m | yaw error=-0.38 deg
+10:14:59:995 [INFO] Sweeping to waypoint P at X=67.667, Y=-460.000
+10:14:59:996 [INFO] Moving continuously to P at 7.0 m/s | waypoint NED=(67.667, -460.000, -30.000) | distance=914.9 m | timeout=206.1 s | target yaw=0.0 deg | attempt=1/2
+10:17:03:106 [INFO] OBSERVED Othonna_023 for the first time (visible fraction=1.000 >= 0.900, 38/38 pixels, distance=14.68 m <= 50.00 m)
+10:17:17:331 [INFO] Reached P | actual=(67.671, -462.122, -31.397) | horizontal error=2.12 m vertical error=1.40 m | yaw error=+0.03 deg
+10:17:17:331 [INFO] Sweeping to waypoint Q at X=12.333, Y=-460.000
+10:17:17:332 [INFO] Moving continuously to Q at 7.0 m/s | waypoint NED=(12.333, -460.000, -30.000) | distance=55.4 m | timeout=21.9 s | target yaw=0.0 deg | attempt=1/2
+10:17:27:767 [INFO] Reached Q | actual=(10.214, -459.926, -31.298) | horizontal error=2.12 m vertical error=1.30 m | yaw error=+0.58 deg
+10:17:27:767 [INFO] Sweeping to waypoint R at X=12.333, Y=455.000
+10:17:27:767 [INFO] Moving continuously to R at 7.0 m/s | waypoint NED=(12.333, 455.000, -30.000) | distance=914.9 m | timeout=206.1 s | target yaw=0.0 deg | attempt=1/2
+10:18:27:784 [INFO] OBSERVED Othonna_016 for the first time (visible fraction=1.000 >= 0.900, 35/35 pixels, distance=24.59 m <= 50.00 m)
+10:19:45:034 [INFO] Reached R | actual=(12.337, 457.223, -31.487) | horizontal error=2.22 m vertical error=1.49 m | yaw error=-0.03 deg
+10:19:45:034 [INFO] Sweeping to waypoint S at X=-43.000, Y=455.000
+10:19:45:034 [INFO] Moving continuously to S at 7.0 m/s | waypoint NED=(-43.000, 455.000, -30.000) | distance=55.4 m | timeout=21.9 s | target yaw=0.0 deg | attempt=1/2
+10:19:55:041 [INFO] Reached S | actual=(-45.078, 454.921, -31.534) | horizontal error=2.08 m vertical error=1.53 m | yaw error=-0.46 deg
+10:19:55:041 [INFO] Sweeping to waypoint T at X=-43.000, Y=-460.000
+10:19:55:042 [INFO] Moving continuously to T at 7.0 m/s | waypoint NED=(-43.000, -460.000, -30.000) | distance=914.9 m | timeout=206.1 s | target yaw=0.0 deg | attempt=1/2
+10:21:43:830 [INFO] OBSERVED Othonna_011 for the first time (visible fraction=0.902 >= 0.900, 37/41 pixels, distance=11.96 m <= 50.00 m)
+10:22:12:376 [INFO] Reached T | actual=(-42.996, -462.208, -31.458) | horizontal error=2.21 m vertical error=1.46 m | yaw error=+0.03 deg
+10:22:12:376 [INFO] Sweeping to waypoint U at X=-98.333, Y=-460.000
+10:22:12:376 [INFO] Moving continuously to U at 7.0 m/s | waypoint NED=(-98.333, -460.000, -30.000) | distance=55.4 m | timeout=21.9 s | target yaw=0.0 deg | attempt=1/2
+10:22:22:379 [INFO] Reached U | actual=(-100.409, -459.922, -31.531) | horizontal error=2.08 m vertical error=1.53 m | yaw error=+0.45 deg
+10:22:22:379 [INFO] Sweeping to waypoint V at X=-98.333, Y=455.000
+10:22:22:379 [INFO] Moving continuously to V at 7.0 m/s | waypoint NED=(-98.333, 455.000, -30.000) | distance=914.9 m | timeout=206.1 s | target yaw=0.0 deg | attempt=1/2
+10:24:39:754 [INFO] Reached V | actual=(-98.329, 457.135, -31.537) | horizontal error=2.14 m vertical error=1.54 m | yaw error=-0.03 deg
+10:24:39:754 [INFO] Sweeping to waypoint W at X=-153.667, Y=455.000
+10:24:39:755 [INFO] Moving continuously to W at 7.0 m/s | waypoint NED=(-153.667, 455.000, -30.000) | distance=55.4 m | timeout=21.9 s | target yaw=0.0 deg | attempt=1/2
+10:24:50:073 [INFO] Reached W | actual=(-155.828, 454.923, -31.392) | horizontal error=2.16 m vertical error=1.39 m | yaw error=-0.55 deg
+10:24:50:073 [INFO] Sweeping to waypoint X at X=-153.667, Y=-460.000
+10:24:50:074 [INFO] Moving continuously to X at 7.0 m/s | waypoint NED=(-153.667, -460.000, -30.000) | distance=914.9 m | timeout=206.1 s | target yaw=0.0 deg | attempt=1/2
+10:27:08:446 [INFO] Reached X | actual=(-153.663, -462.173, -31.500) | horizontal error=2.17 m vertical error=1.50 m | yaw error=+0.03 deg
+10:27:08:447 [INFO] Sweeping to waypoint Y at X=-209.000, Y=-460.000
+10:27:08:447 [INFO] Moving continuously to Y at 7.0 m/s | waypoint NED=(-209.000, -460.000, -30.000) | distance=55.4 m | timeout=21.9 s | target yaw=0.0 deg | attempt=1/2
+10:27:18:787 [INFO] Reached Y | actual=(-211.170, -459.921, -31.379) | horizontal error=2.17 m vertical error=1.38 m | yaw error=+0.54 deg
+10:27:18:787 [INFO] Sweeping to waypoint Z at X=-209.000, Y=455.000
+10:27:18:788 [INFO] Moving continuously to Z at 7.0 m/s | waypoint NED=(-209.000, 455.000, -30.000) | distance=914.9 m | timeout=206.1 s | target yaw=0.0 deg | attempt=1/2
+10:27:55:228 [INFO] OBSERVED Othonna_013 for the first time (visible fraction=0.947 >= 0.900, 36/38 pixels, distance=19.80 m <= 50.00 m)
+10:29:07:599 [INFO] OBSERVED Othonna_025 for the first time (visible fraction=0.973 >= 0.900, 72/74 pixels, distance=29.49 m <= 50.00 m)
+10:29:09:562 [INFO] OBSERVED Othonna_022 for the first time (visible fraction=1.000 >= 0.900, 54/54 pixels, distance=24.44 m <= 50.00 m)
+10:29:37:249 [INFO] Reached Z | actual=(-208.996, 457.154, -31.349) | horizontal error=2.15 m vertical error=1.35 m | yaw error=-0.03 deg
+10:29:37:249 [INFO] Sweeping to waypoint AA at X=-264.333, Y=455.000
+10:29:37:249 [INFO] Moving continuously to AA at 7.0 m/s | waypoint NED=(-264.333, 455.000, -30.000) | distance=55.4 m | timeout=21.9 s | target yaw=0.0 deg | attempt=1/2
+10:29:47:468 [INFO] Reached AA | actual=(-266.581, 454.918, -31.454) | horizontal error=2.25 m vertical error=1.45 m | yaw error=-0.49 deg
+10:29:47:468 [INFO] Sweeping to waypoint AB at X=-264.333, Y=-460.000
+10:29:47:468 [INFO] Moving continuously to AB at 7.0 m/s | waypoint NED=(-264.333, -460.000, -30.000) | distance=914.9 m | timeout=206.1 s | target yaw=0.0 deg | attempt=1/2
+10:32:05:150 [INFO] Reached AB | actual=(-264.331, -462.197, -31.510) | horizontal error=2.20 m vertical error=1.51 m | yaw error=+0.02 deg
+10:32:05:151 [INFO] Sweeping to waypoint AC at X=-319.667, Y=-460.000
+10:32:05:151 [INFO] Moving continuously to AC at 7.0 m/s | waypoint NED=(-319.667, -460.000, -30.000) | distance=55.4 m | timeout=21.9 s | target yaw=0.0 deg | attempt=1/2
+10:32:15:179 [INFO] Reached AC | actual=(-321.703, -459.923, -31.532) | horizontal error=2.04 m vertical error=1.53 m | yaw error=+0.44 deg
+10:32:15:179 [INFO] Sweeping to waypoint AD at X=-319.667, Y=455.000
+10:32:15:181 [INFO] Moving continuously to AD at 7.0 m/s | waypoint NED=(-319.667, 455.000, -30.000) | distance=914.9 m | timeout=206.1 s | target yaw=0.0 deg | attempt=1/2
+10:34:33:178 [INFO] Reached AD | actual=(-319.663, 457.162, -31.420) | horizontal error=2.16 m vertical error=1.42 m | yaw error=-0.04 deg
+10:34:33:178 [INFO] Sweeping to waypoint AE at X=-375.000, Y=455.000
+10:34:33:179 [INFO] Moving continuously to AE at 7.0 m/s | waypoint NED=(-375.000, 455.000, -30.000) | distance=55.4 m | timeout=21.9 s | target yaw=0.0 deg | attempt=1/2
+10:34:43:182 [INFO] Reached AE | actual=(-377.047, 454.925, -31.521) | horizontal error=2.05 m vertical error=1.52 m | yaw error=-0.43 deg
+10:34:43:182 [INFO] Sweeping to waypoint AF at X=-375.000, Y=-460.000
+10:34:43:182 [INFO] Moving continuously to AF at 7.0 m/s | waypoint NED=(-375.000, -460.000, -30.000) | distance=914.9 m | timeout=206.1 s | target yaw=0.0 deg | attempt=1/2
+10:37:00:857 [INFO] Reached AF | actual=(-374.996, -462.141, -31.533) | horizontal error=2.14 m vertical error=1.53 m | yaw error=+0.04 deg
+10:37:00:859 [INFO] SURVEY METRICS | recall=0.566667 | survey_time=2355.852 s | efficiency=0.000240536 recall/s
+10:37:00:863 [INFO] Exported per-Othonna survey results to C:\Users\cmdp7\OneDrive\Desktop\VISTA\src\Drone\survey_results.csv
+10:37:00:928 [INFO] Survey cameras stopped
+10:37:00:928 [INFO] Disconnecting from simulation server...
+10:37:00:950 [INFO] Disconnected.
