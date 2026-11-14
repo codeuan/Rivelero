@@ -1,0 +1,32 @@
+09:26:32:013 [INFO] Connecting to simulation server at 127.0.0.1
+09:26:32:019 [INFO] Connection opened.
+09:26:32:020 [INFO] Started the pub-sub topic receiving thread.
+09:26:32:020 [INFO] Loading scene config: scene_basic_drone.jsonc
+09:26:33:025 [INFO] Getting the list of available topic info from the sim server...
+09:26:33:036 [INFO] Successfully received topic info list.
+09:26:35:036 [INFO] World object updated for the loaded scene '/Sim/SceneBasicDrone'. Note: Any previous Drone object instances may no longer be valid.
+09:26:35:038 [INFO] Trajectory 'null_trajectory' imported successfully.
+09:26:35:039 [INFO] Initalizing Drone 'Drone1'...
+09:26:35:039 [INFO] -------------------------------------------------
+09:26:35:039 [INFO] The following topics can be subscribed to for robot 'Drone1':
+09:26:35:039 [INFO]     sensors["Chase"]["scene_camera"]
+09:26:35:039 [INFO]     sensors["Chase"]["scene_camera_info"]
+09:26:35:040 [INFO]     sensors["DownCamera"]["scene_camera"]
+09:26:35:040 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+09:26:35:040 [INFO]     sensors["DownCamera"]["depth_camera"]
+09:26:35:040 [INFO]     sensors["DownCamera"]["depth_camera_info"]
+09:26:35:040 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+09:26:35:040 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+09:26:35:040 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+09:26:35:040 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+09:26:35:040 [INFO]     sensors["IMU1"]["imu_kinematics"]
+09:26:35:041 [INFO]     sensors["GPS"]["gps"]
+09:26:35:041 [INFO]     sensors["Barometer"]["barometer"]
+09:26:35:041 [INFO]     sensors["Magnetometer"]["magnetometer"]
+09:26:35:041 [INFO]     robot_info["actual_pose"]
+09:26:35:041 [INFO]     robot_info["collision_info"]
+09:26:35:041 [INFO]     robot_info["rotor_info"]
+09:26:35:041 [INFO] -------------------------------------------------
+09:26:35:041 [INFO] Drone 'Drone1' initialized for World scene '/Sim/SceneBasicDrone'
+09:26:35:045 [INFO] Disconnecting from simulation server...
+09:26:35:090 [INFO] Disconnected.
