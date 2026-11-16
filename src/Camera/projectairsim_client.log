@@ -1,0 +1,52 @@
+14:28:21:462 [INFO] Connecting to simulation server at 127.0.0.1
+14:28:21:467 [INFO] Connection opened.
+14:28:21:467 [INFO] Started the pub-sub topic receiving thread.
+14:28:21:467 [INFO] Loading scene config: scene_cameras_generated.jsonc
+14:28:22:880 [INFO] Getting the list of available topic info from the sim server...
+14:28:22:891 [INFO] Successfully received topic info list.
+14:28:24:892 [INFO] World object updated for the loaded scene '/Sim/SceneBasicDrone'. Note: Any previous Drone object instances may no longer be valid.
+14:28:24:893 [INFO] Trajectory 'null_trajectory' imported successfully.
+14:28:24:893 [INFO] Initalizing Drone 'Camera1'...
+14:28:24:893 [INFO] -------------------------------------------------
+14:28:24:893 [INFO] The following topics can be subscribed to for robot 'Camera1':
+14:28:24:893 [INFO]     sensors["DownCamera"]["scene_camera"]
+14:28:24:893 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+14:28:24:893 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+14:28:24:893 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+14:28:24:893 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+14:28:24:894 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+14:28:24:894 [INFO]     robot_info["actual_pose"]
+14:28:24:894 [INFO]     robot_info["collision_info"]
+14:28:24:894 [INFO]     robot_info["rotor_info"]
+14:28:24:894 [INFO] -------------------------------------------------
+14:28:24:894 [INFO] Drone 'Camera1' initialized for World scene '/Sim/SceneBasicDrone'
+14:28:24:894 [INFO] Initalizing Drone 'Camera2'...
+14:28:24:894 [INFO] -------------------------------------------------
+14:28:24:894 [INFO] The following topics can be subscribed to for robot 'Camera2':
+14:28:24:894 [INFO]     sensors["DownCamera"]["scene_camera"]
+14:28:24:894 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+14:28:24:894 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+14:28:24:894 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+14:28:24:894 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+14:28:24:894 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+14:28:24:895 [INFO]     robot_info["actual_pose"]
+14:28:24:895 [INFO]     robot_info["collision_info"]
+14:28:24:895 [INFO]     robot_info["rotor_info"]
+14:28:24:895 [INFO] -------------------------------------------------
+14:28:24:895 [INFO] Drone 'Camera2' initialized for World scene '/Sim/SceneBasicDrone'
+14:28:24:895 [INFO] Initalizing Drone 'Camera3'...
+14:28:24:895 [INFO] -------------------------------------------------
+14:28:24:895 [INFO] The following topics can be subscribed to for robot 'Camera3':
+14:28:24:895 [INFO]     sensors["DownCamera"]["scene_camera"]
+14:28:24:895 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+14:28:24:895 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+14:28:24:895 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+14:28:24:896 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+14:28:24:896 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+14:28:24:896 [INFO]     robot_info["actual_pose"]
+14:28:24:896 [INFO]     robot_info["collision_info"]
+14:28:24:896 [INFO]     robot_info["rotor_info"]
+14:28:24:896 [INFO] -------------------------------------------------
+14:28:24:896 [INFO] Drone 'Camera3' initialized for World scene '/Sim/SceneBasicDrone'
+14:28:58:142 [INFO] Disconnecting from simulation server...
+14:28:58:155 [INFO] Disconnected.

@@ -1,0 +1,67 @@
+
+{
+  "physics-type": "non-physics",
+
+  "links": [
+    {
+      "name": "Frame",
+      "collision": {
+        "enabled": false
+      }
+    }
+  ],
+
+  "joints": [],
+  "actuators": [],
+
+  "sensors": [
+    {
+      "id": "DownCamera",
+      "type": "camera",
+      "enabled": true,
+      "parent-link": "Frame",
+
+      "capture-interval": 0.1,
+
+      "capture-settings": [
+        {
+          "image-type": 0,
+          "width": 400,
+          "height": 225,
+          "fov-degrees": 90,
+          "capture-enabled": true,
+          "streaming-enabled": false,
+          "pixels-as-float": false,
+          "compress": false,
+          "target-gamma": 2.5
+        },
+        {
+          "image-type": 3,
+          "width": 400,
+          "height": 225,
+          "fov-degrees": 90,
+          "capture-enabled": true,
+          "streaming-enabled": false,
+          "pixels-as-float": false,
+          "compress": false
+        },
+        {
+          "image-type": 6,
+          "width": 400,
+          "height": 225,
+          "fov-degrees": 90,
+          "capture-enabled": true,
+          "streaming-enabled": false,
+          "pixels-as-float": false,
+          "compress": false,
+          "target-gamma": 2.5
+        }
+      ],
+
+      "origin": {
+        "xyz": "0 0 0",
+        "rpy-deg": "0 0 0"
+      }
+    }
+  ]
+}
