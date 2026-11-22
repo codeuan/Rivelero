@@ -465,6 +465,7 @@ class SurveyPage(QWidget):
 
     import_viewpoints_requested = Signal()
     add_viewpoint_requested = Signal()
+    distribute_coordinates_requested = Signal()
 
     edit_viewpoint_requested = Signal(
         str
@@ -770,6 +771,11 @@ class SurveyPage(QWidget):
         toolbar.addWidget(
             self.acquire_button
         )
+
+        self.distribute_button = make_secondary_button("Distribute on DEM")
+        self.distribute_button.setToolTip("Load a DEM on the World page to distribute coordinates.")
+        self.distribute_button.clicked.connect(self.distribute_coordinates_requested.emit)
+        toolbar.addWidget(self.distribute_button)
 
         toolbar.addStretch(
             1
@@ -1389,6 +1395,8 @@ class SurveyPage(QWidget):
         self,
     ) -> None:
         """Refresh the complete page from ApplicationState."""
+
+        self.distribute_button.setEnabled(self.state.analysis.has_environment)
 
         configuration = (
             self.state

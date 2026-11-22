@@ -24,6 +24,7 @@ from rivelero.gui.survey_import_dialog import (
     SurveyImportDialog,
 )
 from rivelero.gui.viewpoint_dialog import ViewpointDialog
+from rivelero.gui.dem_distribution_dialog import DemDistributionDialog
 from rivelero.gui.sensor_dialog import SensorManagerDialog
 from rivelero.gui.observation_event_dialog import ObservationEventManagerDialog
 from rivelero.gui.world_page import WorldPage
@@ -1056,6 +1057,9 @@ class MainWindow(QMainWindow):
         self.survey_page.add_viewpoint_requested.connect(
             self._add_viewpoint
         )
+        self.survey_page.distribute_coordinates_requested.connect(
+            self._distribute_coordinates
+        )
         self.survey_page.edit_viewpoint_requested.connect(
             self._edit_viewpoint
         )
@@ -1145,6 +1149,21 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Cannot add Viewpoint", str(exc))
             return
         self._refresh_survey("Added Viewpoint.")
+
+    def _distribute_coordinates(self) -> None:
+        environment = self.state.analysis.environment
+        if environment is None:
+            return
+        configuration = self.state.survey.viewpoint_configuration
+        dialog = DemDistributionDialog(
+            environment,
+            () if configuration is None else configuration.viewpoint_ids,
+            parent=self,
+        )
+        if not dialog.exec():
+            return
+        self.state.add_viewpoints(dialog.viewpoints)
+        self._refresh_survey(f"Added {len(dialog.viewpoints)} simulated Viewpoints.")
 
     def _edit_viewpoint(self, viewpoint_id: str) -> None:
         configuration = self.state.survey.viewpoint_configuration

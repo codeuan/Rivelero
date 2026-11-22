@@ -939,11 +939,22 @@ class ApplicationState:
     def add_viewpoint(self, viewpoint: Viewpoint) -> None:
         """Add a canonical Viewpoint to the active configuration."""
 
-        configuration = self._require_configuration()
-        updated = replace(
-            configuration,
-            viewpoints=[*configuration.viewpoints, viewpoint],
-        )
+        self._require_configuration()
+        self.add_viewpoints([viewpoint])
+
+    def add_viewpoints(self, viewpoints: list[Viewpoint]) -> None:
+        """Append a batch atomically, creating a survey if needed."""
+        configuration = self.survey.viewpoint_configuration
+        if configuration is None:
+            updated = ViewpointConfiguration.from_viewpoints(
+                "simulated-survey", "Simulated Survey", viewpoints,
+                configuration_type="simulated",
+            )
+        else:
+            updated = replace(
+                configuration,
+                viewpoints=[*configuration.viewpoints, *viewpoints],
+            )
         self._replace_survey_configuration(updated)
 
     def replace_viewpoint(

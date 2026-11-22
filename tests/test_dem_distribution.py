@@ -1,0 +1,58 @@
+import numpy as np
+import pytest
+import rasterio
+from rasterio.transform import from_origin
+
+from rivelero.analysis.dem_distribution import distribute_dem_coordinates
+
+
+@pytest.fixture
+def dem(tmp_path):
+    path = tmp_path / "dem.tif"
+    with rasterio.open(
+        path, "w", driver="GTiff", width=100, height=100, count=1,
+        dtype="float32", crs="EPSG:32633", transform=from_origin(0, 100, 1, 1),
+        nodata=-9999,
+    ) as raster:
+        raster.write(np.ones((100, 100), dtype=np.float32), 1)
+    return path
+
+
+def test_lattice_uses_100_cell_centers_and_assigns_in_input_order(dem):
+    inputs = [(x, y) for y in range(5, 100, 10) for x in range(5, 100, 10)]
+    crs, positions = distribute_dem_coordinates(dem, inputs, mode="random")
+    assert crs.to_epsg() == 32633
+    assert positions == inputs
+
+
+def test_modes_are_distinct_reproducible_and_use_unique_sites(dem):
+    inputs = [(50, 50)] * 7
+    positions = {}
+    for mode in ("random", "clustered", "dispersed"):
+        result = distribute_dem_coordinates(dem, inputs, mode=mode, seed=12)
+        assert result == distribute_dem_coordinates(dem, inputs, mode=mode, seed=12)
+        positions[mode] = set(result[1])
+        assert len(positions[mode]) == len(inputs)
+
+    def closest_pair(points):
+        return min(np.hypot(x - u, y - v) for x, y in points for u, v in points
+                   if (x, y) != (u, v))
+
+    assert positions["random"] != positions["clustered"]
+    assert positions["random"] != positions["dispersed"]
+    assert closest_pair(positions["clustered"]) == 10
+    assert closest_pair(positions["dispersed"]) >= 30
+
+
+def test_nodata_sites_are_skipped_and_capacity_is_reported(dem):
+    with rasterio.open(dem, "r+") as raster:
+        values = raster.read(1)
+        values[:10, :10] = -9999
+        raster.write(values, 1)
+
+    _, positions = distribute_dem_coordinates(dem, [(0, 0)] * 99, mode="random")
+    assert (5, 95) not in positions
+    with pytest.raises(ValueError, match="Only 99"):
+        distribute_dem_coordinates(dem, [(0, 0)] * 100, mode="clustered")
+    with pytest.raises(ValueError, match="finite"):
+        distribute_dem_coordinates(dem, [(float("nan"), 0)], mode="random")
