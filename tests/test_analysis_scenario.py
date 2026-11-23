@@ -383,3 +383,38 @@ def test_greedy_selection_recomputes_gain_from_empty_coverage():
     assert scenario.select_viewpoints_by_marginal_gain(0) == ()
     with pytest.raises(ValueError, match="only 4 are ready"):
         scenario.select_viewpoints_by_marginal_gain(5)
+
+
+def test_camera_selection_export_preserves_order_and_creates_numbered_runs(tmp_path):
+    from csv import DictReader
+
+    from rivelero.export.tables import write_camera_selection
+    from rivelero.visibility.configuration import VisibilityConfiguration
+
+    sof, _ = _baseline()
+    scenario = SurveyDesignScenario(sof)
+    for name, mask in {
+        "a": _cells((1, 1)),
+        "b": _cells((2, 2), (2, 3)),
+    }.items():
+        scenario.add_candidate(_candidate(name))
+        scenario.set_candidate_visibility(name, key=_key(name), mask=mask, include=False)
+    config = VisibilityConfiguration(
+        configuration_id="config", name="Camera settings", use_direction=False,
+        default_observer_height_m=2.5, max_distance_m=123,
+    )
+
+    first = write_camera_selection(scenario, 2, tmp_path, config, {})
+    first_content = first.read_bytes()
+    second = write_camera_selection(scenario, 1, tmp_path, config, {})
+
+    assert first.name == "marginal_gain_iter_001.csv"
+    assert second.name == "marginal_gain_iter_002.csv"
+    assert first.read_bytes() == first_content
+    with first.open(newline="", encoding="utf-8") as handle:
+        rows = list(DictReader(handle))
+    assert [row["viewpoint_id"] for row in rows] == ["b", "a"]
+    assert [row["selection_rank"] for row in rows] == ["1", "2"]
+    assert rows[0]["crs"] == "EPSG:32633"
+    assert float(rows[0]["observer_height_m"]) == 2.5
+    assert float(rows[0]["max_distance_m"]) == 123

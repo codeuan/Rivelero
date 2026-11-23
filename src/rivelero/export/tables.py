@@ -25,11 +25,12 @@ import math
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Iterable, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 from rivelero.analysis.comparison import ScenarioComparison, ScenarioSnapshot
 from rivelero.analysis.contribution import ContributionAnalysis
 from rivelero.analysis.coverage import CoverageSummary
+from rivelero.analysis.scenario import SurveyDesignScenario
 from rivelero.core.configuration import ViewpointConfiguration
 from rivelero.core.sensor import Sensor
 from rivelero.export.files import atomic_output
@@ -39,6 +40,9 @@ from rivelero.export.metadata import (
     sidecar_path,
     write_sidecar,
 )
+
+from rivelero.visibility.configuration import VisibilityConfiguration
+from rivelero.visibility.engine import resolve_visibility_parameters
 
 
 # ---------------------------------------------------------------------------
@@ -195,6 +199,56 @@ def write_viewpoints(
         },
     )
     return _write_table(Path(path), [*VIEWPOINT_COLUMNS, *extras], rows, record, overwrite=overwrite)
+
+
+def write_camera_selection(
+    scenario: SurveyDesignScenario,
+    count: int,
+    directory: Path,
+    configuration: VisibilityConfiguration,
+    sensors: Mapping[str, Sensor],
+) -> Path:
+    """Select cameras and write the next numbered marginal-gain input CSV."""
+    viewpoints = scenario.select_viewpoints_by_marginal_gain(count)
+    if not viewpoints:
+        raise ValueError("Select at least one camera to export.")
+    rows = []
+    for rank, viewpoint in enumerate(viewpoints, start=1):
+        sensor = sensors[viewpoint.sensor_id] if viewpoint.sensor_id is not None else None
+        resolved = resolve_visibility_parameters(
+            viewpoint=viewpoint, configuration=configuration, sensor=sensor
+        )
+        rows.append({
+            "selection_rank": rank,
+            "environment_id": scenario.baseline.environment_id,
+            "viewpoint_id": viewpoint.viewpoint_id,
+            "x": viewpoint.x,
+            "y": viewpoint.y,
+            "z": viewpoint.z,
+            "crs": viewpoint.crs.to_string(),
+            "observer_height_m": resolved.observer_height_m,
+            "heading_deg": resolved.heading_deg,
+            "pitch_deg": resolved.pitch_deg,
+            "roll_deg": viewpoint.roll_deg,
+            "horizontal_fov_deg": resolved.horizontal_fov_deg,
+            "vertical_fov_deg": resolved.vertical_fov_deg,
+            "max_distance_m": resolved.max_distance_m,
+        })
+
+    prefix = "marginal_gain_iter_"
+    directory = Path(directory)
+    iteration = max(
+        (int(path.stem.removeprefix(prefix)) for path in directory.glob(f"{prefix}*.csv")
+         if path.stem.removeprefix(prefix).isdecimal()),
+        default=0,
+    ) + 1
+    path = directory / f"{prefix}{iteration:03d}.csv"
+    columns = (
+        "iteration", "selection_rank", "environment_id", "viewpoint_id", "x", "y", "z", "crs",
+        "observer_height_m", "heading_deg", "pitch_deg", "roll_deg",
+        "horizontal_fov_deg", "vertical_fov_deg", "max_distance_m",
+    )
+    return write_csv(path, columns, (dict(row, iteration=iteration) for row in rows))
 
 
 def write_sensors(
