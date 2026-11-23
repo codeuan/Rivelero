@@ -409,6 +409,39 @@ class SurveyDesignScenario:
         )
         return marginal_gain(without, candidate.mask, self._masks.analysable)
 
+    def select_viewpoints_by_marginal_gain(self, count: int) -> tuple[Viewpoint, ...]:
+        """Return a standalone survey of ready candidates in greedy pick order.
+
+        Begin with no coverage. At each step pick the candidate that sees the
+        most still-uncovered analysable cells, breaking ties by Viewpoint ID.
+        The requested count is filled even if later picks add zero coverage.
+        The returned canonical Viewpoints retain their camera configuration.
+        """
+        if isinstance(count, bool) or not isinstance(count, (int, np.integer)) or count < 0:
+            raise ValueError("Viewpoint count must be a non-negative integer.")
+
+        remaining = {
+            candidate_id: candidate
+            for candidate_id, candidate in sorted(self._candidates.items())
+            if candidate.status is CandidateStatus.READY and candidate.mask is not None
+        }
+        if count > len(remaining):
+            raise ValueError(f"Requested {count} viewpoints, but only {len(remaining)} are ready.")
+
+        uncovered = self.analysable_mask.copy()
+        selected = []
+        for _ in range(count):
+            best_id = max(
+                remaining,
+                key=lambda candidate_id: np.count_nonzero(
+                    remaining[candidate_id].mask & uncovered
+                ),
+            )
+            candidate = remaining.pop(best_id)
+            selected.append(candidate.viewpoint)
+            uncovered &= ~candidate.mask
+        return tuple(selected)
+
     def change_classes(self) -> np.ndarray:
         """Baseline -> scenario ScenarioChangeClass raster (uint8)."""
         return coverage_change_classes(

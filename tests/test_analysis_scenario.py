@@ -355,3 +355,31 @@ def test_scenario_summary_reuses_a1_semantics():
     assert summary.difference.coverage_percentage_points == pytest.approx(
         100.0 * (summary.scenario.observable_fraction - baseline.observable_fraction)
     )
+
+
+def test_greedy_selection_recomputes_gain_from_empty_coverage():
+    sof, _ = _baseline()
+    scenario = SurveyDesignScenario(sof)
+    masks = {
+        "b-overlap": _cells((1, 1), (1, 2)),
+        "d-tied": _cells((2, 4)),
+        "a-first": _cells((1, 1), (1, 2), (1, 3)),
+        "c-new": _cells((2, 3), (0, 0), (1, 0)),
+    }
+    for name, mask in masks.items():
+        scenario.add_candidate(_candidate(name))
+        scenario.set_candidate_visibility(name, key=_key(name), mask=mask, include=False)
+    scenario.add_candidate(_candidate("pending"))
+    before = scenario.exposure.copy()
+
+    selected = scenario.select_viewpoints_by_marginal_gain(4)
+
+    assert selected == tuple(
+        scenario.candidate(name).viewpoint
+        for name in ("a-first", "c-new", "d-tied", "b-overlap")
+    )
+    np.testing.assert_array_equal(scenario.exposure, before)
+    assert not scenario.included_candidates
+    assert scenario.select_viewpoints_by_marginal_gain(0) == ()
+    with pytest.raises(ValueError, match="only 4 are ready"):
+        scenario.select_viewpoints_by_marginal_gain(5)
