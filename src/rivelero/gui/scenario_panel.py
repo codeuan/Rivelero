@@ -23,12 +23,14 @@ ObservationEvent, which is deferred rather than approximated.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 try:
     from PySide6.QtCore import (
         QAbstractTableModel, QModelIndex, QSortFilterProxyModel, Qt, Signal,
     )
     from PySide6.QtWidgets import (
-        QAbstractItemView, QComboBox, QDialog, QGridLayout, QHBoxLayout,
+        QAbstractItemView, QComboBox, QDialog, QFileDialog, QGridLayout, QHBoxLayout,
         QHeaderView, QInputDialog, QLabel, QMessageBox, QTableView, QVBoxLayout,
         QWidget,
     )
@@ -38,7 +40,7 @@ except ImportError:
         pyqtSignal as Signal,
     )
     from PyQt6.QtWidgets import (
-        QAbstractItemView, QComboBox, QDialog, QGridLayout, QHBoxLayout,
+        QAbstractItemView, QComboBox, QDialog, QFileDialog, QGridLayout, QHBoxLayout,
         QHeaderView, QInputDialog, QLabel, QMessageBox, QTableView, QVBoxLayout,
         QWidget,
     )
@@ -50,6 +52,7 @@ from rivelero.analysis.scenario import (
     CandidateStatus, DesignCandidate, SurveyDesignScenario, suggest_candidate_id,
 )
 from rivelero.core.viewpoint import Viewpoint
+from rivelero.export.tables import write_camera_selection
 from rivelero.gui.application_state import ApplicationState
 from rivelero.gui.components import (
     ContentCard, LabeledValue, make_primary_button, make_secondary_button,
@@ -531,6 +534,11 @@ class ScenarioPanel(QWidget):
             candidate_actions.addWidget(button)
         candidate_actions.addStretch(1)
         candidates.add_layout(candidate_actions)
+        self.select_export_button = make_primary_button("Run marginal gain and export CSV…")
+        self.select_export_button.setToolTip(
+            "Select from ready candidate Viewpoints and save a numbered camera CSV."
+        )
+        candidates.add_widget(self.select_export_button)
         self.candidate_note = QLabel()
         self.candidate_note.setWordWrap(True)
         self.candidate_note.setProperty("secondaryText", True)
@@ -589,6 +597,7 @@ class ScenarioPanel(QWidget):
         self.toggle_candidate_button.clicked.connect(self._toggle_candidates)
         self.remove_candidate_button.clicked.connect(self._remove_candidates)
         self.cancel_candidate_button.clicked.connect(self._cancel_candidate)
+        self.select_export_button.clicked.connect(self._select_and_export_cameras)
         self.scenario_map.point_picked.connect(self._on_point_picked)
         self.scenario_map.viewpoint_selected.connect(self._on_map_viewpoint)
 
@@ -810,6 +819,39 @@ class ScenarioPanel(QWidget):
                 scenario.remove_candidate(candidate.candidate_id)
         self._edited()
         self._refresh_scenario_views()
+
+    def _select_and_export_cameras(self) -> None:
+        scenario = self.scenario
+        ready_count = self._ready_candidate_count()
+        if scenario is None or self.state.busy or self.busy or ready_count == 0:
+            return
+        count, accepted = QInputDialog.getInt(
+            self, "Select cameras by marginal gain", "Number of cameras",
+            min(10, ready_count), 1, ready_count,
+        )
+        if not accepted:
+            return
+        directory = QFileDialog.getExistingDirectory(self, "Camera CSV output folder")
+        if not directory:
+            return
+        if not self._is_current(scenario) or self.state.busy or self.busy:
+            self._set_status("The analysis changed. Run selection again.", kind="warning")
+            return
+        try:
+            output = write_camera_selection(
+                scenario, count, Path(directory), self.state.analysis.visibility_configuration,
+                self.state.survey.sensors,
+            )
+        except (KeyError, OSError, RuntimeError, ValueError) as exc:
+            self._set_status(f"Camera export failed: {exc}", kind="error")
+            return
+        self._set_status(f"Exported {count} cameras to {output}.")
+
+    def _ready_candidate_count(self) -> int:
+        scenario = self.scenario
+        return 0 if scenario is None else sum(
+            candidate.status is CandidateStatus.READY for candidate in scenario.candidates
+        )
 
     def _candidates_blocked_reason(self) -> str | None:
         scenario = self.scenario
@@ -1053,6 +1095,9 @@ class ScenarioPanel(QWidget):
             button.setEnabled(blocked is None)
         self.toggle_candidate_button.setEnabled(blocked is None)
         self.remove_candidate_button.setEnabled(blocked is None)
+        self.select_export_button.setEnabled(
+            blocked is None and not busy and not self.busy and self._ready_candidate_count() > 0
+        )
         computing = self._candidate_task is not None
         self.cancel_candidate_button.setVisible(computing)
         self.cancel_candidate_button.setEnabled(
