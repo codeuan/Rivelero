@@ -773,7 +773,7 @@ class SurveyPage(QWidget):
         )
 
         self.distribute_button = make_secondary_button("Distribute on DEM")
-        self.distribute_button.setToolTip("Load a DEM on the World page to distribute coordinates.")
+        self.distribute_button.setToolTip("Load a DEM on the World page to distribute viewpoints.")
         self.distribute_button.clicked.connect(self.distribute_coordinates_requested.emit)
         toolbar.addWidget(self.distribute_button)
 
