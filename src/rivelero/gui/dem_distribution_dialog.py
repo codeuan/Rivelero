@@ -1,10 +1,10 @@
-"""Coordinate input for DEM lattice sampling."""
+"""Controls for placing simulated viewpoints on a DEM."""
 
 from rasterio.errors import RasterioError
 
 from rivelero.analysis.dem_distribution import (
     DISTRIBUTION_MODES,
-    distribute_dem_coordinates,
+    select_dem_sites,
 )
 from rivelero.core.environment import Environment
 from rivelero.core.viewpoint import Viewpoint
@@ -12,17 +12,17 @@ from rivelero.core.viewpoint import Viewpoint
 try:
     from PySide6.QtWidgets import (
         QComboBox, QDialog, QDialogButtonBox, QFormLayout, QLabel,
-        QMessageBox, QPlainTextEdit, QSpinBox,
+        QMessageBox, QSpinBox,
     )
 except ImportError:
     from PyQt6.QtWidgets import (
         QComboBox, QDialog, QDialogButtonBox, QFormLayout, QLabel,
-        QMessageBox, QPlainTextEdit, QSpinBox,
+        QMessageBox, QSpinBox,
     )
 
 
 class DemDistributionDialog(QDialog):
-    """Generate a batch of Viewpoints from pasted DEM-CRS coordinate pairs."""
+    """Generate a batch of Viewpoints at selected DEM grid centres."""
 
     def __init__(
         self, environment: Environment, existing_ids: tuple[str, ...], parent=None
@@ -31,20 +31,19 @@ class DemDistributionDialog(QDialog):
         self.environment = environment
         self.existing_ids = set(existing_ids)
         self.viewpoints: list[Viewpoint] = []
-        self.setWindowTitle("Distribute coordinates on DEM")
+        self.setWindowTitle("Distribute viewpoints on DEM")
         self.resize(470, 340)
 
         form = QFormLayout(self)
-        crs = environment.elevation_model.crs or "the DEM coordinate reference system"
         instructions = QLabel(
-            f"Enter one X, Y pair per line in {crs}. Each pair becomes a new "
-            "Viewpoint at a distinct valid site on the 10 × 10 DEM lattice."
+            "Place viewpoints at distinct sites on a 10 × 10 grid over the DEM. "
+            "Sites without valid elevation are skipped."
         )
         instructions.setWordWrap(True)
         form.addRow(instructions)
-        self.coordinates = QPlainTextEdit()
-        self.coordinates.setPlaceholderText("X, Y")
-        form.addRow("Coordinates", self.coordinates)
+        self.count = QSpinBox()
+        self.count.setRange(1, 100)
+        form.addRow("Number of viewpoints", self.count)
         self.mode = QComboBox()
         for mode in DISTRIBUTION_MODES:
             self.mode.addItem(mode.capitalize(), mode)
@@ -66,27 +65,18 @@ class DemDistributionDialog(QDialog):
         form.addRow(buttons)
 
     def _generate(self) -> None:
-        coordinates = []
         mode = self.mode.currentData()
         seed = self.seed.value()
         try:
-            for number, line in enumerate(self.coordinates.toPlainText().splitlines(), 1):
-                if not line.strip():
-                    continue
-                try:
-                    x, y = (float(value) for value in line.split(","))
-                except ValueError as exc:
-                    raise ValueError(f"Line {number} must contain one X, Y pair.") from exc
-                coordinates.append((x, y))
-            crs, positions = distribute_dem_coordinates(
-                self.environment.elevation_model.source, coordinates, mode=mode, seed=seed
+            crs, positions = select_dem_sites(
+                self.environment.elevation_model.source, self.count.value(), mode=mode, seed=seed
             )
         except (ValueError, RasterioError) as exc:
-            QMessageBox.warning(self, "Cannot distribute coordinates", str(exc))
+            QMessageBox.warning(self, "Cannot distribute viewpoints", str(exc))
             return
 
         number = 0
-        for original, (x, y) in zip(coordinates, positions, strict=True):
+        for x, y in positions:
             number += 1
             while f"dem-{mode}-{number}" in self.existing_ids:
                 number += 1
@@ -101,8 +91,6 @@ class DemDistributionDialog(QDialog):
                     "grid_shape": [10, 10],
                     "distribution": mode,
                     "seed": seed,
-                    "input_coordinates": list(original),
-                    "input_crs": crs.to_string(),
                 },
             ))
         self.accept()

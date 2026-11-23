@@ -31,6 +31,27 @@ def distribute_dem_coordinates(
     inputs = np.asarray(coordinates, dtype=float)
     if inputs.shape != (len(coordinates), 2) or not np.isfinite(inputs).all():
         raise ValueError("Each coordinate pair must contain two finite numbers.")
+    crs, positions = select_dem_sites(source, len(inputs), mode=mode, seed=seed)
+    available = np.asarray(positions)
+    assigned = []
+    for x, y in inputs:
+        nearest_index = int(np.argmin(np.hypot(available[:, 0] - x, available[:, 1] - y)))
+        site_x, site_y = available[nearest_index]
+        assigned.append((float(site_x), float(site_y)))
+        available = np.delete(available, nearest_index, axis=0)
+    return crs, assigned
+
+
+def select_dem_sites(
+    source: Path | str,
+    count: int,
+    *,
+    mode: DistributionMode,
+    seed: int = 0,
+) -> tuple[CRS, list[tuple[float, float]]]:
+    """Select distinct valid centers from a 10 × 10 grid over the DEM."""
+    if not 1 <= count <= 100:
+        raise ValueError("Request between 1 and 100 viewpoints.")
     if mode not in DISTRIBUTION_MODES:
         raise ValueError(f"Unknown distribution mode: {mode!r}.")
 
@@ -51,11 +72,10 @@ def distribute_dem_coordinates(
             if not np.ma.is_masked(height) and np.isfinite(height)
         ])
 
-    count = len(inputs)
     if count > len(sites):
         raise ValueError(
             f"Only {len(sites)} of the 100 lattice sites have valid elevation. "
-            f"Enter at most {len(sites)} coordinate pairs or use another DEM."
+            f"Request at most {len(sites)} viewpoints or use another DEM."
         )
 
     rng = np.random.default_rng(seed)
@@ -78,11 +98,4 @@ def distribute_dem_coordinates(
                 selected.append(next_site)
                 nearest = np.minimum(nearest, distances[next_site])
 
-    available = sites[selected]
-    assigned = []
-    for x, y in inputs:
-        nearest_index = int(np.argmin(np.hypot(available[:, 0] - x, available[:, 1] - y)))
-        site_x, site_y = available[nearest_index]
-        assigned.append((float(site_x), float(site_y)))
-        available = np.delete(available, nearest_index, axis=0)
-    return crs, assigned
+    return crs, [(float(x), float(y)) for x, y in sites[selected]]
