@@ -34,6 +34,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Mapping
 
+from rivelero.analysis.dem_distribution import fill_dem_camera_metadata
 from rivelero.core.configuration import ViewpointConfiguration
 from rivelero.core.domain import AnalysisDomain, AnalysisGrid
 from rivelero.core.environment import Environment
@@ -956,6 +957,22 @@ class ApplicationState:
                 viewpoints=[*configuration.viewpoints, *viewpoints],
             )
         self._replace_survey_configuration(updated)
+
+    def fill_dem_camera_metadata(self) -> int:
+        """Populate missing angles for cameras generated on the active DEM."""
+        configuration = self._require_configuration()
+        environment = self.analysis.environment
+        if environment is None:
+            return 0
+        viewpoints = fill_dem_camera_metadata(
+            environment.elevation_model.source,
+            environment.environment_id,
+            configuration.viewpoints,
+        )
+        count = sum(new is not old for old, new in zip(configuration.viewpoints, viewpoints))
+        if count:
+            self._replace_survey_configuration(replace(configuration, viewpoints=viewpoints))
+        return count
 
     def replace_viewpoint(
         self,

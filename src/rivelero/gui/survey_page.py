@@ -466,6 +466,7 @@ class SurveyPage(QWidget):
     import_viewpoints_requested = Signal()
     add_viewpoint_requested = Signal()
     distribute_coordinates_requested = Signal()
+    fill_dem_cameras_requested = Signal()
 
     edit_viewpoint_requested = Signal(
         str
@@ -776,6 +777,12 @@ class SurveyPage(QWidget):
         self.distribute_button.setToolTip("Load a DEM on the World page to distribute viewpoints.")
         self.distribute_button.clicked.connect(self.distribute_coordinates_requested.emit)
         toolbar.addWidget(self.distribute_button)
+        self.fill_dem_cameras_button = make_secondary_button("Fill DEM camera angles")
+        self.fill_dem_cameras_button.setToolTip(
+            "Fill blank headings and fields of view for cameras distributed on this DEM."
+        )
+        self.fill_dem_cameras_button.clicked.connect(self.fill_dem_cameras_requested.emit)
+        toolbar.addWidget(self.fill_dem_cameras_button)
 
         toolbar.addStretch(
             1
@@ -1402,6 +1409,11 @@ class SurveyPage(QWidget):
             self.state
             .survey
             .viewpoint_configuration
+        )
+
+        self.fill_dem_cameras_button.setEnabled(
+            self.state.analysis.has_environment and configuration is not None
+            and bool(configuration.viewpoints)
         )
 
         viewpoints = (

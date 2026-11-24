@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import numpy as np
 import pytest
 import rasterio
@@ -5,6 +7,7 @@ from rasterio.transform import from_origin
 
 from rivelero.analysis.dem_distribution import (
     distribute_dem_coordinates,
+    fill_dem_camera_metadata,
     generate_dem_viewpoints,
     select_dem_sites,
 )
@@ -86,3 +89,21 @@ def test_generated_viewpoints_keep_terrain_centre_headings_across_distributions(
     for camera in batch:
         assert camera.horizontal_fov_deg == 120
         assert camera.heading_deg == by_position[camera.x, camera.y].heading_deg
+
+
+def test_fill_dem_camera_metadata_preserves_existing_viewpoints(dem):
+    camera, = generate_dem_viewpoints(dem, 1, environment_id="terrain", mode="random")
+    legacy = replace(camera, heading_deg=None, horizontal_fov_deg=None)
+    partial = replace(camera, horizontal_fov_deg=None, heading_deg=15)
+    other_terrain = replace(legacy, provenance={"environment_id": "other"})
+    imported = replace(legacy, source="Imported")
+
+    filled, completed, skipped, untouched = fill_dem_camera_metadata(
+        dem, "terrain", [legacy, partial, other_terrain, imported]
+    )
+
+    assert filled == camera
+    assert completed.heading_deg == 15
+    assert completed.horizontal_fov_deg == 120
+    assert skipped is other_terrain
+    assert untouched is imported

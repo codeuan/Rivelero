@@ -1,6 +1,7 @@
 """Place simulated viewpoints on a regular lattice over an elevation raster."""
 
 from collections.abc import Iterable
+from dataclasses import replace
 from math import atan2, degrees
 from pathlib import Path
 from typing import Literal
@@ -68,7 +69,7 @@ def generate_dem_viewpoints(
     existing_ids: Iterable[str] = (),
 ) -> list[Viewpoint]:
     """Generate 120-degree cameras aimed at the centre of the DEM."""
-    crs, positions, (centre_x, centre_y) = _select_dem_sites(
+    crs, positions, centre = _select_dem_sites(
         source, count, mode=mode, seed=seed
     )
     occupied_ids = set(existing_ids)
@@ -78,7 +79,7 @@ def generate_dem_viewpoints(
         number += 1
         while f"dem-{mode}-{number}" in occupied_ids:
             number += 1
-        heading = degrees(atan2(centre_x - x, centre_y - y)) % 360.0
+        heading = _heading_to_centre(x, y, centre)
         viewpoints.append(Viewpoint(
             viewpoint_id=f"dem-{mode}-{number}",
             x=x,
@@ -95,6 +96,41 @@ def generate_dem_viewpoints(
             },
         ))
     return viewpoints
+
+
+def fill_dem_camera_metadata(
+    source: Path | str, environment_id: str, viewpoints: Iterable[Viewpoint]
+) -> list[Viewpoint]:
+    """Fill missing camera angles for viewpoints spawned on this DEM."""
+    with rasterio.open(source) as dem:
+        crs = dem.crs
+        centre = xy(dem.transform, dem.height / 2, dem.width / 2, offset="ul")
+
+    return [
+        replace(
+            viewpoint,
+            heading_deg=(
+                _heading_to_centre(viewpoint.x, viewpoint.y, centre)
+                if viewpoint.heading_deg is None else viewpoint.heading_deg
+            ),
+            horizontal_fov_deg=(
+                120.0 if viewpoint.horizontal_fov_deg is None else viewpoint.horizontal_fov_deg
+            ),
+        )
+        if (
+            viewpoint.source == "DEM lattice simulation"
+            and viewpoint.provenance.get("environment_id") == environment_id
+            and viewpoint.crs == crs
+            and (viewpoint.heading_deg is None or viewpoint.horizontal_fov_deg is None)
+        )
+        else viewpoint
+        for viewpoint in viewpoints
+    ]
+
+
+def _heading_to_centre(x: float, y: float, centre: tuple[float, float]) -> float:
+    centre_x, centre_y = centre
+    return degrees(atan2(centre_x - x, centre_y - y)) % 360.0
 
 
 def _select_dem_sites(

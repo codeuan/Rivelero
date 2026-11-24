@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
+from rasterio.errors import RasterioError
 from rivelero.gui.survey_page import SurveyPage
 from rivelero.gui.survey_import_dialog import (
     SurveyImportDialog,
@@ -1057,6 +1058,7 @@ class MainWindow(QMainWindow):
         self.survey_page.add_viewpoint_requested.connect(
             self._add_viewpoint
         )
+        self.survey_page.fill_dem_cameras_requested.connect(self._fill_dem_cameras)
         self.survey_page.distribute_coordinates_requested.connect(
             self._distribute_coordinates
         )
@@ -1164,6 +1166,20 @@ class MainWindow(QMainWindow):
             return
         self.state.add_viewpoints(dialog.viewpoints)
         self._refresh_survey(f"Added {len(dialog.viewpoints)} simulated Viewpoints.")
+
+    def _fill_dem_cameras(self) -> None:
+        try:
+            count = self.state.fill_dem_camera_metadata()
+        except (RuntimeError, ValueError, RasterioError) as exc:
+            QMessageBox.warning(self, "Cannot fill DEM camera angles", str(exc))
+            return
+        if not count:
+            QMessageBox.information(
+                self, "DEM camera angles", "No cameras on this DEM have blank angles."
+            )
+            return
+        self._refresh_survey(f"Filled camera angles for {count} DEM Viewpoints.")
+        self.survey_page.map_widget.camera_fans_button.setChecked(True)
 
     def _edit_viewpoint(self, viewpoint_id: str) -> None:
         configuration = self.state.survey.viewpoint_configuration
