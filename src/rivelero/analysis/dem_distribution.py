@@ -1,5 +1,7 @@
 """Place simulated viewpoints on a regular lattice over an elevation raster."""
 
+from collections.abc import Iterable
+from math import atan2, degrees
 from pathlib import Path
 from typing import Literal
 
@@ -7,6 +9,8 @@ import numpy as np
 import rasterio
 from rasterio.crs import CRS
 from rasterio.transform import xy
+
+from rivelero.core.viewpoint import Viewpoint
 
 DistributionMode = Literal["random", "clustered", "dispersed"]
 DISTRIBUTION_MODES = ("random", "clustered", "dispersed")
@@ -50,6 +54,56 @@ def select_dem_sites(
     seed: int = 0,
 ) -> tuple[CRS, list[tuple[float, float]]]:
     """Select distinct valid centers from a 10 × 10 grid over the DEM."""
+    crs, positions, _ = _select_dem_sites(source, count, mode=mode, seed=seed)
+    return crs, positions
+
+
+def generate_dem_viewpoints(
+    source: Path | str,
+    count: int,
+    *,
+    environment_id: str,
+    mode: DistributionMode,
+    seed: int = 0,
+    existing_ids: Iterable[str] = (),
+) -> list[Viewpoint]:
+    """Generate 120-degree cameras aimed at the centre of the DEM."""
+    crs, positions, (centre_x, centre_y) = _select_dem_sites(
+        source, count, mode=mode, seed=seed
+    )
+    occupied_ids = set(existing_ids)
+    viewpoints = []
+    number = 0
+    for x, y in positions:
+        number += 1
+        while f"dem-{mode}-{number}" in occupied_ids:
+            number += 1
+        heading = degrees(atan2(centre_x - x, centre_y - y)) % 360.0
+        viewpoints.append(Viewpoint(
+            viewpoint_id=f"dem-{mode}-{number}",
+            x=x,
+            y=y,
+            crs=crs,
+            heading_deg=heading,
+            horizontal_fov_deg=120.0,
+            source="DEM lattice simulation",
+            provenance={
+                "environment_id": environment_id,
+                "grid_shape": [10, 10],
+                "distribution": mode,
+                "seed": seed,
+            },
+        ))
+    return viewpoints
+
+
+def _select_dem_sites(
+    source: Path | str,
+    count: int,
+    *,
+    mode: DistributionMode,
+    seed: int,
+) -> tuple[CRS, list[tuple[float, float]], tuple[float, float]]:
     if not 1 <= count <= 100:
         raise ValueError("Request between 1 and 100 viewpoints.")
     if mode not in DISTRIBUTION_MODES:
@@ -59,6 +113,7 @@ def select_dem_sites(
         crs = dem.crs
         if crs is None:
             raise ValueError("The DEM must have a coordinate reference system.")
+        centre = xy(dem.transform, dem.height / 2, dem.width / 2, offset="ul")
         centers = np.arange(10) + 0.5
         rows = np.repeat(centers, 10) * dem.height / 10
         columns = np.tile(centers, 10) * dem.width / 10
@@ -98,4 +153,4 @@ def select_dem_sites(
                 selected.append(next_site)
                 nearest = np.minimum(nearest, distances[next_site])
 
-    return crs, [(float(x), float(y)) for x, y in sites[selected]]
+    return crs, [(float(x), float(y)) for x, y in sites[selected]], centre

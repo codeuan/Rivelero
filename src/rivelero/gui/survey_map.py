@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from collections import Counter
+from math import cos, radians, sin
 from typing import Any
 
 from matplotlib.figure import Figure
 from matplotlib.backend_bases import MouseEvent
 from matplotlib.colors import to_hex
-from matplotlib.patches import FancyArrow
+from matplotlib.patches import FancyArrow, Wedge
 from matplotlib.ticker import MaxNLocator
 
 try:
@@ -108,6 +109,13 @@ class SurveyMapWidget(QWidget):
         self.orientation_toggle.setChecked(True)
         controls.addWidget(self.ids_toggle)
         controls.addWidget(self.orientation_toggle)
+        self.camera_fans_button = QPushButton("Camera fans")
+        self.camera_fans_button.setCheckable(True)
+        self.camera_fans_button.setToolTip(
+            "Show camera headings and horizontal fields of view. "
+            "Fan length is for display only."
+        )
+        controls.addWidget(self.camera_fans_button)
 
         self.figure = Figure(figsize=(7, 5), dpi=100)
         self.ax = self.figure.add_subplot(111)
@@ -134,6 +142,7 @@ class SurveyMapWidget(QWidget):
         self.mode_combo.currentIndexChanged.connect(self._on_display_mode_changed)
         self.ids_toggle.toggled.connect(self._set_show_ids)
         self.orientation_toggle.toggled.connect(self._set_show_orientation)
+        self.camera_fans_button.toggled.connect(self._redraw)
         self.reset_button.clicked.connect(self._reset_view)
 
     def set_configuration(self, configuration: ViewpointConfiguration | None) -> None:
@@ -274,6 +283,7 @@ class SurveyMapWidget(QWidget):
             zorder=5,
         )
         collection.set_label("Viewpoints")
+        self._maybe_draw_camera_fans(viewpoints)
         self._maybe_draw_orientation(viewpoints)
         self._maybe_draw_observation_sequence(viewpoints)
 
@@ -302,8 +312,9 @@ class SurveyMapWidget(QWidget):
                     alpha=0.8,
                 )
 
-        if len(xs) > 1:
+        if len(xs) > 1 or self.camera_fans_button.isChecked():
             self.ax.set_aspect("equal", adjustable="box")
+        if len(xs) > 1:
             self.ax.autoscale(True)
         self.ax.grid(True, linestyle="--", linewidth=0.4, alpha=0.35)
         self.ax.set_xlabel(self._axis_label("x"))
@@ -331,23 +342,43 @@ class SurveyMapWidget(QWidget):
                 return index
         return None
 
+    def _maybe_draw_camera_fans(self, viewpoints: list[Any]) -> None:
+        if not self.camera_fans_button.isChecked():
+            return
+        radius = self._orientation_length(viewpoints)
+        for viewpoint in viewpoints:
+            heading = viewpoint.heading_deg
+            fov = viewpoint.horizontal_fov_deg
+            if heading is None or fov is None or not 0 < fov < 360:
+                continue
+            # Wedge angles increase counterclockwise from east.
+            angle = 90 - heading
+            self.ax.add_patch(Wedge(
+                (viewpoint.x, viewpoint.y),
+                radius,
+                angle - fov / 2,
+                angle + fov / 2,
+                facecolor="#3F6F78",
+                edgecolor="#3F6F78",
+                alpha=0.35,
+                linewidth=0.8,
+                zorder=4,
+            ))
+
     def _maybe_draw_orientation(self, viewpoints: list[Any]) -> None:
         if not self._show_orientation:
             return
         if len(viewpoints) > 1500:
             return
+        length = self._orientation_length(viewpoints)
         for viewpoint in viewpoints:
             if viewpoint.heading_deg is None:
                 continue
-            heading = float(viewpoint.heading_deg) % 360.0
-            angle = (90.0 - heading) * (3.141592653589793 / 180.0)
-            length = self._orientation_length(viewpoints)
+            heading = radians(viewpoint.heading_deg)
             x0 = float(viewpoint.x)
             y0 = float(viewpoint.y)
-            x1 = x0 + length * (2.0 if heading == 0 else 0.0)
-            y1 = y0 + length * (2.0 if heading == 0 else 0.0)
-            dx = length * __import__("math").sin(angle)
-            dy = length * __import__("math").cos(angle)
+            dx = length * sin(heading)
+            dy = length * cos(heading)
             arrow = FancyArrow(
                 x0,
                 y0,

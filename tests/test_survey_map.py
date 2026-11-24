@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from matplotlib.patches import Wedge
 from PySide6.QtWidgets import QApplication
 from rasterio.crs import CRS
 
@@ -140,3 +141,23 @@ def test_survey_map_widget_constructs_and_syncs_selection():
 
     widget.set_display_mode("sensor")
     assert widget.current_display_mode == "sensor"
+
+
+def test_camera_fans_button_toggles_directional_wedges():
+    viewpoints = _make_viewpoints()
+    viewpoints[0].horizontal_fov_deg = 120
+    viewpoints[2].horizontal_fov_deg = 360
+    widget = SurveyMapWidget(configuration=ViewpointConfiguration(
+        configuration_id="camera-fans",
+        name="Camera fans",
+        viewpoints=viewpoints,
+    ))
+
+    assert not any(isinstance(patch, Wedge) for patch in widget.ax.patches)
+    widget.camera_fans_button.click()
+    fan, = [patch for patch in widget.ax.patches if isinstance(patch, Wedge)]
+    assert fan.center == (0, 0)
+    assert (fan.theta1, fan.theta2) == (30, 150)
+
+    widget.camera_fans_button.click()
+    assert not any(isinstance(patch, Wedge) for patch in widget.ax.patches)

@@ -4,7 +4,7 @@ from rasterio.errors import RasterioError
 
 from rivelero.analysis.dem_distribution import (
     DISTRIBUTION_MODES,
-    select_dem_sites,
+    generate_dem_viewpoints,
 )
 from rivelero.core.environment import Environment
 from rivelero.core.viewpoint import Viewpoint
@@ -29,7 +29,7 @@ class DemDistributionDialog(QDialog):
     ) -> None:
         super().__init__(parent)
         self.environment = environment
-        self.existing_ids = set(existing_ids)
+        self.existing_ids = existing_ids
         self.viewpoints: list[Viewpoint] = []
         self.setWindowTitle("Distribute viewpoints on DEM")
         self.resize(470, 340)
@@ -37,6 +37,7 @@ class DemDistributionDialog(QDialog):
         form = QFormLayout(self)
         instructions = QLabel(
             "Place viewpoints at distinct sites on a 10 × 10 grid over the DEM. "
+            "Each camera has a 120° horizontal field of view aimed at the terrain centre. "
             "Sites without valid elevation are skipped."
         )
         instructions.setWordWrap(True)
@@ -68,29 +69,16 @@ class DemDistributionDialog(QDialog):
         mode = self.mode.currentData()
         seed = self.seed.value()
         try:
-            crs, positions = select_dem_sites(
-                self.environment.elevation_model.source, self.count.value(), mode=mode, seed=seed
+            self.viewpoints = generate_dem_viewpoints(
+                self.environment.elevation_model.source,
+                self.count.value(),
+                environment_id=self.environment.environment_id,
+                mode=mode,
+                seed=seed,
+                existing_ids=self.existing_ids,
             )
         except (ValueError, RasterioError) as exc:
             QMessageBox.warning(self, "Cannot distribute viewpoints", str(exc))
             return
 
-        number = 0
-        for x, y in positions:
-            number += 1
-            while f"dem-{mode}-{number}" in self.existing_ids:
-                number += 1
-            self.viewpoints.append(Viewpoint(
-                viewpoint_id=f"dem-{mode}-{number}",
-                x=x,
-                y=y,
-                crs=crs,
-                source="DEM lattice simulation",
-                provenance={
-                    "environment_id": self.environment.environment_id,
-                    "grid_shape": [10, 10],
-                    "distribution": mode,
-                    "seed": seed,
-                },
-            ))
         self.accept()
