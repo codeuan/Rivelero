@@ -32,12 +32,20 @@ terrain. Supply camera elevations in `z` for terrain-relative placement.
 
 The runner checks all input files before connecting. It reloads the scene
 before every survey, creates the new cameras, and reapplies plant segmentation
-from `src/Camera/flightpath.csv` when present. It writes
+using `flightpath.csv` if present or the bundled `segmentationIDs.csv`.
+For Opuntias, pass `--plants opuntias.csv` if the default list contains
+other actors. That CSV needs an `id` column with exact Unreal actor names
+such as `Opuntia_017` if that is the actual name in the scene. Numeric
+suffixes must be unique and between 1 and 255. If a listed actor cannot
+be assigned, the survey stops before writing its telemetry file.
+
+The runner writes
 `telemetry/survey_1.csv`, `telemetry/survey_2.csv`, and so on, under the input
 directory. Each file contains the source filename, camera order, configured
 pose and field of view, plus visible pixels, X-ray pixels, occlusion fraction,
-and distance per listed plant. With no plant list it writes one row per
-camera with blank plant fields. Existing outputs are protected from overwrites.
+and distance per listed plant. A row with `visible_pixels > 0` is a plant the camera can see. A row
+with zero visible pixels and positive X-ray pixels represents a fully
+occluded plant. Existing outputs are protected from overwrites.
 
 Running `python hello_camera.py` without the batch flags opens the original
 interactive viewer.

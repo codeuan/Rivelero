@@ -108,45 +108,49 @@ def generate_camera_scene():
     return camera_names, camera_positions
 
 
-def configure_plant_segmentation(world):
-    """Retain the original script's per-Othonna segmentation assignments."""
-    if not TARGET_CSV.exists():
-        print(f"No {TARGET_CSV.name} found; using the scene's current segmentation IDs.")
-        return {}
-
-    with TARGET_CSV.open("r", newline="", encoding="utf-8") as file:
+def read_plant_ids(path):
+    """Read exact Unreal actor names and their numeric segmentation suffixes."""
+    with path.open(newline="", encoding="utf-8-sig") as file:
         reader = csv.DictReader(file)
         if not reader.fieldnames or "id" not in reader.fieldnames:
-            raise ValueError(f"{TARGET_CSV.name} must contain an 'id' column")
-        plant_ids = [row["id"].strip() for row in reader if row["id"].strip()]
+            raise ValueError(f"{path.name} must contain an 'id' column")
+        plant_ids = [(row["id"] or "").strip() for row in reader]
 
-    plant_segmentation_ids = {}
+    assignments = {}
     used_ids = set()
-
-    # Same initialization approach as the old flying-drone case study.
-    world.set_segmentation_id_by_name(r"[\w]*", 0, True, True)
-
-    for plant_id in plant_ids:
+    for plant_id in filter(None, plant_ids):
         try:
             segmentation_id = int(plant_id.rsplit("_", 1)[1])
         except (IndexError, ValueError) as exc:
-            raise ValueError(f"Expected a plant ID such as Othonna_017: {plant_id}") from exc
+            raise ValueError(f"Expected a plant ID with a numeric suffix: {plant_id}") from exc
         if not 1 <= segmentation_id <= 255:
             raise ValueError(f"Segmentation ID outside range 1..255: {plant_id}")
-
         if segmentation_id in used_ids:
-            raise ValueError(f"Duplicate segmentation ID {segmentation_id} in {TARGET_CSV.name}")
+            raise ValueError(f"Duplicate segmentation ID {segmentation_id} in {path.name}")
         used_ids.add(segmentation_id)
-        plant_segmentation_ids[plant_id] = segmentation_id
+        assignments[plant_id] = segmentation_id
+    if not assignments:
+        raise ValueError(f"{path.name} contains no plant actor IDs.")
+    return assignments
 
-        found = world.set_segmentation_id_by_name(
-            plant_id, segmentation_id, False, True
+
+def configure_plant_segmentation(world, assignments, *, require_matches=False):
+    """Assign the same palette IDs used by the interactive telemetry panel."""
+    world.set_segmentation_id_by_name(r"[\w]*", 0, True, True)
+    missing = []
+    for plant_id, segmentation_id in assignments.items():
+        if not world.set_segmentation_id_by_name(plant_id, segmentation_id, False, True):
+            missing.append(plant_id)
+    if missing and require_matches:
+        examples = ", ".join(missing[:5])
+        raise ValueError(
+            f"{len(missing)} plant actors were not found in Unreal (e.g. {examples}). "
+            "Pass --plants with the exact actor names for this scene."
         )
-        if not found:
-            print(f"WARNING: Plant actor {plant_id!r} was not found in Unreal")
-
-    print(f"Configured segmentation IDs for {len(plant_ids)} plant targets")
-    return plant_segmentation_ids
+    for plant_id in missing:
+        print(f"WARNING: Plant actor {plant_id!r} was not found in Unreal")
+    print(f"Configured segmentation IDs for {len(assignments) - len(missing)} plant targets")
+    return assignments
 
 
 def as_bgr(image):
@@ -324,14 +328,14 @@ def write_survey_scene(cameras, directory):
     (directory / "survey_scene.jsonc").write_text(commentjson.dumps(scene, indent=2), encoding="utf-8")
 
 
-def collect_survey(client, source, cameras, output, config_directory):
+def collect_survey(client, source, cameras, output, config_directory, plant_ids):
     write_survey_scene(cameras, config_directory)
     # Loading the scene resets the simulator before each survey.
     world = World(
         client, "survey_scene.jsonc", sim_config_path=str(config_directory),
         delay_after_load_sec=2,
     )
-    plant_ids = configure_plant_segmentation(world)
+    configure_plant_segmentation(world, plant_ids, require_matches=True)
     position_cache = {}
     with output.open("w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
@@ -359,11 +363,9 @@ def collect_survey(client, source, cameras, output, config_directory):
                 if 0 < possible[name] and visible[name] <= possible[name]:
                     occlusion = (possible[name] - visible[name]) / possible[name]
                 writer.writerow((*prefix, name, visible[name], possible[name], occlusion, distance))
-            if not plant_ids:
-                writer.writerow((*prefix, "", "", "", "", ""))
 
 
-def run_batch(surveys, directory):
+def run_batch(surveys, directory, plant_ids):
     output_dir = directory / "telemetry"
     output_dir.mkdir(exist_ok=True)
     outputs = [output_dir / f"survey_{index}.csv" for index in range(1, len(surveys) + 1)]
@@ -379,7 +381,7 @@ def run_batch(surveys, directory):
             for (source, cameras), output in zip(surveys, outputs, strict=True):
                 staged_output = temporary / output.name
                 print(f"Reading {len(cameras)} cameras from {source.name}")
-                collect_survey(client, source, cameras, staged_output, temporary)
+                collect_survey(client, source, cameras, staged_output, temporary, plant_ids)
                 with output.open("xb") as destination:
                     destination.write(staged_output.read_bytes())
                 print(f"Wrote {output}")
@@ -400,15 +402,21 @@ def main():
         "--default-z-m", type=float, default=-4.0,
         help="AirSim down coordinate for rows with blank z (default: -4).",
     )
+    parser.add_argument(
+        "--plants", type=Path,
+        help="CSV with exact Unreal plant actor names in its id column.",
+    )
     args = parser.parse_args()
-    if args.number is None and args.directory is None:
+    if args.number is None and args.directory is None and args.plants is None:
         run_interactive()
         return
     if args.number is None or args.directory is None:
         parser.error("-number and -directory must be supplied together")
     try:
         surveys = load_surveys(args.directory, args.number, args.origin, args.default_z_m)
-        run_batch(surveys, args.directory)
+        default_plants = TARGET_CSV if TARGET_CSV.is_file() else BASE_DIR / "segmentationIDs.csv"
+        plant_ids = read_plant_ids(args.plants or default_plants)
+        run_batch(surveys, args.directory, plant_ids)
     except (OSError, ValueError) as exc:
         parser.exit(1, f"{exc}\n")
 
@@ -425,7 +433,10 @@ def run_interactive():
             name: Drone(client, world, name)
             for name in camera_names
         }
-        plant_segmentation_ids = configure_plant_segmentation(world)
+        plant_segmentation_ids = (
+            configure_plant_segmentation(world, read_plant_ids(TARGET_CSV))
+            if TARGET_CSV.is_file() else {}
+        )
         plant_position_cache = {}
 
         current_index = 0
