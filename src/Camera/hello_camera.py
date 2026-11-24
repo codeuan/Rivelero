@@ -1,8 +1,8 @@
 """Rivelero case study: switch between three fixed Project AirSim cameras.
 
 Run from your existing Project AirSim client environment after starting Unreal.
-The scene must contain Camera1, Camera2 and Camera3, each with a DownCamera
-sensor capturing segmentation (3) and custom Rivelero X-ray (6).
+Batch mode reads exported Rivelero viewpoints and writes ordered telemetry.
+Run with -number N -directory PATH to execute a batch.
 
 Controls (focus the Windows CMD / PowerShell terminal):
     Left arrow:  previous camera
@@ -13,8 +13,9 @@ Camera locations are now loaded from cameralocations.csv, so the script can
 create and switch between any number of fixed cameras in CSV row order.
 """
 
+import argparse
 import csv
-import msvcrt
+from tempfile import TemporaryDirectory
 import time
 from pathlib import Path
 
@@ -29,6 +30,8 @@ from projectairsim.image_utils import SEGMENTATION_PALLETE
 
 import threading
 from queue import SimpleQueue, Empty
+
+from survey_batch import TELEMETRY_COLUMNS, load_surveys
 
 SENSOR_NAME = "DownCamera"
 XRAY_IMAGE_TYPE = 6  # Rivelero's modified Project AirSim build
@@ -158,6 +161,8 @@ def as_bgr(image):
 
 
 def keyboard_listener(commands):
+    import msvcrt
+
     while True:
         key = msvcrt.getwch()
 
@@ -290,7 +295,125 @@ def make_telemetry_panel(camera_name, camera_position, plant_segmentation_ids,
     return panel, scroll_offset
 
 
+def write_survey_scene(cameras, directory):
+    """Write a scene and camera configs using the existing simulator templates."""
+    with SOURCE_SCENE.open(encoding="utf-8") as file:
+        scene = commentjson.load(file)
+    with (CONFIG_DIR / "robot_camera_only.jsonc").open(encoding="utf-8") as file:
+        robot = commentjson.load(file)
+
+    configs = {}
+    actors = []
+    for index, camera in enumerate(cameras, start=1):
+        if camera.horizontal_fov_deg not in configs:
+            config = f"camera_fov_{len(configs) + 1}.jsonc"
+            for setting in robot["sensors"][0]["capture-settings"]:
+                setting["fov-degrees"] = camera.horizontal_fov_deg
+            (directory / config).write_text(commentjson.dumps(robot, indent=2), encoding="utf-8")
+            configs[camera.horizontal_fov_deg] = config
+        actors.append({
+            "type": "robot",
+            "name": f"Camera{index}",
+            "origin": {
+                "xyz": f"{camera.north_m} {camera.east_m} {camera.down_m}",
+                "rpy-deg": f"{camera.roll_deg} {camera.pitch_deg} {camera.yaw_deg}",
+            },
+            "robot-config": configs[camera.horizontal_fov_deg],
+        })
+    scene["actors"] = actors
+    (directory / "survey_scene.jsonc").write_text(commentjson.dumps(scene, indent=2), encoding="utf-8")
+
+
+def collect_survey(client, source, cameras, output, config_directory):
+    write_survey_scene(cameras, config_directory)
+    # Loading the scene resets the simulator before each survey.
+    world = World(
+        client, "survey_scene.jsonc", sim_config_path=str(config_directory),
+        delay_after_load_sec=2,
+    )
+    plant_ids = configure_plant_segmentation(world)
+    position_cache = {}
+    with output.open("w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow(TELEMETRY_COLUMNS)
+        for index, setup in enumerate(cameras, start=1):
+            actor_name = f"Camera{index}"
+            camera = Drone(client, world, actor_name)
+            images = camera.get_images(SENSOR_NAME, [ImageType.SEGMENTATION, XRAY_IMAGE_TYPE])
+            visible = count_plant_pixels(
+                as_bgr(unpack_image(images[ImageType.SEGMENTATION])), plant_ids
+            )
+            possible = count_plant_pixels(
+                as_bgr(unpack_image(images[XRAY_IMAGE_TYPE])), plant_ids
+            )
+            prefix = (
+                source.name, index, setup.name, actor_name, setup.north_m, setup.east_m,
+                setup.down_m, setup.roll_deg, setup.pitch_deg, setup.yaw_deg,
+                setup.horizontal_fov_deg,
+            )
+            position = np.array([setup.north_m, setup.east_m, setup.down_m])
+            for name in plant_ids:
+                plant_position = get_plant_position(world, name, position_cache)
+                distance = None if plant_position is None else np.linalg.norm(position - plant_position)
+                occlusion = None
+                if 0 < possible[name] and visible[name] <= possible[name]:
+                    occlusion = (possible[name] - visible[name]) / possible[name]
+                writer.writerow((*prefix, name, visible[name], possible[name], occlusion, distance))
+            if not plant_ids:
+                writer.writerow((*prefix, "", "", "", "", ""))
+
+
+def run_batch(surveys, directory):
+    output_dir = directory / "telemetry"
+    output_dir.mkdir(exist_ok=True)
+    outputs = [output_dir / f"survey_{index}.csv" for index in range(1, len(surveys) + 1)]
+    for output in outputs:
+        if output.exists():
+            raise FileExistsError(f"Telemetry already exists: {output}")
+
+    client = ProjectAirSimClient()
+    client.connect()
+    try:
+        with TemporaryDirectory(prefix="rivelero-surveys-") as temporary:
+            temporary = Path(temporary)
+            for (source, cameras), output in zip(surveys, outputs, strict=True):
+                staged_output = temporary / output.name
+                print(f"Reading {len(cameras)} cameras from {source.name}")
+                collect_survey(client, source, cameras, staged_output, temporary)
+                with output.open("xb") as destination:
+                    destination.write(staged_output.read_bytes())
+                print(f"Wrote {output}")
+    finally:
+        client.disconnect()
+
+
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("-number", "--number", type=int)
+    parser.add_argument("-directory", "--directory", type=Path)
+    parser.add_argument(
+        "--origin", nargs=3, type=float, default=(0.0, 0.0, 0.0),
+        metavar=("EAST", "NORTH", "UP"),
+        help="Rivelero map coordinates of Unreal's origin, in metres (default: 0 0 0).",
+    )
+    parser.add_argument(
+        "--default-z-m", type=float, default=-4.0,
+        help="AirSim down coordinate for rows with blank z (default: -4).",
+    )
+    args = parser.parse_args()
+    if args.number is None and args.directory is None:
+        run_interactive()
+        return
+    if args.number is None or args.directory is None:
+        parser.error("-number and -directory must be supplied together")
+    try:
+        surveys = load_surveys(args.directory, args.number, args.origin, args.default_z_m)
+        run_batch(surveys, args.directory)
+    except (OSError, ValueError) as exc:
+        parser.exit(1, f"{exc}\n")
+
+
+def run_interactive():
     camera_names, camera_positions = generate_camera_scene()
     client = ProjectAirSimClient()
     try:
