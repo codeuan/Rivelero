@@ -68,10 +68,14 @@ def read_cameras(path, origin, default_z):
                 if not name or name in names:
                     raise ValueError(f"blank or duplicate viewpoint ID: {name!r}")
                 crs = CRS.from_user_input(row["crs"])
-                if not crs.is_projected or any(
-                    axis.unit_conversion_factor != 1 for axis in crs.axis_info[:2]
+                horizontal_axes = crs.axis_info[:2]
+                if (
+                    not (crs.is_projected or crs.is_engineering)
+                    or len(horizontal_axes) != 2
+                    or {axis.direction.lower() for axis in horizontal_axes} != {"east", "north"}
+                    or any(axis.unit_conversion_factor != 1 for axis in horizontal_axes)
                 ):
-                    raise ValueError("CRS must be projected in metres")
+                    raise ValueError("CRS must use metre-based easting and northing coordinates")
                 if survey_crs is not None and survey_crs != crs:
                     raise ValueError("all cameras in a survey must use the same CRS")
                 survey_crs = crs

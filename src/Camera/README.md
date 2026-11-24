@@ -17,7 +17,7 @@ are processed in the original CSV row order.
 | Export column | Batch interpretation |
 | --- | --- |
 | `viewpoint_id` | Required unique camera name, retained in telemetry. Unreal actors are named `Camera1`, `Camera2`, etc. |
-| `x`, `y`, `crs` | Required easting and northing in a projected CRS in metres. Use the same map frame as the Unreal terrain. |
+| `x`, `y`, `crs` | Required easting and northing in a projected or local engineering CRS in metres. Use the same map frame as the Unreal terrain. |
 | `heading_deg` | Required heading clockwise from grid north. Unreal's local north axis must align with grid north. |
 | `z` | Optional absolute camera elevation in metres, in the same vertical reference as the configured origin. |
 | `roll_deg`, `pitch_deg` | Optional rotation angles, defaulting to zero. |
