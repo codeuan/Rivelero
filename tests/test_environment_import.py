@@ -13,8 +13,9 @@ from rivelero.gui.environment_import import (
 )
 
 
-DATA_ROOT = Path(
-    r"C:\Users\zool2620\VISTA\rivelero_synthetic_observability"
+DATA_ROOT = (
+    Path(__file__).resolve().parents[1]
+    / "rivelero_synthetic_observability"
 )
 
 DEM = (

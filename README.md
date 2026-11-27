@@ -923,11 +923,6 @@ unclassified test module is an error). GUI tests run offscreen by default
 never touch the real cache (`RIVELERO_CACHE_DIR` points to a temporary
 directory) or the network.
 
-> [!NOTE]
-> Some test modules still refer to the synthetic data by an absolute
-> Windows path (`C:\Users\zool2620\VISTA\…`) and fail elsewhere until they are
-> changed to paths relative to the repository.
-
 Prefer tests of scientific and state logic over pixel comparisons; figure
 tests inspect the Matplotlib objects (source arrays, norms, legends).
 `python tests/visualize_synthetic_observability.py` regenerates the visual

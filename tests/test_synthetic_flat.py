@@ -31,9 +31,7 @@ from rivelero.visibility.configuration import (
 # Synthetic data location
 # ---------------------------------------------------------
 
-PROJECT_ROOT = Path(
-    r"C:\Users\zool2620\VISTA"
-)
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 DATA_ROOT = (
     PROJECT_ROOT
