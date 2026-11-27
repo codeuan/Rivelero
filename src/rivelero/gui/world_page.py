@@ -587,6 +587,7 @@ class WorldPage(QWidget):
         mask = elevation_valid_mask(
             environment.elevation_model.source,
             grid,
+            nodata_value=environment.elevation_model.nodata_value,
         )
         self._valid_mask_cache = (environment, mask)
         return mask

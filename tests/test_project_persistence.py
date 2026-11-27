@@ -10,15 +10,20 @@ import zipfile
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
 import rasterio
+from rasterio.transform import from_origin
+from shapely.geometry import box
 
 from observability_fixtures import DEM_FLAT, DEM_NODATA, make_ready_state, visibility_configuration
 from rivelero.analysis.comparison import ScenarioWorkspace
 from rivelero.analysis.scenario import SurveyDesignScenario
 from rivelero.core.configuration import ViewpointConfiguration
+from rivelero.core.domain import AnalysisDomain, AnalysisGrid
+from rivelero.core.environment import ElevationModel, Environment
 from rivelero.core.observation import ObservationEvent
 from rivelero.core.viewpoint import Viewpoint
 from rivelero.gui.application_state import ApplicationState
@@ -27,7 +32,13 @@ from rivelero.gui.observability_service import (
     install_build_result,
     prepare_build,
 )
-from rivelero.gui.project_service import open_state, save_state
+from rivelero.gui.project_service import (
+    _refresh_domain_validity,
+    open_state,
+    save_state,
+)
+from rivelero.gui.world_page import WorldPage
+from rivelero.gui.domain_service import elevation_valid_mask
 from rivelero.observability.builder import (
     build_survey_observability_field,
     visibility_context_fingerprint,
@@ -285,6 +296,79 @@ def test_project_without_field(tmp_path):
     assert result.state.observability_build_blockers() == []  # user can rebuild
 
 
+def test_refresh_domain_validity_uses_environment_nodata(tmp_path):
+    dem_path = tmp_path / "nodata_without_tag.tif"
+    transform = from_origin(500_000, 4_100_000, 5, 5)
+    values = np.array([[10, -9999], [np.nan, 20]], dtype=np.float32)
+    with rasterio.open(
+        dem_path,
+        "w",
+        driver="GTiff",
+        height=2,
+        width=2,
+        count=1,
+        dtype=values.dtype,
+        crs="EPSG:32633",
+        transform=transform,
+    ) as dataset:
+        dataset.write(values, 1)
+
+    grid = AnalysisGrid(
+        crs="EPSG:32633",
+        transform=transform,
+        width=2,
+        height=2,
+    )
+    environment = Environment(
+        environment_id="configured_nodata",
+        name="Configured NoData environment",
+        elevation_model=ElevationModel(
+            source=dem_path,
+            crs=grid.crs,
+            resolution_m=5,
+            nodata_value=-9999,
+        ),
+    )
+    domain = AnalysisDomain(
+        domain_id="legacy_domain",
+        name="Legacy domain",
+        geometry=box(500_000, 4_099_990, 500_010, 4_100_000),
+        crs=grid.crs,
+        grid=grid,
+    )
+    data = ProjectData(
+        environment=environment,
+        grid=grid,
+        domain=domain,
+    )
+
+    world_page = SimpleNamespace(
+        state=SimpleNamespace(
+            analysis=SimpleNamespace(
+                environment=environment,
+                analysis_grid=grid,
+            )
+        ),
+        _valid_mask_cache=None,
+        _grid=lambda: grid,
+    )
+    expected_valid_mask = np.array([[True, False], [False, True]])
+    assert np.array_equal(
+        WorldPage._valid_mask(world_page),
+        expected_valid_mask,
+    )
+
+    install, refreshed_domain, _ = _refresh_domain_validity(data)
+
+    assert install
+    assert domain.valid_mask is None
+    assert refreshed_domain is not None
+    assert np.array_equal(
+        refreshed_domain.valid_mask,
+        expected_valid_mask,
+    )
+
+
 def test_masks_are_not_serialized_in_snapshots(tmp_path):
     state, _dem = _built(tmp_path)
     _with_design(state)
@@ -336,9 +420,99 @@ def test_changed_dem_rejects_field_and_refreshes_validity(tmp_path):
     assert any("recomputed" in w for w in result.warnings)
 
 
+def test_legacy_domain_is_normalized_and_rejects_incompatible_sof(tmp_path):
+    state, dem = _built(tmp_path)
+    original_domain = state.analysis.analysis_domain
+    legacy_domain = replace(
+        original_domain,
+        valid_mask=None,
+        provenance={**original_domain.provenance, "legacy": "mask omitted"},
+        extra_metadata={**original_domain.extra_metadata, "preserve": "yes"},
+    )
+    state.set_analysis_domain(legacy_domain)
+    request = prepare_build(state)
+    legacy_result = build_survey_observability_field(**request.build_kwargs())
+    install_build_result(state, request, legacy_result)
+    legacy_sof = state.analysis.survey_observability_field
+    assert legacy_sof is not None
+    assert np.all(legacy_sof.valid_mask)
+    original_exposure = legacy_sof.exposure_count.copy()
+    original_viewpoints = state.survey.viewpoint_configuration
+    original_visibility_configuration = state.analysis.visibility_configuration
+    saved_domain = state.analysis.analysis_domain
+    path = save_state(state, tmp_path / "legacy-no-valid-mask")
+
+    result = open_state(path)
+    restored = result.state
+    normalized_domain = restored.analysis.analysis_domain
+    expected_valid = elevation_valid_mask(
+        dem,
+        state.analysis.analysis_grid,
+        nodata_value=state.analysis.environment.elevation_model.nodata_value,
+    )
+
+    assert result.field_status == "rejected"
+    assert restored.analysis.survey_observability_field is None
+    assert any(
+        "terrain-validity mask differs" in warning and "Rebuild observability" in warning
+        for warning in result.warnings
+    )
+    assert normalized_domain is not None
+    assert np.array_equal(normalized_domain.valid_mask, expected_valid)
+    assert normalized_domain.domain_id == saved_domain.domain_id
+    assert normalized_domain.name == saved_domain.name
+    assert normalized_domain.geometry.equals(saved_domain.geometry)
+    assert normalized_domain.crs == saved_domain.crs
+    assert normalized_domain.grid == saved_domain.grid
+    assert normalized_domain.creation_method == saved_domain.creation_method
+    assert normalized_domain.provenance == saved_domain.provenance
+    assert normalized_domain.extra_metadata == saved_domain.extra_metadata
+    assert normalized_domain.created_at == saved_domain.created_at
+    assert np.array_equal(normalized_domain.analysis_mask, saved_domain.analysis_mask)
+    assert restored.survey.viewpoint_configuration == original_viewpoints
+    assert restored.analysis.visibility_configuration == original_visibility_configuration
+    assert np.array_equal(legacy_sof.exposure_count, original_exposure)
+
+    normalized_path = save_state(restored, tmp_path / "normalized")
+    reopened = open_state(normalized_path)
+    assert reopened.state.analysis.analysis_domain is not None
+    assert np.array_equal(
+        reopened.state.analysis.analysis_domain.valid_mask,
+        expected_valid,
+    )
+    assert reopened.state.analysis.survey_observability_field is None
+    assert reopened.field_status == "not saved"
+
+
+def test_legacy_domain_keeps_sof_when_derived_validity_matches(tmp_path):
+    state, _dem = _built(tmp_path)
+    expected_valid = state.analysis.analysis_domain.valid_mask.copy()
+    state.analysis.analysis_domain.valid_mask = None
+    saved_exposure = (
+        state.analysis.survey_observability_field.exposure_count.copy()
+    )
+    path = save_state(state, tmp_path / "legacy-compatible")
+
+    result = open_state(path)
+
+    assert result.field_status == "restored"
+    assert result.state.analysis.analysis_domain is not None
+    assert np.array_equal(
+        result.state.analysis.analysis_domain.valid_mask,
+        expected_valid,
+    )
+    restored_sof = result.state.analysis.survey_observability_field
+    assert restored_sof is not None
+    assert np.array_equal(restored_sof.valid_mask, expected_valid)
+    assert np.array_equal(restored_sof.exposure_count, saved_exposure)
+
+
 def test_missing_dem_keeps_survey_and_warns(tmp_path):
     state, dem = _built(tmp_path)
     _with_design(state)
+    state.set_analysis_domain(
+        replace(state.analysis.analysis_domain, valid_mask=None)
+    )
     path = save_state(state, tmp_path / "p")
     dem.unlink()
 

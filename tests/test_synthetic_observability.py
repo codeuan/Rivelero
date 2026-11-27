@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import csv
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
@@ -9,6 +9,7 @@ from typing import Any, Callable
 import numpy as np
 import pytest
 import rasterio
+from affine import Affine
 from shapely.geometry import box
 
 from rivelero.core.configuration import ConfigurationType, ViewpointConfiguration
@@ -23,6 +24,7 @@ from rivelero.observability.builder import (
 )
 from rivelero.observability.storage import VisibilityStore
 from rivelero.observability.survey_field import SurveyObservabilityField
+from rivelero.gui.domain_service import elevation_valid_mask
 from rivelero.visibility.configuration import (
     MissingMetadataPolicy,
     SamplingUnit,
@@ -31,6 +33,9 @@ from rivelero.visibility.configuration import (
 from rivelero.visibility.engine import (
     compute_viewpoint_visibility,
     resolve_visibility_parameters,
+)
+from rivelero.visibility.extended import (
+    compute_extended_visibility,
 )
 
 
@@ -542,3 +547,726 @@ def test_visibility_store_lru(make_context, viewpoints, sensors, tmp_path):
     assert store.disk_item_count == 3
     assert store.get(keys[0]) is not None
     assert store.memory_item_count == 2
+
+
+def test_extended_visibility_partitions_domain(
+    make_context,
+    viewpoints,
+    sensors,
+    tmp_path,
+):
+    context = make_context("dem_flat.tif")
+    domain = context.domain
+    domain_mask = np.zeros(context.shape, dtype=bool)
+    domain_mask[40:60, 40:60] = True
+    domain.analysis_mask = domain_mask
+    expected_domain_mask = domain_mask.copy()
+    valid_mask = domain.effective_valid_mask
+    valid_mask[60:65, 40:60] = False
+    domain.valid_mask = valid_mask
+    expected_valid_mask = valid_mask.copy()
+    viewpoint = viewpoints["vp_center_360"]
+    sensor = sensors[viewpoint.sensor_id]
+    configuration = _visibility_configuration(
+        "extended",
+        250,
+        default_target_height_m=0.5,
+    )
+    original_domain_id = domain.domain_id
+    original_grid = domain.grid
+    original_geometry = domain.geometry
+    original_viewpoint = (
+        viewpoint.x,
+        viewpoint.y,
+        viewpoint.observer_height_m,
+        viewpoint.heading_deg,
+        viewpoint.horizontal_fov_deg,
+    )
+    original_sensor = (sensor.sensor_id, sensor.horizontal_fov_deg)
+    original_environment = (
+        context.environment.environment_id,
+        context.environment.elevation_model.source,
+    )
+    original_configuration = (
+        configuration.max_distance_m,
+        configuration.default_target_height_m,
+        configuration.curvature_coefficient,
+    )
+
+    diagnostic = compute_extended_visibility(
+        viewpoint=viewpoint,
+        environment=context.environment,
+        domain=domain,
+        configuration=configuration,
+        sensor=sensor,
+    )
+    canonical = compute_viewpoint_visibility(
+        viewpoint=viewpoint,
+        environment=context.environment,
+        domain=domain,
+        configuration=configuration,
+        sensor=sensor,
+    )
+    repeated = compute_extended_visibility(
+        viewpoint=viewpoint,
+        environment=context.environment,
+        domain=domain,
+        configuration=configuration,
+        sensor=sensor,
+    )
+
+    internal_analysable_mask = (
+        expected_domain_mask & expected_valid_mask
+    )
+    assert np.array_equal(
+        diagnostic.full_visibility.visibility_mask
+        & internal_analysable_mask,
+        canonical.visibility_mask,
+    )
+    assert diagnostic.out_of_domain_visible_cells > 0
+    assert not np.any(
+        diagnostic.full_visibility.visibility_mask[60:65, 40:60]
+    )
+    assert diagnostic.full_visible_cells == (
+        diagnostic.in_domain_visible_cells
+        + diagnostic.out_of_domain_visible_cells
+    )
+    assert np.array_equal(
+        diagnostic.in_domain_visibility_mask
+        | diagnostic.out_of_domain_visibility_mask,
+        diagnostic.full_visibility.visibility_mask,
+    )
+    assert np.array_equal(
+        repeated.full_visibility.visibility_mask,
+        diagnostic.full_visibility.visibility_mask,
+    )
+    assert np.all(
+        ~diagnostic.in_domain_visibility_mask
+        | ~diagnostic.out_of_domain_visibility_mask
+    )
+    assert np.isclose(
+        diagnostic.in_domain_footprint_share
+        + diagnostic.out_of_domain_footprint_share,
+        1.0,
+    )
+    assert diagnostic.in_domain_coverage_share is not None
+    expected_analysable_cells = np.count_nonzero(
+        expected_domain_mask & expected_valid_mask
+    )
+    assert np.isclose(
+        diagnostic.in_domain_coverage_share,
+        diagnostic.in_domain_visible_cells / expected_analysable_cells,
+    )
+    assert np.isclose(
+        diagnostic.in_domain_footprint_share,
+        diagnostic.in_domain_visible_cells / diagnostic.full_visible_cells,
+    )
+    assert np.isclose(
+        diagnostic.out_of_domain_footprint_share,
+        diagnostic.out_of_domain_visible_cells / diagnostic.full_visible_cells,
+    )
+    assert context.crs.linear_units.lower() in {"metre", "meter"}
+    expected_cell_area_m2 = abs(
+        context.transform.a * context.transform.e
+        - context.transform.b * context.transform.d
+    )
+    assert np.isclose(diagnostic.cell_area_m2, expected_cell_area_m2)
+    summary = {
+        "inside_cells": diagnostic.in_domain_visible_cells,
+        "inside_area_m2": diagnostic.in_domain_visible_area_m2,
+        "outside_cells": diagnostic.out_of_domain_visible_cells,
+        "outside_area_m2": diagnostic.out_of_domain_visible_area_m2,
+        "total_cells": diagnostic.full_visible_cells,
+        "total_area_m2": diagnostic.full_visible_area_m2,
+        "inside_footprint_share": diagnostic.in_domain_footprint_share,
+        "outside_footprint_share": diagnostic.out_of_domain_footprint_share,
+    }
+    print("Extended visibility diagnostic (flat DEM, 250 m):", summary)
+    assert np.isclose(
+        summary["inside_area_m2"] + summary["outside_area_m2"],
+        summary["total_area_m2"],
+    )
+    rotated_visibility = replace(
+        diagnostic.full_visibility,
+        transform=Affine(5, 1, 0, 0.5, -5, 0),
+    )
+    rotated_diagnostic = replace(
+        diagnostic,
+        full_visibility=rotated_visibility,
+    )
+    assert np.isclose(rotated_diagnostic.cell_area_m2, 25.5)
+    singular_visibility = replace(
+        diagnostic.full_visibility,
+        transform=Affine(5, 5, 0, 5, 5, 0),
+    )
+    singular_diagnostic = replace(
+        diagnostic,
+        full_visibility=singular_visibility,
+    )
+    with pytest.raises(ValueError, match="positive cell area"):
+        _ = singular_diagnostic.cell_area_m2
+    assert np.array_equal(domain.analysis_mask, expected_domain_mask)
+    assert np.array_equal(domain.valid_mask, expected_valid_mask)
+    assert domain.domain_id == original_domain_id
+    assert domain.grid is original_grid
+    assert domain.geometry is original_geometry
+    assert (
+        viewpoint.x,
+        viewpoint.y,
+        viewpoint.observer_height_m,
+        viewpoint.heading_deg,
+        viewpoint.horizontal_fov_deg,
+    ) == original_viewpoint
+    assert (sensor.sensor_id, sensor.horizontal_fov_deg) == original_sensor
+    assert (
+        context.environment.environment_id,
+        context.environment.elevation_model.source,
+    ) == original_environment
+    assert (
+        configuration.max_distance_m,
+        configuration.default_target_height_m,
+        configuration.curvature_coefficient,
+    ) == original_configuration
+
+    full_grid_domain = replace(
+        domain,
+        domain_id=diagnostic.full_visibility.metadata["analysis_domain_id"],
+        analysis_mask=np.ones(context.shape, dtype=bool),
+        valid_mask=expected_valid_mask.copy(),
+    )
+    canonical_key = make_visibility_key(
+        viewpoint=viewpoint,
+        sensor=sensor,
+        environment=context.environment,
+        domain=domain,
+        visibility_configuration=configuration,
+    )
+    full_terrain_key = make_visibility_key(
+        viewpoint=viewpoint,
+        sensor=sensor,
+        environment=context.environment,
+        domain=full_grid_domain,
+        visibility_configuration=configuration,
+    )
+    assert canonical_key != full_terrain_key
+    store = VisibilityStore(tmp_path / "extended_cache")
+    stored_canonical = store.get_or_compute(
+        canonical_key,
+        lambda: canonical,
+    )
+    stored_full_terrain = store.get_or_compute(
+        full_terrain_key,
+        lambda: diagnostic.full_visibility,
+    )
+    assert store.disk_item_count == 2
+    assert np.array_equal(
+        stored_canonical.visibility_mask,
+        canonical.visibility_mask,
+    )
+    assert np.array_equal(
+        stored_full_terrain.visibility_mask,
+        diagnostic.full_visibility.visibility_mask,
+    )
+    store.clear_memory()
+    reused_canonical = store.get_or_compute(
+        canonical_key,
+        lambda: pytest.fail("canonical visibility cache was not reused"),
+    )
+    reused_full_terrain = store.get_or_compute(
+        full_terrain_key,
+        lambda: pytest.fail("full-terrain visibility cache was not reused"),
+    )
+    assert np.array_equal(
+        reused_canonical.visibility_mask,
+        canonical.visibility_mask,
+    )
+    assert np.array_equal(
+        reused_full_terrain.visibility_mask,
+        diagnostic.full_visibility.visibility_mask,
+    )
+
+
+@pytest.mark.parametrize(
+    "domain_extent",
+    ["full_grid", "disjoint", "empty"],
+)
+def test_extended_visibility_inside_or_outside_domain(
+    make_context,
+    viewpoints,
+    domain_extent,
+):
+    context = make_context("dem_flat.tif")
+    domain_mask = np.zeros(context.shape, dtype=bool)
+    if domain_extent == "full_grid":
+        domain_mask[:] = True
+    elif domain_extent == "disjoint":
+        domain_mask[:5, :5] = True
+    context.domain.analysis_mask = domain_mask
+    viewpoint = viewpoints["vp_center_360"]
+
+    diagnostic = compute_extended_visibility(
+        viewpoint=viewpoint,
+        environment=context.environment,
+        domain=context.domain,
+        configuration=_visibility_configuration(
+            f"extended_{domain_extent}",
+            250,
+        ),
+    )
+
+    assert diagnostic.full_visible_cells > 0
+    if domain_extent == "full_grid":
+        assert diagnostic.in_domain_visible_cells == diagnostic.full_visible_cells
+        assert diagnostic.out_of_domain_visible_cells == 0
+        assert diagnostic.in_domain_footprint_share == 1.0
+        assert diagnostic.out_of_domain_footprint_share == 0.0
+    else:
+        assert diagnostic.in_domain_visible_cells == 0
+        assert diagnostic.out_of_domain_visible_cells == diagnostic.full_visible_cells
+        assert diagnostic.in_domain_footprint_share == 0.0
+        assert diagnostic.out_of_domain_footprint_share == 1.0
+
+
+def test_extended_visibility_nodata_and_zero_visible_cells(
+    make_context,
+    viewpoints,
+):
+    context = make_context("dem_nodata.tif")
+    viewpoint = viewpoints["vp_center_360"]
+    configuration = _visibility_configuration("extended_nodata", 300)
+    expected_valid = elevation_valid_mask(
+        context.dem_path,
+        context.domain.grid,
+        nodata_value=context.environment.elevation_model.nodata_value,
+    )
+    context.domain.valid_mask = None
+    diagnostic = compute_extended_visibility(
+        viewpoint=viewpoint,
+        environment=context.environment,
+        domain=context.domain,
+        configuration=configuration,
+    )
+    canonical = compute_viewpoint_visibility(
+        viewpoint=viewpoint,
+        environment=context.environment,
+        domain=context.domain,
+        configuration=configuration,
+    )
+    invalid = ~expected_valid
+
+    assert np.count_nonzero(invalid) > 0
+    assert diagnostic.full_visible_cells > 0
+    assert np.array_equal(
+        diagnostic.full_visibility.visibility_mask
+        & context.domain.effective_analysis_mask
+        & context.domain.effective_valid_mask,
+        canonical.visibility_mask,
+    )
+    assert np.array_equal(
+        diagnostic.full_visibility.valid_mask,
+        expected_valid,
+    )
+    assert not np.any(diagnostic.full_visibility.visibility_mask[invalid])
+    assert np.array_equal(
+        diagnostic.in_domain_visibility_mask,
+        diagnostic.full_visibility.visibility_mask,
+    )
+    assert diagnostic.out_of_domain_visible_cells == 0
+    assert context.domain.valid_mask is None
+
+    explicit_context = make_context("dem_nodata.tif")
+    explicit_context.domain.valid_mask = np.ones(
+        explicit_context.shape,
+        dtype=bool,
+    )
+    explicit = compute_extended_visibility(
+        viewpoint=viewpoint,
+        environment=explicit_context.environment,
+        domain=explicit_context.domain,
+        configuration=configuration,
+    )
+    assert np.array_equal(
+        explicit.full_visibility.valid_mask,
+        expected_valid,
+    )
+    assert not np.any(explicit.full_visibility.visibility_mask[invalid])
+
+    empty_context = make_context("dem_flat.tif")
+    empty_context.domain.valid_mask = np.zeros(
+        empty_context.shape,
+        dtype=bool,
+    )
+    empty = compute_extended_visibility(
+        viewpoint=viewpoint,
+        environment=empty_context.environment,
+        domain=empty_context.domain,
+        configuration=configuration,
+    )
+
+    assert empty.full_visible_cells == 0
+    assert empty.in_domain_footprint_share is None
+    assert empty.out_of_domain_footprint_share is None
+    assert empty.in_domain_coverage_share is None
+
+
+def test_extended_visibility_valid_counts_match_canonical_sof(
+    make_context,
+    viewpoints,
+    sensors,
+    tmp_path,
+):
+    context = make_context("dem_nodata.tif")
+    assert context.domain.valid_mask is not None
+    viewpoint = viewpoints["vp_center_360"]
+    configuration = _visibility_configuration(
+        "extended_valid_counts",
+        250,
+    )
+    sof, _, store, _ = _build(
+        context=context,
+        viewpoints=viewpoints,
+        sensors=sensors,
+        tmp_path=tmp_path,
+        ids=["vp_center_360"],
+        max_distance_m=250,
+        configuration_id="canonical_valid_counts",
+        visibility_configuration=configuration,
+    )
+    canonical = compute_viewpoint_visibility(
+        viewpoint=viewpoint,
+        environment=context.environment,
+        domain=context.domain,
+        configuration=configuration,
+        sensor=sensors[viewpoint.sensor_id],
+    )
+
+    original_sof_state = (
+        sof.exposure_count.copy(),
+        sof.analysis_mask.copy(),
+        sof.valid_mask.copy(),
+        tuple(sof.active_keys),
+        dict(sof.metadata),
+    )
+    cache_counts = (store.memory_item_count, store.disk_item_count)
+
+    diagnostic = compute_extended_visibility(
+        viewpoint=viewpoint,
+        environment=context.environment,
+        domain=context.domain,
+        configuration=configuration,
+        sensor=sensors[viewpoint.sensor_id],
+    )
+    internal_analysable_mask = sof.analysable_mask
+    extended_internal_valid_mask = (
+        diagnostic.full_visibility.valid_mask
+        & context.domain.effective_analysis_mask
+    )
+
+    assert np.array_equal(
+        internal_analysable_mask,
+        context.domain.effective_analysis_mask
+        & context.domain.effective_valid_mask,
+    )
+    assert np.array_equal(
+        canonical.valid_mask,
+        internal_analysable_mask,
+    )
+    assert np.array_equal(
+        extended_internal_valid_mask,
+        internal_analysable_mask,
+    )
+    assert np.count_nonzero(extended_internal_valid_mask) == np.count_nonzero(
+        internal_analysable_mask
+    )
+    assert np.array_equal(
+        diagnostic.full_visibility.visibility_mask
+        & internal_analysable_mask,
+        canonical.visibility_mask,
+    )
+    assert diagnostic.full_visible_cells == (
+        diagnostic.in_domain_visible_cells
+        + diagnostic.out_of_domain_visible_cells
+    )
+    assert tuple(sof.active_keys) == original_sof_state[3]
+    assert sof.metadata == original_sof_state[4]
+    for current, original in zip(
+        (sof.exposure_count, sof.analysis_mask, sof.valid_mask),
+        original_sof_state[:3],
+    ):
+        assert np.array_equal(current, original)
+    assert (store.memory_item_count, store.disk_item_count) == cache_counts
+
+
+def test_elevation_valid_mask_uses_environment_nodata_value(tmp_path):
+    dem_path = tmp_path / "nodata_without_tag.tif"
+    transform = rasterio.transform.from_origin(
+        500_000,
+        4_100_000,
+        5,
+        5,
+    )
+    values = np.array(
+        [[10, -9999], [np.nan, 20]],
+        dtype=np.float32,
+    )
+    with rasterio.open(
+        dem_path,
+        "w",
+        driver="GTiff",
+        height=2,
+        width=2,
+        count=1,
+        dtype=values.dtype,
+        crs="EPSG:32633",
+        transform=transform,
+    ) as dataset:
+        dataset.write(values, 1)
+
+    grid = AnalysisGrid(
+        crs="EPSG:32633",
+        transform=transform,
+        width=2,
+        height=2,
+    )
+    valid = elevation_valid_mask(
+        dem_path,
+        grid,
+        nodata_value=-9999,
+    )
+
+    assert np.array_equal(
+        valid,
+        np.array([[True, False], [False, True]]),
+    )
+
+
+def test_extended_visibility_distance_heading_and_fov(
+    make_context,
+    viewpoints,
+):
+    context = make_context("dem_flat.tif")
+    domain_mask = np.zeros(context.shape, dtype=bool)
+    domain_mask[40:60, 40:60] = True
+    context.domain.analysis_mask = domain_mask
+    omnidirectional_viewpoint = viewpoints["vp_center_360"]
+    directional_viewpoint = viewpoints["vp_center_east"]
+
+    short_range = compute_extended_visibility(
+        viewpoint=omnidirectional_viewpoint,
+        environment=context.environment,
+        domain=context.domain,
+        configuration=_visibility_configuration(
+            "extended_100m",
+            100,
+            default_target_height_m=0.5,
+        ),
+    )
+    long_configuration = _visibility_configuration(
+        "extended_300m",
+        300,
+        default_target_height_m=0.5,
+    )
+    long_range = compute_extended_visibility(
+        viewpoint=omnidirectional_viewpoint,
+        environment=context.environment,
+        domain=context.domain,
+        configuration=long_configuration,
+    )
+    directional_configuration = _visibility_configuration(
+        "extended_directional",
+        300,
+        default_target_height_m=0.5,
+    )
+    directional = compute_extended_visibility(
+        viewpoint=directional_viewpoint,
+        environment=context.environment,
+        domain=context.domain,
+        configuration=directional_configuration,
+    )
+    canonical_directional = compute_viewpoint_visibility(
+        viewpoint=directional_viewpoint,
+        environment=context.environment,
+        domain=context.domain,
+        configuration=directional_configuration,
+    )
+
+    assert long_range.full_visible_cells > short_range.full_visible_cells
+    assert np.all(
+        ~directional.full_visibility.visibility_mask
+        | long_range.full_visibility.visibility_mask
+    )
+    assert np.array_equal(
+        directional.in_domain_visibility_mask,
+        canonical_directional.visibility_mask,
+    )
+    resolved = directional.full_visibility.resolved_parameters
+    assert resolved.observer_height_m == 1.75
+    assert resolved.target_height_m == 0.5
+    assert resolved.heading_deg == 90
+    assert resolved.horizontal_fov_deg == 90
+    assert resolved.max_distance_m == 300
+    x_grid = _x_grid(context)
+    east_cells = directional.full_visibility.visibility_mask & (
+        x_grid > directional_viewpoint.x
+    )
+    assert np.count_nonzero(east_cells) / directional.full_visible_cells > 0.75
+
+
+def test_extended_visibility_observation_event_parameters(
+    make_context,
+    viewpoints,
+    events,
+):
+    context = make_context("dem_flat.tif")
+    event = events["event_003"]
+    viewpoint = viewpoints[event.viewpoint_id]
+    configuration = _visibility_configuration(
+        "extended_event",
+        300,
+        sampling_unit=SamplingUnit.OBSERVATION_EVENT,
+    )
+
+    diagnostic = compute_extended_visibility(
+        viewpoint=viewpoint,
+        event=event,
+        environment=context.environment,
+        domain=context.domain,
+        configuration=configuration,
+    )
+    canonical = compute_viewpoint_visibility(
+        viewpoint=viewpoint,
+        event=event,
+        environment=context.environment,
+        domain=context.domain,
+        configuration=configuration,
+    )
+
+    assert diagnostic.full_visibility.event_id == event.event_id
+    assert np.array_equal(
+        diagnostic.in_domain_visibility_mask,
+        canonical.visibility_mask,
+    )
+    assert (
+        diagnostic.full_visibility.resolved_parameters.heading_deg
+        == 180
+    )
+    assert (
+        diagnostic.full_visibility.resolved_parameters.horizontal_fov_deg
+        == 90
+    )
+
+
+def test_extended_visibility_manuscript_grid_geometry(tmp_path):
+    width = height = 400
+    resolution_m = 5
+    transform = rasterio.transform.from_origin(
+        500_000,
+        4_100_000,
+        resolution_m,
+        resolution_m,
+    )
+    crs = "EPSG:32633"
+    dem_path = tmp_path / "flat_2km_5m.tif"
+    with rasterio.open(
+        dem_path,
+        "w",
+        driver="GTiff",
+        height=height,
+        width=width,
+        count=1,
+        dtype="float32",
+        crs=crs,
+        transform=transform,
+    ) as dataset:
+        dataset.write(
+            np.full((height, width), 100.0, dtype=np.float32),
+            1,
+        )
+
+    grid = AnalysisGrid(
+        crs=crs,
+        transform=transform,
+        width=width,
+        height=height,
+    )
+    analysis_mask = np.zeros(grid.shape, dtype=bool)
+    analysis_mask[100:300, 100:300] = True
+    domain = AnalysisDomain(
+        domain_id="manuscript_central_domain",
+        name="Central 1 km domain",
+        geometry=box(500_500, 4_098_500, 501_500, 4_099_500),
+        crs=crs,
+        grid=grid,
+        analysis_mask=analysis_mask,
+    )
+    environment = Environment(
+        environment_id="manuscript_flat_terrain",
+        name="Flat 2 km terrain",
+        elevation_model=ElevationModel(
+            source=dem_path,
+            model_type="dem",
+            crs=crs,
+            resolution_m=resolution_m,
+        ),
+    )
+    viewpoint = Viewpoint(
+        viewpoint_id="near_eastern_domain_boundary",
+        x=501_477.5,
+        y=4_098_997.5,
+        crs=crs,
+        observer_height_m=1.75,
+        heading_deg=90,
+        horizontal_fov_deg=90,
+    )
+    configuration = _visibility_configuration(
+        "manuscript_boundary_pilot",
+        150,
+        default_target_height_m=0.5,
+        default_horizontal_fov_deg=90,
+    )
+
+    diagnostic = compute_extended_visibility(
+        viewpoint=viewpoint,
+        environment=environment,
+        domain=domain,
+        configuration=configuration,
+    )
+    canonical = compute_viewpoint_visibility(
+        viewpoint=viewpoint,
+        environment=environment,
+        domain=domain,
+        configuration=configuration,
+    )
+
+    internal_analysable = (
+        domain.effective_analysis_mask
+        & diagnostic.full_visibility.valid_mask
+    )
+    assert diagnostic.in_domain_visible_cells > 0
+    assert diagnostic.out_of_domain_visible_cells > 0
+    assert diagnostic.full_visible_cells == (
+        diagnostic.in_domain_visible_cells
+        + diagnostic.out_of_domain_visible_cells
+    )
+    assert np.array_equal(
+        diagnostic.full_visibility.visibility_mask & internal_analysable,
+        canonical.visibility_mask,
+    )
+    assert diagnostic.cell_area_m2 == 25.0
+    assert np.isclose(
+        diagnostic.in_domain_visible_area_m2
+        + diagnostic.out_of_domain_visible_area_m2,
+        diagnostic.full_visible_area_m2,
+    )
+    summary = {
+        "inside_cells": diagnostic.in_domain_visible_cells,
+        "inside_area_m2": diagnostic.in_domain_visible_area_m2,
+        "outside_cells": diagnostic.out_of_domain_visible_cells,
+        "outside_area_m2": diagnostic.out_of_domain_visible_area_m2,
+        "total_cells": diagnostic.full_visible_cells,
+        "total_area_m2": diagnostic.full_visible_area_m2,
+        "inside_footprint_share": diagnostic.in_domain_footprint_share,
+        "outside_footprint_share": diagnostic.out_of_domain_footprint_share,
+        "in_domain_coverage_share": diagnostic.in_domain_coverage_share,
+    }
+    print("Extended visibility diagnostic (400x400, 5 m, 150 m):", summary)

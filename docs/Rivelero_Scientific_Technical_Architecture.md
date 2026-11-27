@@ -231,7 +231,48 @@ reports
 
 ---
 
-## 2.5 Analysis is descriptive unless an objective is explicitly defined
+## 2.5 Extended visibility diagnostics
+
+`visibility.extended.compute_extended_visibility` uses the canonical
+single-Viewpoint visibility engine over the full `AnalysisGrid`, then
+partitions valid visible cells using the original domain and terrain-validity
+masks. This exposes visibility outside the `AnalysisDomain` without changing
+the domain-clipped visibility used to build the Survey Observability Field.
+
+The diagnostic reports in-domain and out-of-domain visible-cell counts,
+their shares of the full visible footprint, and the share of valid
+in-domain cells that are visible. Undefined shares are returned as `None`;
+cell areas are derived from the affine-transform determinant and projected
+CRS unit conversions. Invalid cells are excluded using the DEM's raster mask,
+finite-value check, any Environment NoData value, and the domain's explicit
+validity mask when present. The GDAL viewshed can warn that line-of-sight
+results crossing NoData may be unreliable; masking prevents invalid cells
+from contributing to metrics but does not resolve that terrain uncertainty.
+
+With `V` as full-grid visibility, `D` as the original domain mask, and `T` as
+the derived terrain-validity mask, the partitions are `I = V & D & T` and
+`O = V & ~D & T`. Footprint shares divide `|I|` and `|O|` by `|I| + |O|`;
+in-domain coverage divides `|I|` by `|D & T|`. Each area is its partition's
+cell count multiplied by the projected cell area.
+
+If `AnalysisDomain.valid_mask` is absent, the diagnostic derives terrain
+validity from the DEM using the shared elevation-validity utility. An explicit
+domain mask is intersected with this terrain mask. The general
+`AnalysisDomain` and SOF-builder all-valid fallback remains unchanged.
+Standard GUI domain construction materializes terrain validity, and project
+restoration now normalizes a missing legacy mask only after confirming that
+the DEM matches the saved grid. A saved SOF is retained only when its validity
+mask matches the derived mask; otherwise it is rejected and observability
+must be rebuilt. If the DEM is missing or does not match the grid, the
+existing resource policy prevents restoration of the domain rather than
+assuming all cells are valid.
+
+The diagnostic currently computes directly and does not use `VisibilityStore`.
+If callers cache its full-grid result, they must build its key with the
+temporary full-grid domain; its distinct ID and mask fingerprint separate it
+from the canonical domain-clipped SOF cache entry.
+
+## 2.6 Analysis is descriptive unless an objective is explicitly defined
 
 Repeated coverage is not automatically “waste”.
 

@@ -298,12 +298,17 @@ def rasterize_domain_geometry(
 def elevation_valid_mask(
     path: str | Path,
     grid: AnalysisGrid,
+    *,
+    nodata_value: float | None = None,
 ) -> np.ndarray:
     """Return cells with usable elevation (not nodata and finite).
 
     Cells without elevation cannot be analysed for visibility. Passing this
     mask as ``valid_mask`` keeps them classified as INVALID rather than as
     blind spots.
+
+    ``nodata_value`` supplements raster mask metadata when the Environment
+    records a NoData value that is not encoded in the raster itself.
     """
 
     with rasterio.open(path) as dataset:
@@ -317,6 +322,9 @@ def elevation_valid_mask(
 
     values = np.ma.getdata(band)
     invalid = np.ma.getmaskarray(band)
+
+    if nodata_value is not None:
+        invalid = invalid | (values == nodata_value)
 
     if np.issubdtype(values.dtype, np.floating):
         invalid = invalid | ~np.isfinite(values)

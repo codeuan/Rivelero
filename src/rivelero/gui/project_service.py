@@ -17,6 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
+import numpy as np
 import rasterio
 
 from rivelero.analysis.comparison import (
@@ -123,12 +124,46 @@ def open_state(path: Path | str) -> OpenResult:
 
     # World.
     sof = data.sof
+    field_status = data.field_status
     if data.environment is not None:
         domain = data.domain
         install = True
-        if data.elevation is not None and data.elevation.status == ResourceStatus.CHANGED:
-            install, domain, message = _refresh_domain_validity(data)
+        terrain_changed = (
+            data.elevation is not None
+            and data.elevation.status == ResourceStatus.CHANGED
+        )
+        validity_missing = domain is not None and domain.valid_mask is None
+        if terrain_changed or validity_missing:
+            install, domain, message = _refresh_domain_validity(
+                data,
+                terrain_changed=terrain_changed,
+            )
             warnings.append(message)
+            if not install and sof is not None:
+                sof = None
+                field_status = "rejected"
+                warnings.append(
+                    "The saved observability field was not restored because "
+                    "the available terrain does not match the saved grid. "
+                    "Reload the terrain and rebuild observability."
+                )
+            elif (
+                install
+                and validity_missing
+                and sof is not None
+                and domain is not None
+                and not np.array_equal(
+                    sof.valid_mask,
+                    domain.effective_valid_mask,
+                )
+            ):
+                sof = None
+                field_status = "rejected"
+                warnings.append(
+                    "The saved observability field was not restored because "
+                    "its terrain-validity mask differs from the DEM-derived "
+                    "mask. Rebuild observability before analysis."
+                )
         if install:
             state.set_environment(data.environment, grid=data.grid)
             if domain is not None:
@@ -140,7 +175,6 @@ def open_state(path: Path | str) -> OpenResult:
 
     # Derived observability: installed only if it validates against the
     # restored inputs (the digest was already checked when reading).
-    field_status = data.field_status
     if sof is not None:
         try:
             state.set_observability_result(sof, build_report=data.build_report)
@@ -199,13 +233,15 @@ def _check_references(state: ApplicationState) -> None:
         )
 
 
-def _refresh_domain_validity(data: ProjectData):
-    """Terrain changed: returns (install terrain?, domain, message).
+def _refresh_domain_validity(
+    data: ProjectData,
+    *,
+    terrain_changed: bool = True,
+):
+    """Derive domain validity after a terrain change or legacy omission.
 
-    If the changed file still has the saved grid, the terrain and the domain
-    geometry are kept and the domain's validity (NoData) mask is recomputed
-    from the current file. Otherwise the terrain is not installed at all,
-    because the saved grid no longer describes it.
+    The raster must match the saved grid before it can determine valid cells.
+    Otherwise the terrain and domain are not installed.
     """
 
     grid = data.grid
@@ -219,16 +255,24 @@ def _refresh_domain_validity(data: ProjectData):
         )
     if not same_grid:
         return False, None, (
-            "The terrain file changed and no longer matches the saved AnalysisGrid; "
+            "The available terrain does not match the saved AnalysisGrid; "
             "terrain and AnalysisDomain were not restored. Load the terrain again in World."
         )
-    valid = elevation_valid_mask(source, grid)
-    return True, (
-        replace(data.domain, valid_mask=valid) if data.domain is not None else None
-    ), (
+    valid = elevation_valid_mask(
+        source,
+        grid,
+        nodata_value=data.environment.elevation_model.nodata_value,
+    )
+    message = (
         "The terrain file changed since the project was saved; the AnalysisDomain "
         "validity (NoData) mask was recomputed from the current file."
+        if terrain_changed
+        else "The saved AnalysisDomain had no terrain-validity mask; one was "
+        "derived from the validated DEM."
     )
+    return True, (
+        replace(data.domain, valid_mask=valid) if data.domain is not None else None
+    ), message
 
 
 def _store(settings, warnings):
