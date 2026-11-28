@@ -18,7 +18,7 @@ def trace(camera, start, end):
         [camera], unreal.DrawDebugTrace.NONE, True)
 
 
-def run(batch_dir, northwest_cm, datum_z_cm=0):
+def trace_steps(batch_dir, northwest_cm, datum_z_cm=0):
     """NW is the XY of the north-west CELL CENTRE; world +X north, +Y east."""
     root = Path(batch_dir)
     cfg = json.loads((root / "batch.json").read_text())
@@ -97,8 +97,14 @@ def run(batch_dir, northwest_cm, datum_z_cm=0):
                             end = unreal.Vector(x, y, z)
                             mask[index] = trace(camera, eye, end) is None
                     (stage / f"{vid}.z").write_bytes(zlib.compress(mask))
+                    yield name, vid
                 stage.rename(result / name)
             unreal.log(f"Visibility masks complete: {name}")
         finally:
             for camera in cameras.values():
                 actors.destroy_actor(camera)
+
+
+def run(batch_dir, northwest_cm, datum_z_cm=0):
+    for _ in trace_steps(batch_dir, northwest_cm, datum_z_cm):
+        pass

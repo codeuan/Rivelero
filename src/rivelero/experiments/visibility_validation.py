@@ -35,7 +35,7 @@ def select(points, count, mode, rng):
     return chosen
 
 
-def prepare(args, root):
+def prepare(args, root, layout_builder=None, checkpoint=lambda: None):
     from affine import Affine
     from rivelero.visibility.directional import apply_horizontal_fov
     from rivelero.visibility.viewshed import open_viewshed_dem, run_viewshed, accumulate_viewshed
@@ -64,6 +64,7 @@ def prepare(args, root):
     (root / "predicted").mkdir()
     for row in rows:
         for col in cols:
+            checkpoint()
             x, y = transform * (col + 0.5, row + 0.5)
             if (x, y) == (centre_x, centre_y):
                 raise ValueError("Viewpoint at exact centre has undefined heading.")
@@ -85,19 +86,23 @@ def prepare(args, root):
     rng = np.random.default_rng(args.seed)
     points = np.asarray([(v["east_m"], v["north_m"]) for v in viewpoints])
     layouts = []
-    for mode in ("random", "dispersed", "clustered"):
-        for rep in range(1, args.replicates + 1):
-            for i in select(points, args.cameras, mode, rng):
-                layouts.append(dict(run=f"{mode}-{rep:03}", viewpoint=viewpoints[i]["viewpoint"]))
+    if layout_builder is not None:
+        layouts = layout_builder(root, viewpoints, points, rng)
+    else:
+        for mode in ("random", "dispersed", "clustered"):
+            for rep in range(1, args.replicates + 1):
+                for i in select(points, args.cameras, mode, rng):
+                    layouts.append(dict(run=f"{mode}-{rep:03}", viewpoint=viewpoints[i]["viewpoint"]))
     write_csv(root / "layouts.csv", layouts)
     config = dict(batch=uuid.uuid4().hex, dem=str(args.dem.resolve()), shape=[h, w],
+                  west_edge=transform.c, north_edge=transform.f,
                   east_step=transform.a, south_step=-transform.e, distance=args.distance,
                   cameras=args.cameras, replicates=args.replicates, seed=args.seed,
                   observer_m=1.75, target_m=0.5, fov_deg=90)
     (root / "batch.json").write_text(json.dumps(config, indent=2))
 
 
-def compare(root, threshold):
+def compare(root, threshold, checkpoint=lambda: None):
     if not 0 <= threshold <= 1:
         raise ValueError("Threshold must be between zero and one.")
     config = json.loads((root / "batch.json").read_text())
@@ -109,6 +114,7 @@ def compare(root, threshold):
     observed = root / "unreal" / config["batch"]
     scores, summaries = [], []
     for run, ids in layouts.items():
+        checkpoint()
         unions = [np.zeros(shape, bool), np.zeros(shape, bool)]
         passed = True
         for vid in ids:

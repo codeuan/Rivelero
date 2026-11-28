@@ -1456,6 +1456,15 @@ class MainWindow(QMainWindow):
             lambda _checked=False: self.navigate_to(WorkflowPage.OUTPUT)
         )
         menu.addAction(self.export_action)
+        self.menuBar().addAction("&Experiments…", self.open_experiments)
+
+    def open_experiments(self):
+        from rivelero.gui.experiment_dialog import ExperimentDialog
+        if not hasattr(self, "experiment_dialog"):
+            self.experiment_dialog = ExperimentDialog(self)
+        self.experiment_dialog.show()
+        self.experiment_dialog.raise_()
+        self.experiment_dialog.activateWindow()
 
     # Revision of the last PROJECT change the visible page was refreshed for.
     _project_revision_seen = -1

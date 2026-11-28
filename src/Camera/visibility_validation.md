@@ -65,3 +65,51 @@ landscape centre. Comparisons use a flat-earth model in both engines.
    from pathlib import Path
    mask = np.frombuffer(zlib.decompress(Path(mask_path).read_bytes()), np.uint8).reshape(height, width)
    ```
+
+## Run from the desktop app
+
+The **Experiments…** menu opens three tabs. Each tab has its own settings and
+Go button. Choose a DEM and a results folder accessible to both applications.
+The app and Unreal may use different paths to the same folder.
+
+Start the experiment server once in the Python console of the Unreal Editor
+containing the corresponding landscape. For example, after adding the Camera
+directory to sys.path as above:
+
+```python
+import experiment_server
+experiment_server.start(r"C:\experiments", northwest_cm=(0, 0), datum_z_cm=0)
+```
+
+Set registration to the actual landscape values. The default server URL is
+`http://127.0.0.1:8765`. For a separate UE machine on a trusted network,
+supply its LAN address as the server's `host` argument and enter that address
+in the app. The bridge uses unauthenticated HTTP and a shared results folder.
+Use `experiment_server.stop()` before changing levels or registration.
+
+Press **Go**. Rivelero prepares the predictions in a new job folder, waits for
+the server if necessary, and submits the batch automatically. The editor
+performs collision traces on its main thread. Cancel stops the desktop task
+and signals the editor to clean up at the next camera boundary. Each job
+records the settings and seed, the viewpoints and layout IDs, fidelity scores,
+and results for accepted layouts. Rejected layouts remain in run_scores.csv.
+
+- **Viewpoint selection** compares random orderings with descending individual
+  coverage and greedy marginal coverage. Each row reports central-domain and
+  outside-domain coverage after adding a camera. Random orderings are
+  replicated; deterministic rankings run once. Run the tab separately for
+  flat and rugged DEMs with the corresponding Unreal landscape loaded.
+- **Observation gaps** selects and validates one fixed layout. Each replicate
+  draws a new two-dimensional gradient Perlin field and samples distinct
+  central-domain cells with weights proportional to exp(contrast × noise).
+  Patch scale is in metres. Contrast zero gives uniform sampling. plants.csv
+  records every target's coordinates and detection; results.csv counts
+  detections and misses. Detection is perfect in cells visible to any camera.
+- **Spatial redundancy** compares random, dispersed and clustered layouts at
+  the same camera count and reports blind, singly visible and repeatedly
+  visible cells, plus mean and maximum exposure inside the central domain.
+
+These experiments use geometric line traces. The interactive hello_camera.py
+viewer is for Project AirSim image streams and is unnecessary for these runs.
+The experiment endpoint is provided by the editor bridge, separately from the
+Project AirSim service ports.

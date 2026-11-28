@@ -57,6 +57,8 @@ TEST_CATEGORIES: dict[str, tuple[str, ...]] = {
     "test_dem_distribution.py": ("unit",),
     "test_domain_operations.py": ("unit",),
     "test_environment_import.py": ("unit",),
+    "test_experiment_plants.py": ("unit",),
+    "test_experiment_dialog.py": ("gui",),
     "test_export.py": ("unit",),
     "test_figures.py": ("unit",),
     "test_import_crs.py": ("gui", "integration"),
