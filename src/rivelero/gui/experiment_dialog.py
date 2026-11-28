@@ -47,10 +47,12 @@ class ExperimentDialog(W.QDialog):
             controls = dict(
                 cameras=number(10 if exp == 1 else 20, 1, 100),
                 replicates=number(50 if exp == 2 else 100, 1, 10000),
+                camera_height_m=number(1.75, 0.01, 100000, 2),
                 distance=number(250, 1, 100000), seed=number(42, 0, 2147483647),
                 threshold=number(0.95, 0, 1, 3))
             for key, label in (("cameras", "Maximum cameras" if exp == 1 else "Cameras per layout"),
                                ("replicates", ("Random layouts", "Plant redistributions", "Layouts per mode")[exp-1]),
+                               ("camera_height_m", "Camera height above ground (m)"),
                                ("distance", "Observation distance (m)"), ("seed", "Seed"),
                                ("threshold", "Minimum IoU (must exceed)")):
                 form.addRow(label, controls[key])

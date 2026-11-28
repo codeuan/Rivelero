@@ -54,6 +54,8 @@ def prepare(args, root, layout_builder=None, checkpoint=lambda: None):
     h, w = heights.shape
     if min(h, w) < 20 or not 1 <= args.cameras <= 100 or args.replicates < 1:
         raise ValueError("Need at least 20x20 cells, 1–100 cameras and positive replicates.")
+    if not math.isfinite(args.camera_height_m) or args.camera_height_m <= 0:
+        raise ValueError("Camera height must be finite and positive.")
     if not math.isfinite(args.distance) or args.distance <= 0:
         raise ValueError("Distance must be positive and finite.")
     # Ten stratified rows and columns over the central half of each dimension.
@@ -74,7 +76,7 @@ def prepare(args, root, layout_builder=None, checkpoint=lambda: None):
                                    east_m=x, north_m=y, elevation_m=heights[row, col].item(),
                                    heading_deg=yaw))
             view = run_viewshed(band=band, observer_x=x, observer_y=y,
-                                observer_height_m=1.75, target_height_m=0.5,
+                                observer_height_m=args.camera_height_m, target_height_m=0.5,
                                 max_distance_m=args.distance, curvature_coefficient=0.0)
             full = np.zeros((h, w), dtype=np.uint8)
             accumulate_viewshed(accumulator=full, viewshed_dataset=view, dem_transform=transform)
@@ -98,7 +100,7 @@ def prepare(args, root, layout_builder=None, checkpoint=lambda: None):
                   west_edge=transform.c, north_edge=transform.f,
                   east_step=transform.a, south_step=-transform.e, distance=args.distance,
                   cameras=args.cameras, replicates=args.replicates, seed=args.seed,
-                  observer_m=1.75, target_m=0.5, fov_deg=90)
+                  observer_m=args.camera_height_m, target_m=0.5, fov_deg=90)
     (root / "batch.json").write_text(json.dumps(config, indent=2))
 
 
@@ -155,6 +157,7 @@ def main():
     prep = commands.add_parser("prepare")
     prep.add_argument("dem", type=Path)
     prep.add_argument("out", type=Path)
+    prep.add_argument("--camera-height-m", type=float, default=1.75)
     prep.add_argument("--distance", required=True, type=float)
     prep.add_argument("--cameras", type=int, default=20)
     prep.add_argument("--replicates", type=int, default=100)

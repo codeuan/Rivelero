@@ -78,7 +78,8 @@ directory to sys.path as above:
 
 ```python
 import experiment_server
-experiment_server.start(r"C:\experiments", northwest_cm=(0, 0), datum_z_cm=0)
+experiment_server.start(r"C:\experiments", northwest_cm=(0, 0), datum_z_cm=0,
+                        othonna_mesh="/Game/Plants/SM_Othonna.SM_Othonna")
 ```
 
 Set registration to the actual landscape values. The default server URL is
@@ -113,3 +114,23 @@ These experiments use geometric line traces. The interactive hello_camera.py
 viewer is for Project AirSim image streams and is unnecessary for these runs.
 The experiment endpoint is provided by the editor bridge, separately from the
 Project AirSim service ports.
+
+
+All three tabs accept camera height above local ground in metres (default
+1.75). The same setting drives GDAL's observer height and the Unreal camera
+component position. The CLI equivalent is `prepare --camera-height-m 2.5`.
+
+For Experiment 2, replace the example asset path with your actual Othonna
+Static Mesh object path from the Content Browser. Use a mesh with its origin at
+the plant base. Restart the Unreal Editor and start the updated bridge after
+updating the scripts. The other experiments do not require a plant asset.
+
+Before submitting the job, Rivelero writes planting_list.csv with one entry per
+plant per replicate. After the terrain-only camera traces, Unreal loads one
+replicate at a time, spawns from raster row/column and reads back each
+labelled mesh component's world position. Expected XYZ comes from the exported
+easting, northing and DEM elevation. plant_validation.csv records both
+positions and the 3D error in centimetres. A missing or duplicate expected
+actor, incorrect mesh, displacement over 5 cm, or missing ground collision
+within 5 cm stops the job. Actors are cleaned up between replicates. Detection
+still uses the fixed camera visibility mask and the 0.5 m target height.

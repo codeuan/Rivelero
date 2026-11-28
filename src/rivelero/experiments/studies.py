@@ -27,6 +27,7 @@ class Settings:
     scale_m: float = 100
     contrast: float = 5
     layout: str = "random"
+    camera_height_m: float = 1.75
 
 
 def domain(shape):
@@ -75,26 +76,46 @@ def read_csv(path):
         return list(csv.DictReader(stream))
 
 
-def plant_replicates(root, settings, cfg, region, seen, checkpoint):
-    ys, xs = region
-    counts = []
+def write_planting_list(root, settings, cfg, checkpoint):
+    ys, xs = domain(cfg["shape"])
+    shape = (ys.stop-ys.start, xs.stop-xs.start)
+    terrain = np.memmap(root / "terrain.f32", dtype="<f4", mode="r", shape=tuple(cfg["shape"]))
     seeds = np.random.SeedSequence([settings.seed, 2]).spawn(settings.replicates)
-    with (root / "plants.csv").open("w", newline="", encoding="utf-8") as stream:
+    with (root / "planting_list.csv").open("w", newline="", encoding="utf-8") as stream:
         writer = csv.writer(stream)
-        writer.writerow(["replicate", "plant", "row", "col", "east_m", "north_m", "detected"])
+        writer.writerow(["replicate", "plant", "row", "col", "east_m", "north_m", "ground_m"])
         for rep, seed in enumerate(seeds, 1):
             checkpoint()
-            cells = sample_plants(seen.shape, settings.plants, (cfg["south_step"], cfg["east_step"]),
+            cells = sample_plants(shape, settings.plants, (cfg["south_step"], cfg["east_step"]),
                                   settings.scale_m, settings.contrast, np.random.default_rng(seed))
-            detected = int(seen[cells[:, 0], cells[:, 1]].sum())
             for plant, (r, c) in enumerate(cells, 1):
                 row, col = r+ys.start, c+xs.start
                 east = cfg["west_edge"] + (col+0.5)*cfg["east_step"]
                 north = cfg["north_edge"] - (row+0.5)*cfg["south_step"]
-                writer.writerow([rep, plant, row, col, east, north, int(seen[r, c])])
-            counts.append(dict(replicate=rep, plants=settings.plants, detected=detected,
-                               missed=settings.plants-detected))
-    return counts
+                writer.writerow([rep, plant, row, col, east, north, float(terrain[row, col])])
+
+
+def score_plants(root, settings, seen, checkpoint):
+    audit_path = root / "plant_validation.csv"
+    if not audit_path.is_file():
+        raise RuntimeError("Missing Unreal plant validation. Restart the updated UE experiment server.")
+    expected = read_csv(root / "planting_list.csv")
+    audit = read_csv(audit_path)
+    def key(row):
+        return row["replicate"], row["plant"]
+    keys = {key(row) for row in expected}
+    if (len(keys) != settings.replicates * settings.plants or len(audit) != len(keys)
+            or {key(row) for row in audit if row["verified"] == "True"} != keys):
+        raise RuntimeError("Unreal did not verify every expected Othonna exactly once.")
+    totals = [0] * settings.replicates
+    for row in expected:
+        if row["plant"] == "1":
+            checkpoint()
+        row["detected"] = int(seen[int(row["row"]), int(row["col"])] > 0)
+        totals[int(row["replicate"])-1] += row["detected"]
+    write_csv(root / "plants.csv", expected)
+    return [dict(replicate=i, plants=settings.plants, detected=n, missed=settings.plants-n)
+            for i, n in enumerate(totals, 1)]
 
 
 def analyse(root, settings, checkpoint):
@@ -120,7 +141,7 @@ def analyse(root, settings, checkpoint):
                                     visible_outside=np.count_nonzero(exposure)-inside,
                                     fraction_inside=inside/central.size))
         if settings.experiment == 2:
-            results = plant_replicates(root, settings, cfg, region, central > 0, checkpoint)
+            results = score_plants(root, settings, exposure, checkpoint)
         if settings.experiment == 3:
             results.append(dict(layout=name, blind=np.count_nonzero(central == 0),
                                 unique=np.count_nonzero(central == 1), repeated=np.count_nonzero(central >= 2),
@@ -151,6 +172,8 @@ def run_experiment(settings, shared_root, endpoint, *, task_context):
         ry, rx = domain(cfg["shape"])
         if settings.experiment == 2 and settings.plants > (ry.stop-ry.start)*(rx.stop-rx.start):
             raise ValueError("Plant count exceeds the number of distinct analysis cells.")
+        if settings.experiment == 2:
+            write_planting_list(root, settings, cfg, checkpoint)
         (root / "request.json").write_text(json.dumps(asdict(settings), default=str, indent=2))
         request = Request(f"{endpoint.rstrip('/')}/jobs/{job}", data=b"", method="POST")
         while True:

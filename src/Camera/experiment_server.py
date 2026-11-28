@@ -12,7 +12,7 @@ from trace_visibility import trace_steps
 _active = None
 
 
-def start(shared_root, northwest_cm, datum_z_cm=0, host="127.0.0.1", port=8765):
+def start(shared_root, northwest_cm, datum_z_cm=0, host="127.0.0.1", port=8765, othonna_mesh=None):
     global _active
     if _active is not None:
         raise RuntimeError("Experiment server is already running.")
@@ -54,6 +54,13 @@ def start(shared_root, northwest_cm, datum_z_cm=0, host="127.0.0.1", port=8765):
         with lock:
             states[current] = value
 
+    def job_steps(directory):
+        yield from trace_steps(directory, northwest_cm, datum_z_cm)
+        request = json.loads((directory / "request.json").read_text())
+        if request.get("experiment") == 2:
+            from validate_othonna import validate_plants
+            yield from validate_plants(directory, northwest_cm, datum_z_cm, othonna_mesh, request)
+
     def tick(delta):
         nonlocal current, steps
         try:
@@ -62,14 +69,14 @@ def start(shared_root, northwest_cm, datum_z_cm=0, host="127.0.0.1", port=8765):
                     current = pending.get_nowait()
                 except queue.Empty:
                     return
-                steps = trace_steps(root / current, northwest_cm, datum_z_cm)
+                steps = job_steps(root / current)
             if (root / current / "cancelled").exists():
                 steps.close()
                 update("Cancelled")
                 current = None
                 return
             layout, camera = next(steps)
-            update(f"Tracing {layout}, {camera}")
+            update(f"{layout}, {camera}")
         except StopIteration:
             update("Complete")
             current = None
