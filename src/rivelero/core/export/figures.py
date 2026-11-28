@@ -32,9 +32,9 @@ from matplotlib.figure import Figure
 from matplotlib.ticker import MaxNLocator
 
 from rivelero.analysis.coverage import CoverageSummary, summarize_coverage
-from rivelero.export.catalog import ExportContext
-from rivelero.export.files import atomic_output, check_path_length
-from rivelero.export.metadata import product_metadata, sidecar_path, write_sidecar
+from rivelero.core.export.catalog import ExportContext
+from rivelero.core.export.files import atomic_output, check_path_length
+from rivelero.core.export.metadata import product_metadata, sidecar_path, write_sidecar
 from rivelero.visualization import layers
 from rivelero.visualization.analysis import (
     plot_coverage_composition,
@@ -494,7 +494,7 @@ def run_figure_export(
 ) -> FigureExportResult:
     """Export selected figures (same conflict and failure rules as data export)."""
 
-    from rivelero.export.catalog import ExportConflictError, ExportUnavailableError
+    from rivelero.core.export.catalog import ExportConflictError, ExportUnavailableError
 
     catalog = {product.key: product for product in figure_catalog(context)}
     unknown = [key for key in keys if key not in catalog]

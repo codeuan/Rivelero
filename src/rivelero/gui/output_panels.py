@@ -26,15 +26,15 @@ except ImportError:
         QLineEdit, QListWidget, QProgressBar, QSpinBox, QVBoxLayout, QWidget,
     )
 
-from rivelero.export.catalog import ExportContext
-from rivelero.export.figures import (
+from rivelero.core.export.catalog import ExportContext
+from rivelero.core.export.figures import (
     DEFAULT_DPI,
     FIGURE_GROUPS,
     FigureOptions,
     figure_catalog,
     run_figure_export,
 )
-from rivelero.export.report import DEFAULT_REPORT_FIGURES, ReportOptions, generate_report
+from rivelero.core.export.report import DEFAULT_REPORT_FIGURES, ReportOptions, generate_report
 from rivelero.gui.application_state import ApplicationState
 from rivelero.gui.components import ContentCard, make_primary_button, make_secondary_button
 from rivelero.gui.export_service import export_context_from_state

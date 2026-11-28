@@ -15,8 +15,8 @@ from PIL import Image
 
 from rivelero.analysis.comparison import BASELINE_ID, LIVE_SCENARIO_ID
 from rivelero.analysis.coverage import summarize_coverage
-from rivelero.export.catalog import ExportConflictError, ExportContext, ExportUnavailableError
-from rivelero.export.figures import (
+from rivelero.core.export.catalog import ExportConflictError, ExportContext, ExportUnavailableError
+from rivelero.core.export.figures import (
     FigureOptions,
     figure_catalog,
     run_figure_export,

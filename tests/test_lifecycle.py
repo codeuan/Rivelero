@@ -365,7 +365,7 @@ def test_close_while_task_running(app):
 
 
 def test_task_errors_are_described_for_users():
-    from rivelero.export.catalog import ExportConflictError
+    from rivelero.core.export.catalog import ExportConflictError
     from rivelero.gui.task_controller import describe_error
     from pathlib import Path
 

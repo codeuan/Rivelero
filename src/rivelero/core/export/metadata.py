@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from rivelero.export.files import atomic_output
+from rivelero.core.export.files import atomic_output
 from rivelero.project.schema import SCHEMA_VERSION, software_metadata
 
 EXPORT_FORMAT = "rivelero-export"

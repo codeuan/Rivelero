@@ -1,52 +1,1700 @@
-14:28:21:462 [INFO] Connecting to simulation server at 127.0.0.1
-14:28:21:467 [INFO] Connection opened.
-14:28:21:467 [INFO] Started the pub-sub topic receiving thread.
-14:28:21:467 [INFO] Loading scene config: scene_cameras_generated.jsonc
-14:28:22:880 [INFO] Getting the list of available topic info from the sim server...
-14:28:22:891 [INFO] Successfully received topic info list.
-14:28:24:892 [INFO] World object updated for the loaded scene '/Sim/SceneBasicDrone'. Note: Any previous Drone object instances may no longer be valid.
-14:28:24:893 [INFO] Trajectory 'null_trajectory' imported successfully.
-14:28:24:893 [INFO] Initalizing Drone 'Camera1'...
-14:28:24:893 [INFO] -------------------------------------------------
-14:28:24:893 [INFO] The following topics can be subscribed to for robot 'Camera1':
-14:28:24:893 [INFO]     sensors["DownCamera"]["scene_camera"]
-14:28:24:893 [INFO]     sensors["DownCamera"]["scene_camera_info"]
-14:28:24:893 [INFO]     sensors["DownCamera"]["segmentation_camera"]
-14:28:24:893 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
-14:28:24:893 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
-14:28:24:894 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
-14:28:24:894 [INFO]     robot_info["actual_pose"]
-14:28:24:894 [INFO]     robot_info["collision_info"]
-14:28:24:894 [INFO]     robot_info["rotor_info"]
-14:28:24:894 [INFO] -------------------------------------------------
-14:28:24:894 [INFO] Drone 'Camera1' initialized for World scene '/Sim/SceneBasicDrone'
-14:28:24:894 [INFO] Initalizing Drone 'Camera2'...
-14:28:24:894 [INFO] -------------------------------------------------
-14:28:24:894 [INFO] The following topics can be subscribed to for robot 'Camera2':
-14:28:24:894 [INFO]     sensors["DownCamera"]["scene_camera"]
-14:28:24:894 [INFO]     sensors["DownCamera"]["scene_camera_info"]
-14:28:24:894 [INFO]     sensors["DownCamera"]["segmentation_camera"]
-14:28:24:894 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
-14:28:24:894 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
-14:28:24:894 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
-14:28:24:895 [INFO]     robot_info["actual_pose"]
-14:28:24:895 [INFO]     robot_info["collision_info"]
-14:28:24:895 [INFO]     robot_info["rotor_info"]
-14:28:24:895 [INFO] -------------------------------------------------
-14:28:24:895 [INFO] Drone 'Camera2' initialized for World scene '/Sim/SceneBasicDrone'
-14:28:24:895 [INFO] Initalizing Drone 'Camera3'...
-14:28:24:895 [INFO] -------------------------------------------------
-14:28:24:895 [INFO] The following topics can be subscribed to for robot 'Camera3':
-14:28:24:895 [INFO]     sensors["DownCamera"]["scene_camera"]
-14:28:24:895 [INFO]     sensors["DownCamera"]["scene_camera_info"]
-14:28:24:895 [INFO]     sensors["DownCamera"]["segmentation_camera"]
-14:28:24:895 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
-14:28:24:896 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
-14:28:24:896 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
-14:28:24:896 [INFO]     robot_info["actual_pose"]
-14:28:24:896 [INFO]     robot_info["collision_info"]
-14:28:24:896 [INFO]     robot_info["rotor_info"]
-14:28:24:896 [INFO] -------------------------------------------------
-14:28:24:896 [INFO] Drone 'Camera3' initialized for World scene '/Sim/SceneBasicDrone'
-14:28:58:142 [INFO] Disconnecting from simulation server...
-14:28:58:155 [INFO] Disconnected.
+12:46:50:534 [INFO] Connecting to simulation server at 127.0.0.1
+12:46:50:540 [INFO] Connection opened.
+12:46:50:540 [INFO] Started the pub-sub topic receiving thread.
+12:46:50:568 [INFO] Loading scene config: survey_scene.jsonc
+12:47:07:242 [INFO] Getting the list of available topic info from the sim server...
+12:47:07:253 [INFO] Successfully received topic info list.
+12:47:09:254 [INFO] World object updated for the loaded scene '/Sim/SceneBasicDrone'. Note: Any previous Drone object instances may no longer be valid.
+12:47:09:255 [INFO] Trajectory 'null_trajectory' imported successfully.
+12:47:09:814 [INFO] Initalizing Drone 'Camera1'...
+12:47:09:814 [INFO] -------------------------------------------------
+12:47:09:814 [INFO] The following topics can be subscribed to for robot 'Camera1':
+12:47:09:814 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:09:814 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:09:814 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:09:814 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:09:815 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:09:815 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:09:815 [INFO]     robot_info["actual_pose"]
+12:47:09:815 [INFO]     robot_info["collision_info"]
+12:47:09:815 [INFO]     robot_info["rotor_info"]
+12:47:09:815 [INFO] -------------------------------------------------
+12:47:09:815 [INFO] Drone 'Camera1' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:11:790 [INFO] Initalizing Drone 'Camera2'...
+12:47:11:790 [INFO] -------------------------------------------------
+12:47:11:791 [INFO] The following topics can be subscribed to for robot 'Camera2':
+12:47:11:791 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:11:792 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:11:792 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:11:792 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:11:792 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:11:792 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:11:792 [INFO]     robot_info["actual_pose"]
+12:47:11:792 [INFO]     robot_info["collision_info"]
+12:47:11:792 [INFO]     robot_info["rotor_info"]
+12:47:11:792 [INFO] -------------------------------------------------
+12:47:11:793 [INFO] Drone 'Camera2' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:12:246 [INFO] Initalizing Drone 'Camera3'...
+12:47:12:246 [INFO] -------------------------------------------------
+12:47:12:246 [INFO] The following topics can be subscribed to for robot 'Camera3':
+12:47:12:246 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:12:247 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:12:247 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:12:247 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:12:247 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:12:247 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:12:247 [INFO]     robot_info["actual_pose"]
+12:47:12:247 [INFO]     robot_info["collision_info"]
+12:47:12:248 [INFO]     robot_info["rotor_info"]
+12:47:12:248 [INFO] -------------------------------------------------
+12:47:12:248 [INFO] Drone 'Camera3' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:12:623 [INFO] Initalizing Drone 'Camera4'...
+12:47:12:623 [INFO] -------------------------------------------------
+12:47:12:624 [INFO] The following topics can be subscribed to for robot 'Camera4':
+12:47:12:624 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:12:625 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:12:625 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:12:625 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:12:625 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:12:626 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:12:626 [INFO]     robot_info["actual_pose"]
+12:47:12:626 [INFO]     robot_info["collision_info"]
+12:47:12:626 [INFO]     robot_info["rotor_info"]
+12:47:12:626 [INFO] -------------------------------------------------
+12:47:12:626 [INFO] Drone 'Camera4' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:13:001 [INFO] Initalizing Drone 'Camera5'...
+12:47:13:001 [INFO] -------------------------------------------------
+12:47:13:001 [INFO] The following topics can be subscribed to for robot 'Camera5':
+12:47:13:001 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:13:001 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:13:002 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:13:002 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:13:002 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:13:002 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:13:002 [INFO]     robot_info["actual_pose"]
+12:47:13:002 [INFO]     robot_info["collision_info"]
+12:47:13:002 [INFO]     robot_info["rotor_info"]
+12:47:13:002 [INFO] -------------------------------------------------
+12:47:13:002 [INFO] Drone 'Camera5' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:13:346 [INFO] Initalizing Drone 'Camera6'...
+12:47:13:347 [INFO] -------------------------------------------------
+12:47:13:347 [INFO] The following topics can be subscribed to for robot 'Camera6':
+12:47:13:347 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:13:347 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:13:347 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:13:347 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:13:348 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:13:348 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:13:348 [INFO]     robot_info["actual_pose"]
+12:47:13:348 [INFO]     robot_info["collision_info"]
+12:47:13:348 [INFO]     robot_info["rotor_info"]
+12:47:13:348 [INFO] -------------------------------------------------
+12:47:13:348 [INFO] Drone 'Camera6' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:13:642 [INFO] Initalizing Drone 'Camera7'...
+12:47:13:643 [INFO] -------------------------------------------------
+12:47:13:643 [INFO] The following topics can be subscribed to for robot 'Camera7':
+12:47:13:643 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:13:643 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:13:644 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:13:644 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:13:644 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:13:644 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:13:644 [INFO]     robot_info["actual_pose"]
+12:47:13:644 [INFO]     robot_info["collision_info"]
+12:47:13:644 [INFO]     robot_info["rotor_info"]
+12:47:13:645 [INFO] -------------------------------------------------
+12:47:13:645 [INFO] Drone 'Camera7' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:14:000 [INFO] Initalizing Drone 'Camera8'...
+12:47:14:001 [INFO] -------------------------------------------------
+12:47:14:001 [INFO] The following topics can be subscribed to for robot 'Camera8':
+12:47:14:001 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:14:001 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:14:001 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:14:001 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:14:002 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:14:002 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:14:002 [INFO]     robot_info["actual_pose"]
+12:47:14:002 [INFO]     robot_info["collision_info"]
+12:47:14:002 [INFO]     robot_info["rotor_info"]
+12:47:14:002 [INFO] -------------------------------------------------
+12:47:14:002 [INFO] Drone 'Camera8' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:14:267 [INFO] Initalizing Drone 'Camera9'...
+12:47:14:267 [INFO] -------------------------------------------------
+12:47:14:267 [INFO] The following topics can be subscribed to for robot 'Camera9':
+12:47:14:268 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:14:268 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:14:268 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:14:268 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:14:268 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:14:268 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:14:268 [INFO]     robot_info["actual_pose"]
+12:47:14:268 [INFO]     robot_info["collision_info"]
+12:47:14:268 [INFO]     robot_info["rotor_info"]
+12:47:14:268 [INFO] -------------------------------------------------
+12:47:14:268 [INFO] Drone 'Camera9' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:14:646 [INFO] Initalizing Drone 'Camera10'...
+12:47:14:646 [INFO] -------------------------------------------------
+12:47:14:646 [INFO] The following topics can be subscribed to for robot 'Camera10':
+12:47:14:646 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:14:647 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:14:647 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:14:647 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:14:647 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:14:647 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:14:647 [INFO]     robot_info["actual_pose"]
+12:47:14:648 [INFO]     robot_info["collision_info"]
+12:47:14:648 [INFO]     robot_info["rotor_info"]
+12:47:14:648 [INFO] -------------------------------------------------
+12:47:14:648 [INFO] Drone 'Camera10' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:15:005 [INFO] Initalizing Drone 'Camera11'...
+12:47:15:006 [INFO] -------------------------------------------------
+12:47:15:006 [INFO] The following topics can be subscribed to for robot 'Camera11':
+12:47:15:006 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:15:006 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:15:007 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:15:007 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:15:007 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:15:007 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:15:007 [INFO]     robot_info["actual_pose"]
+12:47:15:007 [INFO]     robot_info["collision_info"]
+12:47:15:008 [INFO]     robot_info["rotor_info"]
+12:47:15:008 [INFO] -------------------------------------------------
+12:47:15:008 [INFO] Drone 'Camera11' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:15:269 [INFO] Initalizing Drone 'Camera12'...
+12:47:15:270 [INFO] -------------------------------------------------
+12:47:15:270 [INFO] The following topics can be subscribed to for robot 'Camera12':
+12:47:15:270 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:15:270 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:15:270 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:15:270 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:15:271 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:15:271 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:15:271 [INFO]     robot_info["actual_pose"]
+12:47:15:271 [INFO]     robot_info["collision_info"]
+12:47:15:271 [INFO]     robot_info["rotor_info"]
+12:47:15:271 [INFO] -------------------------------------------------
+12:47:15:271 [INFO] Drone 'Camera12' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:15:654 [INFO] Initalizing Drone 'Camera13'...
+12:47:15:654 [INFO] -------------------------------------------------
+12:47:15:654 [INFO] The following topics can be subscribed to for robot 'Camera13':
+12:47:15:654 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:15:654 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:15:654 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:15:655 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:15:655 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:15:655 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:15:655 [INFO]     robot_info["actual_pose"]
+12:47:15:655 [INFO]     robot_info["collision_info"]
+12:47:15:655 [INFO]     robot_info["rotor_info"]
+12:47:15:655 [INFO] -------------------------------------------------
+12:47:15:655 [INFO] Drone 'Camera13' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:16:023 [INFO] Initalizing Drone 'Camera14'...
+12:47:16:023 [INFO] -------------------------------------------------
+12:47:16:023 [INFO] The following topics can be subscribed to for robot 'Camera14':
+12:47:16:023 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:16:023 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:16:023 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:16:023 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:16:024 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:16:024 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:16:024 [INFO]     robot_info["actual_pose"]
+12:47:16:024 [INFO]     robot_info["collision_info"]
+12:47:16:024 [INFO]     robot_info["rotor_info"]
+12:47:16:025 [INFO] -------------------------------------------------
+12:47:16:025 [INFO] Drone 'Camera14' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:16:274 [INFO] Initalizing Drone 'Camera15'...
+12:47:16:275 [INFO] -------------------------------------------------
+12:47:16:275 [INFO] The following topics can be subscribed to for robot 'Camera15':
+12:47:16:275 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:16:275 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:16:275 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:16:275 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:16:275 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:16:275 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:16:275 [INFO]     robot_info["actual_pose"]
+12:47:16:276 [INFO]     robot_info["collision_info"]
+12:47:16:276 [INFO]     robot_info["rotor_info"]
+12:47:16:276 [INFO] -------------------------------------------------
+12:47:16:276 [INFO] Drone 'Camera15' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:16:625 [INFO] Initalizing Drone 'Camera16'...
+12:47:16:625 [INFO] -------------------------------------------------
+12:47:16:626 [INFO] The following topics can be subscribed to for robot 'Camera16':
+12:47:16:626 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:16:626 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:16:626 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:16:626 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:16:626 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:16:626 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:16:627 [INFO]     robot_info["actual_pose"]
+12:47:16:627 [INFO]     robot_info["collision_info"]
+12:47:16:627 [INFO]     robot_info["rotor_info"]
+12:47:16:627 [INFO] -------------------------------------------------
+12:47:16:627 [INFO] Drone 'Camera16' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:16:974 [INFO] Initalizing Drone 'Camera17'...
+12:47:16:974 [INFO] -------------------------------------------------
+12:47:16:975 [INFO] The following topics can be subscribed to for robot 'Camera17':
+12:47:16:975 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:16:975 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:16:975 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:16:975 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:16:975 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:16:975 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:16:975 [INFO]     robot_info["actual_pose"]
+12:47:16:975 [INFO]     robot_info["collision_info"]
+12:47:16:976 [INFO]     robot_info["rotor_info"]
+12:47:16:976 [INFO] -------------------------------------------------
+12:47:16:976 [INFO] Drone 'Camera17' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:17:339 [INFO] Initalizing Drone 'Camera18'...
+12:47:17:339 [INFO] -------------------------------------------------
+12:47:17:339 [INFO] The following topics can be subscribed to for robot 'Camera18':
+12:47:17:339 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:17:340 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:17:340 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:17:340 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:17:340 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:17:340 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:17:340 [INFO]     robot_info["actual_pose"]
+12:47:17:340 [INFO]     robot_info["collision_info"]
+12:47:17:340 [INFO]     robot_info["rotor_info"]
+12:47:17:341 [INFO] -------------------------------------------------
+12:47:17:341 [INFO] Drone 'Camera18' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:17:684 [INFO] Initalizing Drone 'Camera19'...
+12:47:17:685 [INFO] -------------------------------------------------
+12:47:17:685 [INFO] The following topics can be subscribed to for robot 'Camera19':
+12:47:17:685 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:17:685 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:17:685 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:17:685 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:17:685 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:17:686 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:17:686 [INFO]     robot_info["actual_pose"]
+12:47:17:686 [INFO]     robot_info["collision_info"]
+12:47:17:686 [INFO]     robot_info["rotor_info"]
+12:47:17:686 [INFO] -------------------------------------------------
+12:47:17:686 [INFO] Drone 'Camera19' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:17:938 [INFO] Initalizing Drone 'Camera20'...
+12:47:17:938 [INFO] -------------------------------------------------
+12:47:17:938 [INFO] The following topics can be subscribed to for robot 'Camera20':
+12:47:17:938 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:17:939 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:17:939 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:17:939 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:17:939 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:17:939 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:17:940 [INFO]     robot_info["actual_pose"]
+12:47:17:940 [INFO]     robot_info["collision_info"]
+12:47:17:940 [INFO]     robot_info["rotor_info"]
+12:47:17:940 [INFO] -------------------------------------------------
+12:47:17:940 [INFO] Drone 'Camera20' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:18:292 [INFO] Initalizing Drone 'Camera21'...
+12:47:18:292 [INFO] -------------------------------------------------
+12:47:18:292 [INFO] The following topics can be subscribed to for robot 'Camera21':
+12:47:18:293 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:18:293 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:18:293 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:18:293 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:18:293 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:18:293 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:18:294 [INFO]     robot_info["actual_pose"]
+12:47:18:294 [INFO]     robot_info["collision_info"]
+12:47:18:294 [INFO]     robot_info["rotor_info"]
+12:47:18:294 [INFO] -------------------------------------------------
+12:47:18:294 [INFO] Drone 'Camera21' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:18:651 [INFO] Initalizing Drone 'Camera22'...
+12:47:18:651 [INFO] -------------------------------------------------
+12:47:18:651 [INFO] The following topics can be subscribed to for robot 'Camera22':
+12:47:18:651 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:18:651 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:18:652 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:18:652 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:18:652 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:18:652 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:18:652 [INFO]     robot_info["actual_pose"]
+12:47:18:652 [INFO]     robot_info["collision_info"]
+12:47:18:652 [INFO]     robot_info["rotor_info"]
+12:47:18:653 [INFO] -------------------------------------------------
+12:47:18:653 [INFO] Drone 'Camera22' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:19:002 [INFO] Initalizing Drone 'Camera23'...
+12:47:19:003 [INFO] -------------------------------------------------
+12:47:19:003 [INFO] The following topics can be subscribed to for robot 'Camera23':
+12:47:19:003 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:19:003 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:19:003 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:19:004 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:19:004 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:19:004 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:19:004 [INFO]     robot_info["actual_pose"]
+12:47:19:004 [INFO]     robot_info["collision_info"]
+12:47:19:004 [INFO]     robot_info["rotor_info"]
+12:47:19:004 [INFO] -------------------------------------------------
+12:47:19:005 [INFO] Drone 'Camera23' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:19:270 [INFO] Initalizing Drone 'Camera24'...
+12:47:19:270 [INFO] -------------------------------------------------
+12:47:19:270 [INFO] The following topics can be subscribed to for robot 'Camera24':
+12:47:19:270 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:19:270 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:19:271 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:19:271 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:19:271 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:19:271 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:19:271 [INFO]     robot_info["actual_pose"]
+12:47:19:271 [INFO]     robot_info["collision_info"]
+12:47:19:271 [INFO]     robot_info["rotor_info"]
+12:47:19:271 [INFO] -------------------------------------------------
+12:47:19:271 [INFO] Drone 'Camera24' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:19:636 [INFO] Initalizing Drone 'Camera25'...
+12:47:19:637 [INFO] -------------------------------------------------
+12:47:19:637 [INFO] The following topics can be subscribed to for robot 'Camera25':
+12:47:19:637 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:19:637 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:19:637 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:19:637 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:19:637 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:19:637 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:19:638 [INFO]     robot_info["actual_pose"]
+12:47:19:638 [INFO]     robot_info["collision_info"]
+12:47:19:638 [INFO]     robot_info["rotor_info"]
+12:47:19:638 [INFO] -------------------------------------------------
+12:47:19:638 [INFO] Drone 'Camera25' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:19:993 [INFO] Initalizing Drone 'Camera26'...
+12:47:19:993 [INFO] -------------------------------------------------
+12:47:19:993 [INFO] The following topics can be subscribed to for robot 'Camera26':
+12:47:19:993 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:19:993 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:19:993 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:19:993 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:19:993 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:19:993 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:19:994 [INFO]     robot_info["actual_pose"]
+12:47:19:994 [INFO]     robot_info["collision_info"]
+12:47:19:994 [INFO]     robot_info["rotor_info"]
+12:47:19:994 [INFO] -------------------------------------------------
+12:47:19:994 [INFO] Drone 'Camera26' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:20:340 [INFO] Initalizing Drone 'Camera27'...
+12:47:20:340 [INFO] -------------------------------------------------
+12:47:20:340 [INFO] The following topics can be subscribed to for robot 'Camera27':
+12:47:20:340 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:20:340 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:20:341 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:20:341 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:20:341 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:20:341 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:20:341 [INFO]     robot_info["actual_pose"]
+12:47:20:341 [INFO]     robot_info["collision_info"]
+12:47:20:342 [INFO]     robot_info["rotor_info"]
+12:47:20:342 [INFO] -------------------------------------------------
+12:47:20:342 [INFO] Drone 'Camera27' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:20:602 [INFO] Initalizing Drone 'Camera28'...
+12:47:20:602 [INFO] -------------------------------------------------
+12:47:20:602 [INFO] The following topics can be subscribed to for robot 'Camera28':
+12:47:20:602 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:20:602 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:20:602 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:20:602 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:20:603 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:20:603 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:20:603 [INFO]     robot_info["actual_pose"]
+12:47:20:603 [INFO]     robot_info["collision_info"]
+12:47:20:603 [INFO]     robot_info["rotor_info"]
+12:47:20:603 [INFO] -------------------------------------------------
+12:47:20:603 [INFO] Drone 'Camera28' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:20:948 [INFO] Initalizing Drone 'Camera29'...
+12:47:20:948 [INFO] -------------------------------------------------
+12:47:20:948 [INFO] The following topics can be subscribed to for robot 'Camera29':
+12:47:20:949 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:20:949 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:20:949 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:20:949 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:20:949 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:20:949 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:20:949 [INFO]     robot_info["actual_pose"]
+12:47:20:949 [INFO]     robot_info["collision_info"]
+12:47:20:950 [INFO]     robot_info["rotor_info"]
+12:47:20:950 [INFO] -------------------------------------------------
+12:47:20:950 [INFO] Drone 'Camera29' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:21:403 [INFO] Initalizing Drone 'Camera30'...
+12:47:21:403 [INFO] -------------------------------------------------
+12:47:21:403 [INFO] The following topics can be subscribed to for robot 'Camera30':
+12:47:21:403 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:21:403 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:21:403 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:21:404 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:21:404 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:21:404 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:21:404 [INFO]     robot_info["actual_pose"]
+12:47:21:404 [INFO]     robot_info["collision_info"]
+12:47:21:404 [INFO]     robot_info["rotor_info"]
+12:47:21:404 [INFO] -------------------------------------------------
+12:47:21:404 [INFO] Drone 'Camera30' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:21:766 [INFO] Initalizing Drone 'Camera31'...
+12:47:21:766 [INFO] -------------------------------------------------
+12:47:21:766 [INFO] The following topics can be subscribed to for robot 'Camera31':
+12:47:21:766 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:21:766 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:21:766 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:21:766 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:21:767 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:21:767 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:21:767 [INFO]     robot_info["actual_pose"]
+12:47:21:767 [INFO]     robot_info["collision_info"]
+12:47:21:767 [INFO]     robot_info["rotor_info"]
+12:47:21:767 [INFO] -------------------------------------------------
+12:47:21:767 [INFO] Drone 'Camera31' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:22:009 [INFO] Initalizing Drone 'Camera32'...
+12:47:22:009 [INFO] -------------------------------------------------
+12:47:22:009 [INFO] The following topics can be subscribed to for robot 'Camera32':
+12:47:22:009 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:22:009 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:22:009 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:22:010 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:22:010 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:22:010 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:22:010 [INFO]     robot_info["actual_pose"]
+12:47:22:010 [INFO]     robot_info["collision_info"]
+12:47:22:010 [INFO]     robot_info["rotor_info"]
+12:47:22:010 [INFO] -------------------------------------------------
+12:47:22:010 [INFO] Drone 'Camera32' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:22:259 [INFO] Initalizing Drone 'Camera33'...
+12:47:22:259 [INFO] -------------------------------------------------
+12:47:22:259 [INFO] The following topics can be subscribed to for robot 'Camera33':
+12:47:22:259 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:22:259 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:22:260 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:22:260 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:22:260 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:22:260 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:22:260 [INFO]     robot_info["actual_pose"]
+12:47:22:260 [INFO]     robot_info["collision_info"]
+12:47:22:260 [INFO]     robot_info["rotor_info"]
+12:47:22:260 [INFO] -------------------------------------------------
+12:47:22:260 [INFO] Drone 'Camera33' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:22:704 [INFO] Initalizing Drone 'Camera34'...
+12:47:22:704 [INFO] -------------------------------------------------
+12:47:22:704 [INFO] The following topics can be subscribed to for robot 'Camera34':
+12:47:22:704 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:22:704 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:22:705 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:22:705 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:22:705 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:22:705 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:22:705 [INFO]     robot_info["actual_pose"]
+12:47:22:705 [INFO]     robot_info["collision_info"]
+12:47:22:705 [INFO]     robot_info["rotor_info"]
+12:47:22:705 [INFO] -------------------------------------------------
+12:47:22:706 [INFO] Drone 'Camera34' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:23:054 [INFO] Initalizing Drone 'Camera35'...
+12:47:23:054 [INFO] -------------------------------------------------
+12:47:23:054 [INFO] The following topics can be subscribed to for robot 'Camera35':
+12:47:23:054 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:23:054 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:23:054 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:23:054 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:23:054 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:23:054 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:23:055 [INFO]     robot_info["actual_pose"]
+12:47:23:055 [INFO]     robot_info["collision_info"]
+12:47:23:055 [INFO]     robot_info["rotor_info"]
+12:47:23:055 [INFO] -------------------------------------------------
+12:47:23:055 [INFO] Drone 'Camera35' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:23:501 [INFO] Initalizing Drone 'Camera36'...
+12:47:23:501 [INFO] -------------------------------------------------
+12:47:23:501 [INFO] The following topics can be subscribed to for robot 'Camera36':
+12:47:23:501 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:23:502 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:23:502 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:23:502 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:23:502 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:23:502 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:23:502 [INFO]     robot_info["actual_pose"]
+12:47:23:502 [INFO]     robot_info["collision_info"]
+12:47:23:502 [INFO]     robot_info["rotor_info"]
+12:47:23:502 [INFO] -------------------------------------------------
+12:47:23:502 [INFO] Drone 'Camera36' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:24:061 [INFO] Initalizing Drone 'Camera37'...
+12:47:24:062 [INFO] -------------------------------------------------
+12:47:24:062 [INFO] The following topics can be subscribed to for robot 'Camera37':
+12:47:24:062 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:24:062 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:24:062 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:24:062 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:24:063 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:24:063 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:24:063 [INFO]     robot_info["actual_pose"]
+12:47:24:063 [INFO]     robot_info["collision_info"]
+12:47:24:063 [INFO]     robot_info["rotor_info"]
+12:47:24:063 [INFO] -------------------------------------------------
+12:47:24:063 [INFO] Drone 'Camera37' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:24:316 [INFO] Initalizing Drone 'Camera38'...
+12:47:24:316 [INFO] -------------------------------------------------
+12:47:24:316 [INFO] The following topics can be subscribed to for robot 'Camera38':
+12:47:24:316 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:24:316 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:24:316 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:24:316 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:24:317 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:24:317 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:24:317 [INFO]     robot_info["actual_pose"]
+12:47:24:317 [INFO]     robot_info["collision_info"]
+12:47:24:317 [INFO]     robot_info["rotor_info"]
+12:47:24:317 [INFO] -------------------------------------------------
+12:47:24:317 [INFO] Drone 'Camera38' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:24:656 [INFO] Initalizing Drone 'Camera39'...
+12:47:24:656 [INFO] -------------------------------------------------
+12:47:24:657 [INFO] The following topics can be subscribed to for robot 'Camera39':
+12:47:24:657 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:24:657 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:24:657 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:24:657 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:24:657 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:24:658 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:24:658 [INFO]     robot_info["actual_pose"]
+12:47:24:658 [INFO]     robot_info["collision_info"]
+12:47:24:658 [INFO]     robot_info["rotor_info"]
+12:47:24:658 [INFO] -------------------------------------------------
+12:47:24:658 [INFO] Drone 'Camera39' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:25:017 [INFO] Initalizing Drone 'Camera40'...
+12:47:25:018 [INFO] -------------------------------------------------
+12:47:25:018 [INFO] The following topics can be subscribed to for robot 'Camera40':
+12:47:25:018 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:25:018 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:25:018 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:25:018 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:25:018 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:25:018 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:25:018 [INFO]     robot_info["actual_pose"]
+12:47:25:019 [INFO]     robot_info["collision_info"]
+12:47:25:019 [INFO]     robot_info["rotor_info"]
+12:47:25:019 [INFO] -------------------------------------------------
+12:47:25:019 [INFO] Drone 'Camera40' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:25:399 [INFO] Loading scene config: survey_scene.jsonc
+12:47:41:637 [INFO] Getting the list of available topic info from the sim server...
+12:47:41:648 [INFO] Successfully received topic info list.
+12:47:43:649 [INFO] World object updated for the loaded scene '/Sim/SceneBasicDrone'. Note: Any previous Drone object instances may no longer be valid.
+12:47:43:650 [INFO] Trajectory 'null_trajectory' imported successfully.
+12:47:45:210 [INFO] Initalizing Drone 'Camera1'...
+12:47:45:211 [INFO] -------------------------------------------------
+12:47:45:211 [INFO] The following topics can be subscribed to for robot 'Camera1':
+12:47:45:211 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:45:211 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:45:211 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:45:211 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:45:211 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:45:211 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:45:211 [INFO]     robot_info["actual_pose"]
+12:47:45:212 [INFO]     robot_info["collision_info"]
+12:47:45:212 [INFO]     robot_info["rotor_info"]
+12:47:45:212 [INFO] -------------------------------------------------
+12:47:45:212 [INFO] Drone 'Camera1' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:46:874 [INFO] Initalizing Drone 'Camera2'...
+12:47:46:874 [INFO] -------------------------------------------------
+12:47:46:874 [INFO] The following topics can be subscribed to for robot 'Camera2':
+12:47:46:874 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:46:875 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:46:875 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:46:875 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:46:875 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:46:875 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:46:875 [INFO]     robot_info["actual_pose"]
+12:47:46:875 [INFO]     robot_info["collision_info"]
+12:47:46:876 [INFO]     robot_info["rotor_info"]
+12:47:46:876 [INFO] -------------------------------------------------
+12:47:46:876 [INFO] Drone 'Camera2' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:47:328 [INFO] Initalizing Drone 'Camera3'...
+12:47:47:329 [INFO] -------------------------------------------------
+12:47:47:329 [INFO] The following topics can be subscribed to for robot 'Camera3':
+12:47:47:329 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:47:329 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:47:329 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:47:329 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:47:329 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:47:329 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:47:330 [INFO]     robot_info["actual_pose"]
+12:47:47:330 [INFO]     robot_info["collision_info"]
+12:47:47:330 [INFO]     robot_info["rotor_info"]
+12:47:47:330 [INFO] -------------------------------------------------
+12:47:47:330 [INFO] Drone 'Camera3' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:47:671 [INFO] Initalizing Drone 'Camera4'...
+12:47:47:671 [INFO] -------------------------------------------------
+12:47:47:671 [INFO] The following topics can be subscribed to for robot 'Camera4':
+12:47:47:671 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:47:671 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:47:671 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:47:672 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:47:672 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:47:672 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:47:672 [INFO]     robot_info["actual_pose"]
+12:47:47:672 [INFO]     robot_info["collision_info"]
+12:47:47:672 [INFO]     robot_info["rotor_info"]
+12:47:47:672 [INFO] -------------------------------------------------
+12:47:47:672 [INFO] Drone 'Camera4' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:48:025 [INFO] Initalizing Drone 'Camera5'...
+12:47:48:025 [INFO] -------------------------------------------------
+12:47:48:026 [INFO] The following topics can be subscribed to for robot 'Camera5':
+12:47:48:026 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:48:026 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:48:026 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:48:026 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:48:026 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:48:026 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:48:027 [INFO]     robot_info["actual_pose"]
+12:47:48:027 [INFO]     robot_info["collision_info"]
+12:47:48:027 [INFO]     robot_info["rotor_info"]
+12:47:48:027 [INFO] -------------------------------------------------
+12:47:48:027 [INFO] Drone 'Camera5' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:48:383 [INFO] Initalizing Drone 'Camera6'...
+12:47:48:383 [INFO] -------------------------------------------------
+12:47:48:384 [INFO] The following topics can be subscribed to for robot 'Camera6':
+12:47:48:384 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:48:384 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:48:384 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:48:384 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:48:384 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:48:384 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:48:385 [INFO]     robot_info["actual_pose"]
+12:47:48:385 [INFO]     robot_info["collision_info"]
+12:47:48:385 [INFO]     robot_info["rotor_info"]
+12:47:48:385 [INFO] -------------------------------------------------
+12:47:48:385 [INFO] Drone 'Camera6' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:48:726 [INFO] Initalizing Drone 'Camera7'...
+12:47:48:727 [INFO] -------------------------------------------------
+12:47:48:727 [INFO] The following topics can be subscribed to for robot 'Camera7':
+12:47:48:727 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:48:727 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:48:727 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:48:727 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:48:727 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:48:727 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:48:727 [INFO]     robot_info["actual_pose"]
+12:47:48:727 [INFO]     robot_info["collision_info"]
+12:47:48:728 [INFO]     robot_info["rotor_info"]
+12:47:48:728 [INFO] -------------------------------------------------
+12:47:48:728 [INFO] Drone 'Camera7' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:49:078 [INFO] Initalizing Drone 'Camera8'...
+12:47:49:078 [INFO] -------------------------------------------------
+12:47:49:078 [INFO] The following topics can be subscribed to for robot 'Camera8':
+12:47:49:078 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:49:078 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:49:078 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:49:079 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:49:079 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:49:079 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:49:079 [INFO]     robot_info["actual_pose"]
+12:47:49:079 [INFO]     robot_info["collision_info"]
+12:47:49:079 [INFO]     robot_info["rotor_info"]
+12:47:49:079 [INFO] -------------------------------------------------
+12:47:49:079 [INFO] Drone 'Camera8' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:49:430 [INFO] Initalizing Drone 'Camera9'...
+12:47:49:430 [INFO] -------------------------------------------------
+12:47:49:430 [INFO] The following topics can be subscribed to for robot 'Camera9':
+12:47:49:431 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:49:431 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:49:431 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:49:431 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:49:431 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:49:431 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:49:431 [INFO]     robot_info["actual_pose"]
+12:47:49:431 [INFO]     robot_info["collision_info"]
+12:47:49:432 [INFO]     robot_info["rotor_info"]
+12:47:49:432 [INFO] -------------------------------------------------
+12:47:49:432 [INFO] Drone 'Camera9' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:49:687 [INFO] Initalizing Drone 'Camera10'...
+12:47:49:687 [INFO] -------------------------------------------------
+12:47:49:688 [INFO] The following topics can be subscribed to for robot 'Camera10':
+12:47:49:688 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:49:688 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:49:688 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:49:688 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:49:688 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:49:688 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:49:688 [INFO]     robot_info["actual_pose"]
+12:47:49:689 [INFO]     robot_info["collision_info"]
+12:47:49:689 [INFO]     robot_info["rotor_info"]
+12:47:49:689 [INFO] -------------------------------------------------
+12:47:49:689 [INFO] Drone 'Camera10' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:50:146 [INFO] Initalizing Drone 'Camera11'...
+12:47:50:147 [INFO] -------------------------------------------------
+12:47:50:147 [INFO] The following topics can be subscribed to for robot 'Camera11':
+12:47:50:147 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:50:147 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:50:147 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:50:147 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:50:147 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:50:147 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:50:147 [INFO]     robot_info["actual_pose"]
+12:47:50:147 [INFO]     robot_info["collision_info"]
+12:47:50:148 [INFO]     robot_info["rotor_info"]
+12:47:50:148 [INFO] -------------------------------------------------
+12:47:50:148 [INFO] Drone 'Camera11' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:50:405 [INFO] Initalizing Drone 'Camera12'...
+12:47:50:406 [INFO] -------------------------------------------------
+12:47:50:406 [INFO] The following topics can be subscribed to for robot 'Camera12':
+12:47:50:406 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:50:406 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:50:406 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:50:406 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:50:406 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:50:407 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:50:407 [INFO]     robot_info["actual_pose"]
+12:47:50:407 [INFO]     robot_info["collision_info"]
+12:47:50:407 [INFO]     robot_info["rotor_info"]
+12:47:50:407 [INFO] -------------------------------------------------
+12:47:50:407 [INFO] Drone 'Camera12' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:50:751 [INFO] Initalizing Drone 'Camera13'...
+12:47:50:751 [INFO] -------------------------------------------------
+12:47:50:752 [INFO] The following topics can be subscribed to for robot 'Camera13':
+12:47:50:752 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:50:752 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:50:752 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:50:752 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:50:752 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:50:752 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:50:753 [INFO]     robot_info["actual_pose"]
+12:47:50:753 [INFO]     robot_info["collision_info"]
+12:47:50:753 [INFO]     robot_info["rotor_info"]
+12:47:50:753 [INFO] -------------------------------------------------
+12:47:50:753 [INFO] Drone 'Camera13' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:51:010 [INFO] Initalizing Drone 'Camera14'...
+12:47:51:011 [INFO] -------------------------------------------------
+12:47:51:011 [INFO] The following topics can be subscribed to for robot 'Camera14':
+12:47:51:011 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:51:011 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:51:011 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:51:011 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:51:011 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:51:011 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:51:011 [INFO]     robot_info["actual_pose"]
+12:47:51:011 [INFO]     robot_info["collision_info"]
+12:47:51:012 [INFO]     robot_info["rotor_info"]
+12:47:51:012 [INFO] -------------------------------------------------
+12:47:51:012 [INFO] Drone 'Camera14' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:51:371 [INFO] Initalizing Drone 'Camera15'...
+12:47:51:371 [INFO] -------------------------------------------------
+12:47:51:371 [INFO] The following topics can be subscribed to for robot 'Camera15':
+12:47:51:371 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:51:371 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:51:372 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:51:372 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:51:372 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:51:372 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:51:372 [INFO]     robot_info["actual_pose"]
+12:47:51:372 [INFO]     robot_info["collision_info"]
+12:47:51:372 [INFO]     robot_info["rotor_info"]
+12:47:51:372 [INFO] -------------------------------------------------
+12:47:51:372 [INFO] Drone 'Camera15' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:51:717 [INFO] Initalizing Drone 'Camera16'...
+12:47:51:717 [INFO] -------------------------------------------------
+12:47:51:717 [INFO] The following topics can be subscribed to for robot 'Camera16':
+12:47:51:717 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:51:717 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:51:717 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:51:718 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:51:718 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:51:718 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:51:718 [INFO]     robot_info["actual_pose"]
+12:47:51:718 [INFO]     robot_info["collision_info"]
+12:47:51:718 [INFO]     robot_info["rotor_info"]
+12:47:51:718 [INFO] -------------------------------------------------
+12:47:51:718 [INFO] Drone 'Camera16' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:52:064 [INFO] Initalizing Drone 'Camera17'...
+12:47:52:064 [INFO] -------------------------------------------------
+12:47:52:064 [INFO] The following topics can be subscribed to for robot 'Camera17':
+12:47:52:064 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:52:065 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:52:065 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:52:065 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:52:065 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:52:065 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:52:066 [INFO]     robot_info["actual_pose"]
+12:47:52:066 [INFO]     robot_info["collision_info"]
+12:47:52:066 [INFO]     robot_info["rotor_info"]
+12:47:52:066 [INFO] -------------------------------------------------
+12:47:52:066 [INFO] Drone 'Camera17' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:52:326 [INFO] Initalizing Drone 'Camera18'...
+12:47:52:326 [INFO] -------------------------------------------------
+12:47:52:326 [INFO] The following topics can be subscribed to for robot 'Camera18':
+12:47:52:327 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:52:327 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:52:327 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:52:327 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:52:327 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:52:327 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:52:327 [INFO]     robot_info["actual_pose"]
+12:47:52:328 [INFO]     robot_info["collision_info"]
+12:47:52:328 [INFO]     robot_info["rotor_info"]
+12:47:52:328 [INFO] -------------------------------------------------
+12:47:52:328 [INFO] Drone 'Camera18' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:52:688 [INFO] Initalizing Drone 'Camera19'...
+12:47:52:688 [INFO] -------------------------------------------------
+12:47:52:689 [INFO] The following topics can be subscribed to for robot 'Camera19':
+12:47:52:689 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:52:689 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:52:689 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:52:689 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:52:689 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:52:689 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:52:689 [INFO]     robot_info["actual_pose"]
+12:47:52:690 [INFO]     robot_info["collision_info"]
+12:47:52:690 [INFO]     robot_info["rotor_info"]
+12:47:52:690 [INFO] -------------------------------------------------
+12:47:52:690 [INFO] Drone 'Camera19' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:53:036 [INFO] Initalizing Drone 'Camera20'...
+12:47:53:036 [INFO] -------------------------------------------------
+12:47:53:037 [INFO] The following topics can be subscribed to for robot 'Camera20':
+12:47:53:037 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:53:037 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:53:038 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:53:038 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:53:038 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:53:038 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:53:038 [INFO]     robot_info["actual_pose"]
+12:47:53:038 [INFO]     robot_info["collision_info"]
+12:47:53:038 [INFO]     robot_info["rotor_info"]
+12:47:53:038 [INFO] -------------------------------------------------
+12:47:53:039 [INFO] Drone 'Camera20' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:53:388 [INFO] Initalizing Drone 'Camera21'...
+12:47:53:388 [INFO] -------------------------------------------------
+12:47:53:388 [INFO] The following topics can be subscribed to for robot 'Camera21':
+12:47:53:388 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:53:389 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:53:389 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:53:389 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:53:389 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:53:389 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:53:389 [INFO]     robot_info["actual_pose"]
+12:47:53:390 [INFO]     robot_info["collision_info"]
+12:47:53:390 [INFO]     robot_info["rotor_info"]
+12:47:53:390 [INFO] -------------------------------------------------
+12:47:53:390 [INFO] Drone 'Camera21' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:53:732 [INFO] Initalizing Drone 'Camera22'...
+12:47:53:733 [INFO] -------------------------------------------------
+12:47:53:733 [INFO] The following topics can be subscribed to for robot 'Camera22':
+12:47:53:733 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:53:733 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:53:733 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:53:733 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:53:733 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:53:733 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:53:734 [INFO]     robot_info["actual_pose"]
+12:47:53:734 [INFO]     robot_info["collision_info"]
+12:47:53:734 [INFO]     robot_info["rotor_info"]
+12:47:53:734 [INFO] -------------------------------------------------
+12:47:53:734 [INFO] Drone 'Camera22' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:54:083 [INFO] Initalizing Drone 'Camera23'...
+12:47:54:084 [INFO] -------------------------------------------------
+12:47:54:084 [INFO] The following topics can be subscribed to for robot 'Camera23':
+12:47:54:084 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:54:084 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:54:085 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:54:085 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:54:085 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:54:085 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:54:085 [INFO]     robot_info["actual_pose"]
+12:47:54:085 [INFO]     robot_info["collision_info"]
+12:47:54:086 [INFO]     robot_info["rotor_info"]
+12:47:54:086 [INFO] -------------------------------------------------
+12:47:54:086 [INFO] Drone 'Camera23' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:54:344 [INFO] Initalizing Drone 'Camera24'...
+12:47:54:345 [INFO] -------------------------------------------------
+12:47:54:345 [INFO] The following topics can be subscribed to for robot 'Camera24':
+12:47:54:345 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:54:345 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:54:345 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:54:345 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:54:345 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:54:346 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:54:346 [INFO]     robot_info["actual_pose"]
+12:47:54:346 [INFO]     robot_info["collision_info"]
+12:47:54:346 [INFO]     robot_info["rotor_info"]
+12:47:54:346 [INFO] -------------------------------------------------
+12:47:54:346 [INFO] Drone 'Camera24' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:54:708 [INFO] Initalizing Drone 'Camera25'...
+12:47:54:708 [INFO] -------------------------------------------------
+12:47:54:708 [INFO] The following topics can be subscribed to for robot 'Camera25':
+12:47:54:708 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:54:709 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:54:709 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:54:709 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:54:709 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:54:709 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:54:709 [INFO]     robot_info["actual_pose"]
+12:47:54:709 [INFO]     robot_info["collision_info"]
+12:47:54:709 [INFO]     robot_info["rotor_info"]
+12:47:54:709 [INFO] -------------------------------------------------
+12:47:54:709 [INFO] Drone 'Camera25' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:55:071 [INFO] Initalizing Drone 'Camera26'...
+12:47:55:071 [INFO] -------------------------------------------------
+12:47:55:071 [INFO] The following topics can be subscribed to for robot 'Camera26':
+12:47:55:071 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:55:072 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:55:072 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:55:072 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:55:072 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:55:072 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:55:072 [INFO]     robot_info["actual_pose"]
+12:47:55:072 [INFO]     robot_info["collision_info"]
+12:47:55:072 [INFO]     robot_info["rotor_info"]
+12:47:55:072 [INFO] -------------------------------------------------
+12:47:55:072 [INFO] Drone 'Camera26' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:55:421 [INFO] Initalizing Drone 'Camera27'...
+12:47:55:421 [INFO] -------------------------------------------------
+12:47:55:421 [INFO] The following topics can be subscribed to for robot 'Camera27':
+12:47:55:421 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:55:422 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:55:422 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:55:422 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:55:422 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:55:423 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:55:423 [INFO]     robot_info["actual_pose"]
+12:47:55:423 [INFO]     robot_info["collision_info"]
+12:47:55:423 [INFO]     robot_info["rotor_info"]
+12:47:55:423 [INFO] -------------------------------------------------
+12:47:55:423 [INFO] Drone 'Camera27' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:55:682 [INFO] Initalizing Drone 'Camera28'...
+12:47:55:682 [INFO] -------------------------------------------------
+12:47:55:682 [INFO] The following topics can be subscribed to for robot 'Camera28':
+12:47:55:682 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:55:682 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:55:683 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:55:683 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:55:683 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:55:683 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:55:683 [INFO]     robot_info["actual_pose"]
+12:47:55:683 [INFO]     robot_info["collision_info"]
+12:47:55:683 [INFO]     robot_info["rotor_info"]
+12:47:55:683 [INFO] -------------------------------------------------
+12:47:55:683 [INFO] Drone 'Camera28' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:56:037 [INFO] Initalizing Drone 'Camera29'...
+12:47:56:037 [INFO] -------------------------------------------------
+12:47:56:037 [INFO] The following topics can be subscribed to for robot 'Camera29':
+12:47:56:037 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:56:037 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:56:038 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:56:038 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:56:038 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:56:038 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:56:038 [INFO]     robot_info["actual_pose"]
+12:47:56:038 [INFO]     robot_info["collision_info"]
+12:47:56:038 [INFO]     robot_info["rotor_info"]
+12:47:56:038 [INFO] -------------------------------------------------
+12:47:56:039 [INFO] Drone 'Camera29' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:56:384 [INFO] Initalizing Drone 'Camera30'...
+12:47:56:384 [INFO] -------------------------------------------------
+12:47:56:384 [INFO] The following topics can be subscribed to for robot 'Camera30':
+12:47:56:384 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:56:384 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:56:385 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:56:385 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:56:385 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:56:385 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:56:385 [INFO]     robot_info["actual_pose"]
+12:47:56:385 [INFO]     robot_info["collision_info"]
+12:47:56:385 [INFO]     robot_info["rotor_info"]
+12:47:56:385 [INFO] -------------------------------------------------
+12:47:56:386 [INFO] Drone 'Camera30' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:56:737 [INFO] Initalizing Drone 'Camera31'...
+12:47:56:737 [INFO] -------------------------------------------------
+12:47:56:738 [INFO] The following topics can be subscribed to for robot 'Camera31':
+12:47:56:738 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:56:738 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:56:738 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:56:738 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:56:738 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:56:738 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:56:738 [INFO]     robot_info["actual_pose"]
+12:47:56:739 [INFO]     robot_info["collision_info"]
+12:47:56:739 [INFO]     robot_info["rotor_info"]
+12:47:56:739 [INFO] -------------------------------------------------
+12:47:56:739 [INFO] Drone 'Camera31' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:57:087 [INFO] Initalizing Drone 'Camera32'...
+12:47:57:087 [INFO] -------------------------------------------------
+12:47:57:087 [INFO] The following topics can be subscribed to for robot 'Camera32':
+12:47:57:087 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:57:087 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:57:087 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:57:088 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:57:088 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:57:088 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:57:088 [INFO]     robot_info["actual_pose"]
+12:47:57:088 [INFO]     robot_info["collision_info"]
+12:47:57:088 [INFO]     robot_info["rotor_info"]
+12:47:57:088 [INFO] -------------------------------------------------
+12:47:57:088 [INFO] Drone 'Camera32' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:57:352 [INFO] Initalizing Drone 'Camera33'...
+12:47:57:352 [INFO] -------------------------------------------------
+12:47:57:353 [INFO] The following topics can be subscribed to for robot 'Camera33':
+12:47:57:353 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:57:353 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:57:353 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:57:353 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:57:354 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:57:354 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:57:354 [INFO]     robot_info["actual_pose"]
+12:47:57:354 [INFO]     robot_info["collision_info"]
+12:47:57:354 [INFO]     robot_info["rotor_info"]
+12:47:57:354 [INFO] -------------------------------------------------
+12:47:57:354 [INFO] Drone 'Camera33' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:57:707 [INFO] Initalizing Drone 'Camera34'...
+12:47:57:707 [INFO] -------------------------------------------------
+12:47:57:707 [INFO] The following topics can be subscribed to for robot 'Camera34':
+12:47:57:707 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:57:708 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:57:708 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:57:708 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:57:708 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:57:708 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:57:708 [INFO]     robot_info["actual_pose"]
+12:47:57:708 [INFO]     robot_info["collision_info"]
+12:47:57:708 [INFO]     robot_info["rotor_info"]
+12:47:57:709 [INFO] -------------------------------------------------
+12:47:57:709 [INFO] Drone 'Camera34' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:58:061 [INFO] Initalizing Drone 'Camera35'...
+12:47:58:061 [INFO] -------------------------------------------------
+12:47:58:061 [INFO] The following topics can be subscribed to for robot 'Camera35':
+12:47:58:061 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:58:061 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:58:062 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:58:062 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:58:062 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:58:062 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:58:062 [INFO]     robot_info["actual_pose"]
+12:47:58:062 [INFO]     robot_info["collision_info"]
+12:47:58:062 [INFO]     robot_info["rotor_info"]
+12:47:58:062 [INFO] -------------------------------------------------
+12:47:58:062 [INFO] Drone 'Camera35' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:58:420 [INFO] Initalizing Drone 'Camera36'...
+12:47:58:420 [INFO] -------------------------------------------------
+12:47:58:420 [INFO] The following topics can be subscribed to for robot 'Camera36':
+12:47:58:421 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:58:421 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:58:421 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:58:421 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:58:422 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:58:422 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:58:422 [INFO]     robot_info["actual_pose"]
+12:47:58:422 [INFO]     robot_info["collision_info"]
+12:47:58:422 [INFO]     robot_info["rotor_info"]
+12:47:58:422 [INFO] -------------------------------------------------
+12:47:58:422 [INFO] Drone 'Camera36' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:58:769 [INFO] Initalizing Drone 'Camera37'...
+12:47:58:769 [INFO] -------------------------------------------------
+12:47:58:769 [INFO] The following topics can be subscribed to for robot 'Camera37':
+12:47:58:769 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:58:769 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:58:769 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:58:770 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:58:770 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:58:770 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:58:770 [INFO]     robot_info["actual_pose"]
+12:47:58:770 [INFO]     robot_info["collision_info"]
+12:47:58:770 [INFO]     robot_info["rotor_info"]
+12:47:58:770 [INFO] -------------------------------------------------
+12:47:58:770 [INFO] Drone 'Camera37' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:59:032 [INFO] Initalizing Drone 'Camera38'...
+12:47:59:032 [INFO] -------------------------------------------------
+12:47:59:032 [INFO] The following topics can be subscribed to for robot 'Camera38':
+12:47:59:032 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:59:032 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:59:032 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:59:032 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:59:032 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:59:033 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:59:033 [INFO]     robot_info["actual_pose"]
+12:47:59:033 [INFO]     robot_info["collision_info"]
+12:47:59:033 [INFO]     robot_info["rotor_info"]
+12:47:59:033 [INFO] -------------------------------------------------
+12:47:59:033 [INFO] Drone 'Camera38' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:59:380 [INFO] Initalizing Drone 'Camera39'...
+12:47:59:380 [INFO] -------------------------------------------------
+12:47:59:380 [INFO] The following topics can be subscribed to for robot 'Camera39':
+12:47:59:381 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:59:381 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:59:381 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:59:381 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:59:381 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:59:381 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:59:381 [INFO]     robot_info["actual_pose"]
+12:47:59:381 [INFO]     robot_info["collision_info"]
+12:47:59:382 [INFO]     robot_info["rotor_info"]
+12:47:59:382 [INFO] -------------------------------------------------
+12:47:59:382 [INFO] Drone 'Camera39' initialized for World scene '/Sim/SceneBasicDrone'
+12:47:59:749 [INFO] Initalizing Drone 'Camera40'...
+12:47:59:750 [INFO] -------------------------------------------------
+12:47:59:750 [INFO] The following topics can be subscribed to for robot 'Camera40':
+12:47:59:750 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:47:59:750 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:47:59:751 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:47:59:751 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:47:59:751 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:47:59:751 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:47:59:751 [INFO]     robot_info["actual_pose"]
+12:47:59:751 [INFO]     robot_info["collision_info"]
+12:47:59:752 [INFO]     robot_info["rotor_info"]
+12:47:59:752 [INFO] -------------------------------------------------
+12:47:59:752 [INFO] Drone 'Camera40' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:00:246 [INFO] Loading scene config: survey_scene.jsonc
+12:48:15:637 [INFO] Getting the list of available topic info from the sim server...
+12:48:15:648 [INFO] Successfully received topic info list.
+12:48:17:649 [INFO] World object updated for the loaded scene '/Sim/SceneBasicDrone'. Note: Any previous Drone object instances may no longer be valid.
+12:48:17:650 [INFO] Trajectory 'null_trajectory' imported successfully.
+12:48:18:905 [INFO] Initalizing Drone 'Camera1'...
+12:48:18:905 [INFO] -------------------------------------------------
+12:48:18:906 [INFO] The following topics can be subscribed to for robot 'Camera1':
+12:48:18:906 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:18:906 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:18:906 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:18:907 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:18:907 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:18:907 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:18:907 [INFO]     robot_info["actual_pose"]
+12:48:18:907 [INFO]     robot_info["collision_info"]
+12:48:18:907 [INFO]     robot_info["rotor_info"]
+12:48:18:907 [INFO] -------------------------------------------------
+12:48:18:908 [INFO] Drone 'Camera1' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:20:879 [INFO] Initalizing Drone 'Camera2'...
+12:48:20:879 [INFO] -------------------------------------------------
+12:48:20:880 [INFO] The following topics can be subscribed to for robot 'Camera2':
+12:48:20:880 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:20:880 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:20:880 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:20:880 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:20:880 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:20:880 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:20:880 [INFO]     robot_info["actual_pose"]
+12:48:20:881 [INFO]     robot_info["collision_info"]
+12:48:20:881 [INFO]     robot_info["rotor_info"]
+12:48:20:881 [INFO] -------------------------------------------------
+12:48:20:881 [INFO] Drone 'Camera2' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:21:330 [INFO] Initalizing Drone 'Camera3'...
+12:48:21:330 [INFO] -------------------------------------------------
+12:48:21:331 [INFO] The following topics can be subscribed to for robot 'Camera3':
+12:48:21:331 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:21:331 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:21:331 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:21:331 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:21:331 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:21:331 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:21:331 [INFO]     robot_info["actual_pose"]
+12:48:21:331 [INFO]     robot_info["collision_info"]
+12:48:21:331 [INFO]     robot_info["rotor_info"]
+12:48:21:331 [INFO] -------------------------------------------------
+12:48:21:331 [INFO] Drone 'Camera3' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:21:672 [INFO] Initalizing Drone 'Camera4'...
+12:48:21:672 [INFO] -------------------------------------------------
+12:48:21:673 [INFO] The following topics can be subscribed to for robot 'Camera4':
+12:48:21:673 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:21:673 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:21:673 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:21:673 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:21:673 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:21:673 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:21:673 [INFO]     robot_info["actual_pose"]
+12:48:21:673 [INFO]     robot_info["collision_info"]
+12:48:21:673 [INFO]     robot_info["rotor_info"]
+12:48:21:673 [INFO] -------------------------------------------------
+12:48:21:673 [INFO] Drone 'Camera4' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:22:015 [INFO] Initalizing Drone 'Camera5'...
+12:48:22:015 [INFO] -------------------------------------------------
+12:48:22:015 [INFO] The following topics can be subscribed to for robot 'Camera5':
+12:48:22:016 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:22:016 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:22:016 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:22:016 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:22:016 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:22:016 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:22:016 [INFO]     robot_info["actual_pose"]
+12:48:22:016 [INFO]     robot_info["collision_info"]
+12:48:22:016 [INFO]     robot_info["rotor_info"]
+12:48:22:016 [INFO] -------------------------------------------------
+12:48:22:016 [INFO] Drone 'Camera5' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:22:354 [INFO] Initalizing Drone 'Camera6'...
+12:48:22:354 [INFO] -------------------------------------------------
+12:48:22:355 [INFO] The following topics can be subscribed to for robot 'Camera6':
+12:48:22:355 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:22:355 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:22:355 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:22:355 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:22:355 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:22:355 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:22:355 [INFO]     robot_info["actual_pose"]
+12:48:22:355 [INFO]     robot_info["collision_info"]
+12:48:22:355 [INFO]     robot_info["rotor_info"]
+12:48:22:356 [INFO] -------------------------------------------------
+12:48:22:356 [INFO] Drone 'Camera6' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:22:694 [INFO] Initalizing Drone 'Camera7'...
+12:48:22:694 [INFO] -------------------------------------------------
+12:48:22:694 [INFO] The following topics can be subscribed to for robot 'Camera7':
+12:48:22:695 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:22:695 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:22:695 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:22:695 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:22:695 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:22:695 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:22:695 [INFO]     robot_info["actual_pose"]
+12:48:22:695 [INFO]     robot_info["collision_info"]
+12:48:22:695 [INFO]     robot_info["rotor_info"]
+12:48:22:695 [INFO] -------------------------------------------------
+12:48:22:695 [INFO] Drone 'Camera7' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:23:035 [INFO] Initalizing Drone 'Camera8'...
+12:48:23:035 [INFO] -------------------------------------------------
+12:48:23:035 [INFO] The following topics can be subscribed to for robot 'Camera8':
+12:48:23:035 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:23:036 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:23:036 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:23:036 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:23:036 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:23:036 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:23:036 [INFO]     robot_info["actual_pose"]
+12:48:23:036 [INFO]     robot_info["collision_info"]
+12:48:23:036 [INFO]     robot_info["rotor_info"]
+12:48:23:037 [INFO] -------------------------------------------------
+12:48:23:037 [INFO] Drone 'Camera8' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:23:376 [INFO] Initalizing Drone 'Camera9'...
+12:48:23:376 [INFO] -------------------------------------------------
+12:48:23:376 [INFO] The following topics can be subscribed to for robot 'Camera9':
+12:48:23:377 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:23:377 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:23:377 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:23:377 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:23:377 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:23:377 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:23:378 [INFO]     robot_info["actual_pose"]
+12:48:23:378 [INFO]     robot_info["collision_info"]
+12:48:23:378 [INFO]     robot_info["rotor_info"]
+12:48:23:378 [INFO] -------------------------------------------------
+12:48:23:378 [INFO] Drone 'Camera9' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:23:717 [INFO] Initalizing Drone 'Camera10'...
+12:48:23:717 [INFO] -------------------------------------------------
+12:48:23:718 [INFO] The following topics can be subscribed to for robot 'Camera10':
+12:48:23:718 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:23:718 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:23:718 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:23:718 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:23:718 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:23:718 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:23:718 [INFO]     robot_info["actual_pose"]
+12:48:23:718 [INFO]     robot_info["collision_info"]
+12:48:23:719 [INFO]     robot_info["rotor_info"]
+12:48:23:719 [INFO] -------------------------------------------------
+12:48:23:719 [INFO] Drone 'Camera10' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:24:068 [INFO] Initalizing Drone 'Camera11'...
+12:48:24:068 [INFO] -------------------------------------------------
+12:48:24:068 [INFO] The following topics can be subscribed to for robot 'Camera11':
+12:48:24:068 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:24:068 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:24:068 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:24:069 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:24:069 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:24:069 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:24:069 [INFO]     robot_info["actual_pose"]
+12:48:24:069 [INFO]     robot_info["collision_info"]
+12:48:24:069 [INFO]     robot_info["rotor_info"]
+12:48:24:069 [INFO] -------------------------------------------------
+12:48:24:069 [INFO] Drone 'Camera11' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:24:411 [INFO] Initalizing Drone 'Camera12'...
+12:48:24:411 [INFO] -------------------------------------------------
+12:48:24:412 [INFO] The following topics can be subscribed to for robot 'Camera12':
+12:48:24:412 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:24:412 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:24:412 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:24:412 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:24:412 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:24:412 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:24:412 [INFO]     robot_info["actual_pose"]
+12:48:24:413 [INFO]     robot_info["collision_info"]
+12:48:24:413 [INFO]     robot_info["rotor_info"]
+12:48:24:413 [INFO] -------------------------------------------------
+12:48:24:413 [INFO] Drone 'Camera12' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:24:754 [INFO] Initalizing Drone 'Camera13'...
+12:48:24:754 [INFO] -------------------------------------------------
+12:48:24:755 [INFO] The following topics can be subscribed to for robot 'Camera13':
+12:48:24:755 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:24:755 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:24:755 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:24:755 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:24:755 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:24:755 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:24:755 [INFO]     robot_info["actual_pose"]
+12:48:24:755 [INFO]     robot_info["collision_info"]
+12:48:24:755 [INFO]     robot_info["rotor_info"]
+12:48:24:755 [INFO] -------------------------------------------------
+12:48:24:756 [INFO] Drone 'Camera13' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:25:012 [INFO] Initalizing Drone 'Camera14'...
+12:48:25:012 [INFO] -------------------------------------------------
+12:48:25:013 [INFO] The following topics can be subscribed to for robot 'Camera14':
+12:48:25:013 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:25:013 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:25:013 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:25:013 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:25:013 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:25:013 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:25:013 [INFO]     robot_info["actual_pose"]
+12:48:25:013 [INFO]     robot_info["collision_info"]
+12:48:25:013 [INFO]     robot_info["rotor_info"]
+12:48:25:014 [INFO] -------------------------------------------------
+12:48:25:014 [INFO] Drone 'Camera14' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:25:361 [INFO] Initalizing Drone 'Camera15'...
+12:48:25:361 [INFO] -------------------------------------------------
+12:48:25:361 [INFO] The following topics can be subscribed to for robot 'Camera15':
+12:48:25:361 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:25:361 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:25:361 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:25:361 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:25:361 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:25:362 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:25:362 [INFO]     robot_info["actual_pose"]
+12:48:25:362 [INFO]     robot_info["collision_info"]
+12:48:25:362 [INFO]     robot_info["rotor_info"]
+12:48:25:362 [INFO] -------------------------------------------------
+12:48:25:362 [INFO] Drone 'Camera15' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:25:702 [INFO] Initalizing Drone 'Camera16'...
+12:48:25:702 [INFO] -------------------------------------------------
+12:48:25:702 [INFO] The following topics can be subscribed to for robot 'Camera16':
+12:48:25:702 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:25:702 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:25:702 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:25:702 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:25:702 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:25:702 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:25:702 [INFO]     robot_info["actual_pose"]
+12:48:25:703 [INFO]     robot_info["collision_info"]
+12:48:25:703 [INFO]     robot_info["rotor_info"]
+12:48:25:703 [INFO] -------------------------------------------------
+12:48:25:703 [INFO] Drone 'Camera16' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:26:041 [INFO] Initalizing Drone 'Camera17'...
+12:48:26:041 [INFO] -------------------------------------------------
+12:48:26:042 [INFO] The following topics can be subscribed to for robot 'Camera17':
+12:48:26:042 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:26:042 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:26:042 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:26:042 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:26:042 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:26:042 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:26:042 [INFO]     robot_info["actual_pose"]
+12:48:26:042 [INFO]     robot_info["collision_info"]
+12:48:26:042 [INFO]     robot_info["rotor_info"]
+12:48:26:042 [INFO] -------------------------------------------------
+12:48:26:042 [INFO] Drone 'Camera17' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:26:392 [INFO] Initalizing Drone 'Camera18'...
+12:48:26:392 [INFO] -------------------------------------------------
+12:48:26:393 [INFO] The following topics can be subscribed to for robot 'Camera18':
+12:48:26:393 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:26:393 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:26:393 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:26:393 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:26:393 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:26:393 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:26:393 [INFO]     robot_info["actual_pose"]
+12:48:26:393 [INFO]     robot_info["collision_info"]
+12:48:26:393 [INFO]     robot_info["rotor_info"]
+12:48:26:394 [INFO] -------------------------------------------------
+12:48:26:394 [INFO] Drone 'Camera18' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:26:736 [INFO] Initalizing Drone 'Camera19'...
+12:48:26:736 [INFO] -------------------------------------------------
+12:48:26:737 [INFO] The following topics can be subscribed to for robot 'Camera19':
+12:48:26:737 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:26:737 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:26:737 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:26:737 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:26:737 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:26:737 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:26:737 [INFO]     robot_info["actual_pose"]
+12:48:26:737 [INFO]     robot_info["collision_info"]
+12:48:26:737 [INFO]     robot_info["rotor_info"]
+12:48:26:738 [INFO] -------------------------------------------------
+12:48:26:738 [INFO] Drone 'Camera19' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:27:085 [INFO] Initalizing Drone 'Camera20'...
+12:48:27:086 [INFO] -------------------------------------------------
+12:48:27:086 [INFO] The following topics can be subscribed to for robot 'Camera20':
+12:48:27:086 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:27:086 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:27:086 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:27:086 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:27:086 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:27:086 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:27:087 [INFO]     robot_info["actual_pose"]
+12:48:27:087 [INFO]     robot_info["collision_info"]
+12:48:27:087 [INFO]     robot_info["rotor_info"]
+12:48:27:087 [INFO] -------------------------------------------------
+12:48:27:087 [INFO] Drone 'Camera20' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:27:451 [INFO] Initalizing Drone 'Camera21'...
+12:48:27:451 [INFO] -------------------------------------------------
+12:48:27:451 [INFO] The following topics can be subscribed to for robot 'Camera21':
+12:48:27:451 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:27:451 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:27:452 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:27:452 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:27:452 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:27:452 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:27:452 [INFO]     robot_info["actual_pose"]
+12:48:27:452 [INFO]     robot_info["collision_info"]
+12:48:27:452 [INFO]     robot_info["rotor_info"]
+12:48:27:452 [INFO] -------------------------------------------------
+12:48:27:453 [INFO] Drone 'Camera21' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:27:705 [INFO] Initalizing Drone 'Camera22'...
+12:48:27:705 [INFO] -------------------------------------------------
+12:48:27:706 [INFO] The following topics can be subscribed to for robot 'Camera22':
+12:48:27:706 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:27:706 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:27:706 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:27:706 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:27:706 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:27:706 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:27:706 [INFO]     robot_info["actual_pose"]
+12:48:27:707 [INFO]     robot_info["collision_info"]
+12:48:27:707 [INFO]     robot_info["rotor_info"]
+12:48:27:707 [INFO] -------------------------------------------------
+12:48:27:707 [INFO] Drone 'Camera22' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:28:087 [INFO] Initalizing Drone 'Camera23'...
+12:48:28:087 [INFO] -------------------------------------------------
+12:48:28:087 [INFO] The following topics can be subscribed to for robot 'Camera23':
+12:48:28:088 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:28:088 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:28:088 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:28:088 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:28:088 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:28:088 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:28:088 [INFO]     robot_info["actual_pose"]
+12:48:28:088 [INFO]     robot_info["collision_info"]
+12:48:28:089 [INFO]     robot_info["rotor_info"]
+12:48:28:089 [INFO] -------------------------------------------------
+12:48:28:089 [INFO] Drone 'Camera23' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:28:432 [INFO] Initalizing Drone 'Camera24'...
+12:48:28:432 [INFO] -------------------------------------------------
+12:48:28:433 [INFO] The following topics can be subscribed to for robot 'Camera24':
+12:48:28:433 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:28:433 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:28:433 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:28:433 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:28:433 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:28:433 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:28:433 [INFO]     robot_info["actual_pose"]
+12:48:28:433 [INFO]     robot_info["collision_info"]
+12:48:28:433 [INFO]     robot_info["rotor_info"]
+12:48:28:433 [INFO] -------------------------------------------------
+12:48:28:433 [INFO] Drone 'Camera24' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:28:782 [INFO] Initalizing Drone 'Camera25'...
+12:48:28:782 [INFO] -------------------------------------------------
+12:48:28:782 [INFO] The following topics can be subscribed to for robot 'Camera25':
+12:48:28:782 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:28:783 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:28:783 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:28:783 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:28:783 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:28:783 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:28:783 [INFO]     robot_info["actual_pose"]
+12:48:28:783 [INFO]     robot_info["collision_info"]
+12:48:28:784 [INFO]     robot_info["rotor_info"]
+12:48:28:784 [INFO] -------------------------------------------------
+12:48:28:784 [INFO] Drone 'Camera25' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:29:138 [INFO] Initalizing Drone 'Camera26'...
+12:48:29:139 [INFO] -------------------------------------------------
+12:48:29:139 [INFO] The following topics can be subscribed to for robot 'Camera26':
+12:48:29:139 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:29:139 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:29:139 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:29:139 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:29:139 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:29:139 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:29:140 [INFO]     robot_info["actual_pose"]
+12:48:29:140 [INFO]     robot_info["collision_info"]
+12:48:29:140 [INFO]     robot_info["rotor_info"]
+12:48:29:140 [INFO] -------------------------------------------------
+12:48:29:140 [INFO] Drone 'Camera26' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:29:392 [INFO] Initalizing Drone 'Camera27'...
+12:48:29:392 [INFO] -------------------------------------------------
+12:48:29:392 [INFO] The following topics can be subscribed to for robot 'Camera27':
+12:48:29:392 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:29:392 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:29:392 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:29:393 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:29:393 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:29:393 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:29:393 [INFO]     robot_info["actual_pose"]
+12:48:29:393 [INFO]     robot_info["collision_info"]
+12:48:29:393 [INFO]     robot_info["rotor_info"]
+12:48:29:393 [INFO] -------------------------------------------------
+12:48:29:393 [INFO] Drone 'Camera27' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:29:735 [INFO] Initalizing Drone 'Camera28'...
+12:48:29:735 [INFO] -------------------------------------------------
+12:48:29:735 [INFO] The following topics can be subscribed to for robot 'Camera28':
+12:48:29:735 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:29:735 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:29:735 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:29:736 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:29:736 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:29:736 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:29:736 [INFO]     robot_info["actual_pose"]
+12:48:29:736 [INFO]     robot_info["collision_info"]
+12:48:29:736 [INFO]     robot_info["rotor_info"]
+12:48:29:736 [INFO] -------------------------------------------------
+12:48:29:736 [INFO] Drone 'Camera28' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:30:097 [INFO] Initalizing Drone 'Camera29'...
+12:48:30:098 [INFO] -------------------------------------------------
+12:48:30:098 [INFO] The following topics can be subscribed to for robot 'Camera29':
+12:48:30:098 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:30:098 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:30:098 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:30:098 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:30:098 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:30:099 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:30:099 [INFO]     robot_info["actual_pose"]
+12:48:30:099 [INFO]     robot_info["collision_info"]
+12:48:30:099 [INFO]     robot_info["rotor_info"]
+12:48:30:099 [INFO] -------------------------------------------------
+12:48:30:099 [INFO] Drone 'Camera29' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:30:451 [INFO] Initalizing Drone 'Camera30'...
+12:48:30:451 [INFO] -------------------------------------------------
+12:48:30:451 [INFO] The following topics can be subscribed to for robot 'Camera30':
+12:48:30:451 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:30:451 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:30:451 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:30:452 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:30:452 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:30:452 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:30:452 [INFO]     robot_info["actual_pose"]
+12:48:30:452 [INFO]     robot_info["collision_info"]
+12:48:30:452 [INFO]     robot_info["rotor_info"]
+12:48:30:452 [INFO] -------------------------------------------------
+12:48:30:452 [INFO] Drone 'Camera30' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:30:710 [INFO] Initalizing Drone 'Camera31'...
+12:48:30:710 [INFO] -------------------------------------------------
+12:48:30:710 [INFO] The following topics can be subscribed to for robot 'Camera31':
+12:48:30:710 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:30:711 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:30:711 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:30:711 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:30:711 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:30:711 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:30:711 [INFO]     robot_info["actual_pose"]
+12:48:30:711 [INFO]     robot_info["collision_info"]
+12:48:30:711 [INFO]     robot_info["rotor_info"]
+12:48:30:711 [INFO] -------------------------------------------------
+12:48:30:711 [INFO] Drone 'Camera31' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:31:067 [INFO] Initalizing Drone 'Camera32'...
+12:48:31:067 [INFO] -------------------------------------------------
+12:48:31:067 [INFO] The following topics can be subscribed to for robot 'Camera32':
+12:48:31:068 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:31:068 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:31:068 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:31:068 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:31:068 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:31:068 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:31:068 [INFO]     robot_info["actual_pose"]
+12:48:31:068 [INFO]     robot_info["collision_info"]
+12:48:31:068 [INFO]     robot_info["rotor_info"]
+12:48:31:068 [INFO] -------------------------------------------------
+12:48:31:069 [INFO] Drone 'Camera32' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:31:419 [INFO] Initalizing Drone 'Camera33'...
+12:48:31:419 [INFO] -------------------------------------------------
+12:48:31:419 [INFO] The following topics can be subscribed to for robot 'Camera33':
+12:48:31:419 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:31:419 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:31:419 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:31:420 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:31:420 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:31:420 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:31:420 [INFO]     robot_info["actual_pose"]
+12:48:31:420 [INFO]     robot_info["collision_info"]
+12:48:31:420 [INFO]     robot_info["rotor_info"]
+12:48:31:420 [INFO] -------------------------------------------------
+12:48:31:420 [INFO] Drone 'Camera33' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:31:767 [INFO] Initalizing Drone 'Camera34'...
+12:48:31:767 [INFO] -------------------------------------------------
+12:48:31:767 [INFO] The following topics can be subscribed to for robot 'Camera34':
+12:48:31:767 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:31:767 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:31:768 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:31:768 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:31:768 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:31:768 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:31:768 [INFO]     robot_info["actual_pose"]
+12:48:31:768 [INFO]     robot_info["collision_info"]
+12:48:31:768 [INFO]     robot_info["rotor_info"]
+12:48:31:768 [INFO] -------------------------------------------------
+12:48:31:768 [INFO] Drone 'Camera34' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:32:115 [INFO] Initalizing Drone 'Camera35'...
+12:48:32:116 [INFO] -------------------------------------------------
+12:48:32:116 [INFO] The following topics can be subscribed to for robot 'Camera35':
+12:48:32:116 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:32:116 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:32:116 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:32:117 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:32:117 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:32:117 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:32:117 [INFO]     robot_info["actual_pose"]
+12:48:32:117 [INFO]     robot_info["collision_info"]
+12:48:32:117 [INFO]     robot_info["rotor_info"]
+12:48:32:117 [INFO] -------------------------------------------------
+12:48:32:117 [INFO] Drone 'Camera35' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:32:375 [INFO] Initalizing Drone 'Camera36'...
+12:48:32:375 [INFO] -------------------------------------------------
+12:48:32:375 [INFO] The following topics can be subscribed to for robot 'Camera36':
+12:48:32:375 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:32:375 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:32:375 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:32:376 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:32:376 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:32:376 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:32:376 [INFO]     robot_info["actual_pose"]
+12:48:32:376 [INFO]     robot_info["collision_info"]
+12:48:32:376 [INFO]     robot_info["rotor_info"]
+12:48:32:376 [INFO] -------------------------------------------------
+12:48:32:376 [INFO] Drone 'Camera36' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:32:745 [INFO] Initalizing Drone 'Camera37'...
+12:48:32:745 [INFO] -------------------------------------------------
+12:48:32:745 [INFO] The following topics can be subscribed to for robot 'Camera37':
+12:48:32:745 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:32:746 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:32:746 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:32:746 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:32:746 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:32:746 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:32:746 [INFO]     robot_info["actual_pose"]
+12:48:32:746 [INFO]     robot_info["collision_info"]
+12:48:32:746 [INFO]     robot_info["rotor_info"]
+12:48:32:746 [INFO] -------------------------------------------------
+12:48:32:746 [INFO] Drone 'Camera37' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:33:010 [INFO] Initalizing Drone 'Camera38'...
+12:48:33:010 [INFO] -------------------------------------------------
+12:48:33:010 [INFO] The following topics can be subscribed to for robot 'Camera38':
+12:48:33:010 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:33:010 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:33:011 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:33:011 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:33:011 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:33:011 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:33:011 [INFO]     robot_info["actual_pose"]
+12:48:33:011 [INFO]     robot_info["collision_info"]
+12:48:33:011 [INFO]     robot_info["rotor_info"]
+12:48:33:011 [INFO] -------------------------------------------------
+12:48:33:011 [INFO] Drone 'Camera38' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:33:368 [INFO] Initalizing Drone 'Camera39'...
+12:48:33:368 [INFO] -------------------------------------------------
+12:48:33:368 [INFO] The following topics can be subscribed to for robot 'Camera39':
+12:48:33:368 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:33:369 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:33:369 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:33:369 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:33:369 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:33:369 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:33:369 [INFO]     robot_info["actual_pose"]
+12:48:33:369 [INFO]     robot_info["collision_info"]
+12:48:33:369 [INFO]     robot_info["rotor_info"]
+12:48:33:369 [INFO] -------------------------------------------------
+12:48:33:369 [INFO] Drone 'Camera39' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:33:724 [INFO] Initalizing Drone 'Camera40'...
+12:48:33:724 [INFO] -------------------------------------------------
+12:48:33:724 [INFO] The following topics can be subscribed to for robot 'Camera40':
+12:48:33:724 [INFO]     sensors["DownCamera"]["scene_camera"]
+12:48:33:725 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+12:48:33:725 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+12:48:33:725 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+12:48:33:725 [INFO]     sensors["DownCamera"]["surface_normals_camera"]
+12:48:33:725 [INFO]     sensors["DownCamera"]["surface_normals_camera_info"]
+12:48:33:725 [INFO]     robot_info["actual_pose"]
+12:48:33:725 [INFO]     robot_info["collision_info"]
+12:48:33:725 [INFO]     robot_info["rotor_info"]
+12:48:33:725 [INFO] -------------------------------------------------
+12:48:33:725 [INFO] Drone 'Camera40' initialized for World scene '/Sim/SceneBasicDrone'
+12:48:34:088 [INFO] Disconnecting from simulation server...
+12:48:34:095 [INFO] Disconnected.

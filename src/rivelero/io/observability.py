@@ -21,7 +21,7 @@ from typing import Any
 import numpy as np
 import rasterio
 
-from rivelero.export.files import atomic_output
+from rivelero.core.export.files import atomic_output
 from rivelero.observability.masks import ObservabilityState
 from rivelero.observability.survey_field import SurveyObservabilityField
 

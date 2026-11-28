@@ -32,15 +32,15 @@ from pathlib import Path
 from typing import Any, Callable
 from uuid import uuid4
 
-from rivelero.export.catalog import ExportConflictError, ExportContext
-from rivelero.export.figures import (
+from rivelero.core.export.catalog import ExportConflictError, ExportContext
+from rivelero.core.export.figures import (
     FigureOptions,
     figure_catalog,
     figure_record,
     save_figure,
 )
-from rivelero.export.files import check_path_length
-from rivelero.export.provenance import build_manifest, write_json, write_markdown
+from rivelero.core.export.files import check_path_length
+from rivelero.core.export.provenance import build_manifest, write_json, write_markdown
 
 DEFAULT_REPORT_FIGURES = (
     "analysis_state", "exposure", "coverage_composition", "exposure_distribution",

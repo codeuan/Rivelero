@@ -17,7 +17,7 @@ from observability_fixtures import (
 from rivelero.analysis.comparison import BASELINE_ID, LIVE_SCENARIO_ID, ScenarioWorkspace
 from rivelero.analysis.contribution import analyse_contributions
 from rivelero.analysis.scenario import SurveyDesignScenario
-from rivelero.export.catalog import export_catalog
+from rivelero.core.export.catalog import export_catalog
 from rivelero.gui.application_state import WorkflowPage
 from rivelero.gui.export_service import export_context_from_state
 from rivelero.gui.main_window import MainWindow

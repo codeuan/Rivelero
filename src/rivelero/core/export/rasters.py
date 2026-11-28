@@ -29,7 +29,7 @@ import numpy as np
 from rivelero.analysis.comparison import ScenarioComparison
 from rivelero.analysis.coverage import CoverageClass, coverage_class_raster
 from rivelero.analysis.scenario import ScenarioChangeClass
-from rivelero.export.metadata import (
+from rivelero.core.export.metadata import (
     ExportProvenance,
     geotiff_tags,
     product_metadata,

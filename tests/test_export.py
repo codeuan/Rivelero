@@ -28,17 +28,17 @@ from rivelero.core.configuration import ViewpointConfiguration
 from rivelero.core.observation import ObservationEvent
 from rivelero.core.sensor import Sensor
 from rivelero.core.viewpoint import Viewpoint
-from rivelero.export import files as export_files
-from rivelero.export import rasters, tables
-from rivelero.export.catalog import (
+from rivelero.core.export import files as export_files, rasters
+from rivelero.core.export import tables
+from rivelero.core.export.catalog import (
     ExportConflictError,
     ExportContext,
     ExportUnavailableError,
     export_catalog,
     run_export,
 )
-from rivelero.export.files import PathTooLongError, atomic_output, safe_filename_part
-from rivelero.export.metadata import ExportProvenance, sidecar_path
+from rivelero.core.export.files import PathTooLongError, atomic_output, safe_filename_part
+from rivelero.core.export.metadata import ExportProvenance, sidecar_path
 from rivelero.gui.survey_import import SurveyImportOptions, import_survey_csv
 from rivelero.observability.storage import StoredVisibility, VisibilityStore
 from test_analysis_scenario import CRS_UTM, TRANSFORM, _baseline, _cells, _key

@@ -31,8 +31,8 @@ from typing import Any
 import numpy as np
 
 from rivelero.analysis.coverage import CoverageSummary, summarize_coverage
-from rivelero.export.catalog import ExportContext
-from rivelero.export.files import atomic_output
+from rivelero.core.export.catalog import ExportContext
+from rivelero.core.export.files import atomic_output
 from rivelero.project.resources import file_sha256
 from rivelero.project.schema import SCHEMA_VERSION, software_metadata
 from rivelero.visibility.configuration import MissingMetadataPolicy, SamplingUnit

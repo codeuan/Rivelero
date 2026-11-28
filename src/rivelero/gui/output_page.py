@@ -32,7 +32,7 @@ except ImportError:
         QListWidget, QProgressBar, QScrollArea, QTabWidget, QVBoxLayout, QWidget,
     )
 
-from rivelero.export.catalog import (
+from rivelero.core.export.catalog import (
     GROUPS,
     ExportProduct,
     export_catalog,
